@@ -41,7 +41,6 @@ export const activationNudgeStep: LifecycleStep = {
 }
 
 /**
- * Steps core owns. Features add theirs with registerLifecycleStep() (billing's
- * `pass_expiring`), which the task runs after these and before the app's.
+ * Steps core owns. Features add theirs with registerLifecycleStep() , which the task runs after these and before the app's.
  */
 export const TEMPLATE_LIFECYCLE_STEPS: readonly LifecycleStep[] = [activationNudgeStep]

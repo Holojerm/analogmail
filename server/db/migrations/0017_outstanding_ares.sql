@@ -1,1 +1,0 @@
-ALTER TABLE `entitlements` ADD `first_transaction_id` text;

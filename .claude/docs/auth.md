@@ -59,7 +59,6 @@ them. Configure it for a devtool fork; it renders last either way
 ```typescript
 // Protect a page client-side (UX only — see the warning below)
 definePageMeta({ middleware: 'auth' })
-definePageMeta({ middleware: ['auth', 'subscription'] }) // signed in AND paying
 
 // Access session in a page
 const { loggedIn, user } = useUserSession()
@@ -68,14 +67,14 @@ const { loggedIn, user } = useUserSession()
 const session = await getUserSession(event)
 if (!session.user) throw createError({ statusCode: 401 })
 
-// Or, for anything paid:
-const { user, entitlement } = await requireSubscription(event) // 401 | 402
+// Or, for a gated route:
+const { user } = await requireAccess(event) // 401 when signed out
 ```
 
 **The client middleware is not a security boundary.** `app/middleware/auth.ts`
-and `layers/billing/app/middleware/subscription.ts` run in the browser and exist so people see
-a login page instead of an empty one. Every paid API route must call
-`requireSubscription(event)` itself, or the gate is decorative.
+runs in the browser and exists so people see a login page instead of an empty one. Every gated
+API route must call `requireAccess(event)` (or `requireUserSession`) itself, or the gate is
+decorative.
 
 **Sessions are revocable.** A sealed cookie has no server-side record, so
 revocation needs both halves: every session carries `issuedAt`, and
@@ -138,8 +137,6 @@ except the allowlist in `server/utils/public-routes.ts`. Core ships:
   (`NUXT_OPS_TOKEN`) through the same `requireFleetToken()`: 404 unset, 401 wrong.
 - `/api/_nuxt_icon/*` — `@nuxt/icon`'s endpoint, called by the browser for any
   icon the client bundle missed; static icon JSON.
-- `GET /api/blog`, `GET /api/blog/*` — the blog is public content; registered by
-  `server/plugins/blog-routes.ts`, not core, so deleting the blog removes them.
 - `GET|POST /api/email/unsubscribe` — reached from a mail footer on a device
   that may not be signed in.
 
@@ -161,8 +158,8 @@ admit `/api/joinery`). The feedback layer registers `POST /api/feedback` this wa
 removing the layer removes the route. `registerSessionGatedPrefixes` makes the
 middleware require a session for a non-`/api/` prefix too.
 
-Everything else, including every paid route, is behind the session guard and
-then its own gate: `requireAccess()` (billing registers `requireSubscription` behind it, in `layers/billing/server/utils/billing.ts`) or `requireAdmin()`.
+Everything else is behind the session guard and then its own gate:
+`requireAccess()` (signed-in only unless an app registers a stricter gate) or `requireAdmin()`.
 
 ## Rate Limiting
 

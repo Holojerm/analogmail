@@ -16,15 +16,11 @@ Read the row that matches what you are about to touch. Do not load them all.
 | [`.claude/docs/gotchas.md`](.claude/docs/gotchas.md) | Silent failure modes — wrong-file databases, migrations that never run, empty sitemaps, rate limiters that quietly do nothing | Something "works" but produces no output; or you touch D1, migrations, deploy config, cron, `definePageMeta`, or a worktree |
 | [`.claude/docs/patterns.md`](.claude/docs/patterns.md) | Worked examples: components, API routes, Drizzle queries, forms, error handling, feedback | Writing a new component, route, form, or query — especially your first change here |
 | [`.claude/docs/auth.md`](.claude/docs/auth.md) | Magic link, OAuth, session revocation, `rateLimit()`, Turnstile | Anything under `server/api/auth/`, sessions, rate limiting, or bot protection |
-| [`.claude/docs/billing.md`](.claude/docs/billing.md) | Paddle, entitlements, clawbacks, the `mcp/` worker | Anything that grants, revokes, or prices access |
-| [`.claude/docs/referral.md`](.claude/docs/referral.md) | The referral layer: economics, anti-fraud design, its seams with billing and sign-up, vendoring | Anything under `layers/referral/`, the `?ref=` capture, or days nobody paid for |
 | [`.claude/docs/email.md`](.claude/docs/email.md) | Resend, the `EMAIL_QUEUE`, retry/dead-letter, notification decisions | Adding or changing any outbound email |
-| [`.claude/docs/seo.md`](.claude/docs/seo.md) | `useSeo()`, `publicPage` meta, structured data, the blog | Adding or editing a page, or writing in `content/blog/` |
-| [`.claude/docs/images.md`](.claude/docs/images.md) | `<NuxtImg>` at the edge vs. transforming a private R2 object in the Worker | Rendering any image, adding a thumbnail, or debugging a `/cdn-cgi/image/` 404 |
+| [`.claude/docs/seo.md`](.claude/docs/seo.md) | `useSeo()`, `publicPage` meta, structured data | Adding or editing a page |
 | [`.claude/docs/brand.md`](.claude/docs/brand.md) | How every icon is generated from one `Logo.vue` | Redesigning the mark or fixing `brand:check` |
 | [`.claude/docs/agent-setup.md`](.claude/docs/agent-setup.md) | MCP servers, skills, slash commands, cloud routines | Configuring tooling, or setting up a fork |
 | [`.claude/docs/fleet.md`](.claude/docs/fleet.md) | `fleet.json`, `/api/status`, `/api/fleet`, the `ops_events` spool and fleet alerts | Touching the manifest, the status/fleet endpoints, or ops alerting |
-| [`TEARDOWN.md`](TEARDOWN.md) | How to **remove** billing, referrals, the MCP worker, or swap Paddle for Stripe | You do not need one of the shipped subsystems |
 | [`DESIGN.md`](DESIGN.md) | The visual design system — source of truth | Writing any UI |
 
 **Three gotchas are load-bearing enough to state here**, because each one fails with
@@ -46,14 +42,13 @@ restart. The rest are in [`.claude/docs/gotchas.md`](.claude/docs/gotchas.md).
 | Backend      | **Cloudflare Workers**     | Via NuxtHub + Nitro                                              |
 | Database     | **Cloudflare D1** (SQLite) | Via Drizzle ORM — `db` + `schema` auto-imported by NuxtHub       |
 | KV Store     | **Cloudflare KV**          | For caching, sessions, config                                    |
-| File Storage | **Cloudflare R2**          | For uploads (images, videos, docs)                               |
+| File Storage | **Cloudflare R2**          | `BLOB` binding (browser-encrypted blobs; storage code comes later) |
 | Auth         | **nuxt-auth-utils**        | Sealed cookie sessions, OAuth                                    |
 | Deployment   | **Wrangler**               | `bun run deploy` → `wrangler deploy` (NuxtHub Admin sunset Feb 2026) |
 | CI/CD        | **Workers Builds**         | Cloudflare-native CI: `bun run ci` on PR branches, typecheck + build + deploy on `main` (see README) |
 | Linting      | **oxlint**                 | Fast Rust-based linter, config in `.oxlintrc.json`               |
 | Formatting   | **oxfmt**                  | Fast Rust-based formatter, config in `.oxfmtrc.json`             |
 | Validation   | **Zod**                    | All user input + API I/O                                         |
-| Content      | **@nuxt/content v3**       | Markdown blog in `content/`, parsed to SQL, served from the `DB` D1 |
 
 ---
 
@@ -69,10 +64,10 @@ restart. The rest are in [`.claude/docs/gotchas.md`](.claude/docs/gotchas.md).
 │   │   └── [Feature]/      # Group by feature, e.g. app/components/Workout/
 │   ├── composables/        # Shared stateful logic (useAuth, useWorkout, etc.)
 │   ├── layouts/            # Page layouts
-│   ├── middleware/         # Route guards — auth.ts, subscription.ts (UX only, not security)
+│   ├── middleware/         # Route guards — auth.ts (UX only, not security)
 │   ├── pages/              # File-based routing
 │   ├── types/              # Frontend-only TypeScript types (seo.d.ts augments PageMeta)
-│   └── utils/              # Auto-imported client helpers (plans.ts, faq.ts)
+│   └── utils/              # Auto-imported client helpers
 ├── server/                 # Backend (Nitro / Cloudflare Workers)
 │   ├── api/                # API routes (file = endpoint)
 │   ├── db/
@@ -80,24 +75,21 @@ restart. The rest are in [`.claude/docs/gotchas.md`](.claude/docs/gotchas.md).
 │   │   └── migrations/     # Generated by drizzle-kit
 │   ├── middleware/         # Server middleware (auth guard + auth-surface rate limit)
 │   ├── plugins/            # Nitro plugins (error logging, EMAIL_QUEUE consumer)
-│   ├── routes/             # Non-/api Nitro routes (paddle webhook, ingest, robots, sitemap, llms.txt)
+│   ├── routes/             # Non-/api Nitro routes (ingest, robots, sitemap, llms.txt)
 │   ├── tasks/              # Nitro scheduled tasks — cron wiring in nuxt.config + wrangler.toml
 │   └── utils/              # Server utilities (helpers, etc.)
 ├── shared/                 # Auto-imported in BOTH app/ and server/ (Nuxt 4 `shared/`)
 │   ├── types/              # Cross-cutting type augmentation (runtime config)
 │   └── utils/              # site.ts (URL identity), schema.ts (JSON-LD builders), fleet-manifest.ts (fleet.json shape)
-├── content/                # @nuxt/content sources — NOT scanned by Nuxt as app code
-│   └── blog/               # One markdown file per post; the filename is the URL
 ├── scripts/                # One-off scripts (bun seed, etc.)
-├── layers/                 # Features that stand alone: billing/ (Paddle, entitlements, /pricing),
-│                           # referral/, feedback/, files/, social/. Each registers with core
-│                           # through server/utils/extensions.ts (and its sibling seams), never
+├── layers/                 # Features that stand alone: feedback/ (vendored from the template, pinned in
+│                           # layers.lock.json). A layer registers with core through
+│                           # server/utils/extensions.ts (and its sibling seams), never
 │                           # imports another layer, and reads like its own small app
 ├── public/                 # Static assets — og.png, favicon.svg, apple-touch-icon.png
-├── .github/                # Dependabot + browser-suites.yml (PR checks: ci, forkless, axe/CSP/E2E — the browser half is the only CI
+├── .github/                # Dependabot + browser-suites.yml (PR checks: ci, axe/CSP/E2E — the browser half is the only CI
 │                           # not in Workers Builds; that image can't launch Chromium)
 ├── fleet.json              # How this app describes itself to the portfolio dashboard — see bun run fleet:check
-├── content.config.ts       # Blog collection + frontmatter schema
 ├── drizzle.config.ts       # Drizzle Kit config
 ├── nuxt.config.ts
 ├── wrangler.toml
@@ -189,13 +181,8 @@ Each of these has a full contract in its own doc — this is the one-line versio
   server, never a raw error message to a user. → [`patterns.md`](.claude/docs/patterns.md)
 - **Forms** — `<UForm>` with a Zod schema, re-validated server-side with the same schema.
   Client validation is never the boundary. → [`patterns.md`](.claude/docs/patterns.md)
-- **Auth** — the client middleware is **not** a security boundary; every paid API route
-  calls `requireSubscription(event)` itself. → [`auth.md`](.claude/docs/auth.md)
-- **Billing & referrals** — billing is `layers/billing/`, referrals `layers/referral/`; a
-  referral reward is access nobody paid for, so treat
-  `layers/referral/server/utils/referral.ts` as billing code. Neither layer imports the
-  other. Gate paid routes with `requireAccess(event)`.
-  → [`billing.md`](.claude/docs/billing.md), [`referral.md`](.claude/docs/referral.md)
+- **Auth** — the client middleware is **not** a security boundary; every gated API route
+  calls `requireAccess(event)` (or `requireUserSession`) itself. → [`auth.md`](.claude/docs/auth.md)
 - **Email** — `sendEmail()` never throws, and enqueues rather than POSTs when
   `EMAIL_QUEUE` exists. → [`email.md`](.claude/docs/email.md)
 - **SEO & AEO** — every page calls `useSeo()` exactly once and declares `publicPage`;
@@ -203,7 +190,7 @@ Each of these has a full contract in its own doc — this is the one-line versio
 - **Feedback** — unsolicited via `<FeedbackWidget />`; solicited via PostHog Surveys.
   Feedback text is untrusted input. → [`patterns.md`](.claude/docs/patterns.md)
 - **Performance** — server-side `useFetch` for initial loads, `defineAsyncComponent` for
-  heavy components, uploads to R2 via `blob`. → [`patterns.md`](.claude/docs/patterns.md)
+  heavy components. → [`patterns.md`](.claude/docs/patterns.md)
 - **Fleet contract** — `fleet.json` describes this app, `GET /api/status` reports build,
   migrations and crons, `GET /api/fleet` reports counters behind a token, and every 5xx
   spools an `ops_events` row; fleet reads them from `/api/fleet` and is the only thing that
@@ -218,7 +205,7 @@ Each of these has a full contract in its own doc — this is the one-line versio
 - **`dev`** — integration branch (optional for larger features)
 - **Feature branches**: `feat/workout-builder`, `fix/auth-redirect`, `chore/update-deps`
 - **Commit format**: `feat: add workout builder`, `fix: correct auth redirect`, `chore: update deps`
-- **PRs require**: the `ci`, `forkless` and `browser-suites` jobs in `.github/workflows/browser-suites.yml`, enforced by the "main: merge when green" ruleset. Open the PR and stop: Mergify queues it once its own checks pass (again after any push) and merges it once they pass on top of main. Open it as a draft to hold it. Never arm `gh pr merge --auto` or run `gh pr update-branch`: a merge outside the queue resets every speculative check in it
+- **PRs require**: the `ci` and `browser-suites` jobs in `.github/workflows/browser-suites.yml`, enforced by the "main: merge when green" ruleset. Open the PR and stop: Mergify queues it once its own checks pass (again after any push) and merges it once they pass on top of main. Open it as a draft to hold it. Never arm `gh pr merge --auto` or run `gh pr update-branch`: a merge outside the queue resets every speculative check in it
 
 ---
 
@@ -242,8 +229,6 @@ bun run seo:check     # Fail on pages that bypass useSeo() or aren't declared pu
 bun run fleet:check   # Fail when fleet.json stops matching wrangler.toml (names, binding ids, crons)
 bun run crons:check   # Fail when [triggers] crons and nitro.scheduledTasks disagree, or a task has no file
 bun run methods:check # Fail when a get/head/delete server route reads a request body (hangs on Workers)
-bun run forkless:check # Build forks without billing / referral / lifecycle email in a temp copy; the layer,
-                      # mirror and reference gates must pass there with no patch (ci:forkless adds typecheck + tests)
 bun run test:a11y     # Playwright/Chromium browser suites: axe over every public route
                       # (light + dark) AND the Content-Security-Policy spec (test/csp/)
 bun typecheck         # TypeScript type checking
@@ -255,7 +240,7 @@ bun db:migrate:preview # Apply migrations to the preview D1 — nothing does thi
 bun db:studio         # Open Drizzle Studio (visual DB browser)
 bun seed              # Seed dev DB via bun:sqlite (writes to .data/db/sqlite.db)
 bun run rename <name> # Rewrite the `my-app` placeholder across wrangler.toml, package.json,
-                      # .mcp.json.example, fleet.json and mcp/ — every occurrence, in one go
+                      # .mcp.json.example and fleet.json — every occurrence, in one go
 bun run ci            # Every gate, concurrently (scripts/ci.ts): format (writes; checks in CI), email:build, lint,
                       # design/brand/seo/fleet/crons/methods, migrations:check (schema.ts vs migrations, expand-only),
                       # typecheck, test, build. Workers Builds runs this on non-production branches (the PR
@@ -266,9 +251,6 @@ bun run ci:browser    # playwright:install + test:a11y — what GitHub Actions r
 bun run deploy        # Manual deploy to Cloudflare via wrangler (normally unnecessary —
                       # Workers Builds deploys automatically on push to main).
                       # Requires CLOUDFLARE_API_TOKEN + CLOUDFLARE_ACCOUNT_ID env vars
-bun run mcp:dev       # Run the optional MCP worker locally (mcp/ — bun install there first)
-bun run mcp:typecheck # Typecheck the MCP worker
-bun run mcp:deploy    # Deploy the MCP worker
 ```
 
 Use `bun run ci:fast` while iterating; run the full `bun run ci` once before pushing.

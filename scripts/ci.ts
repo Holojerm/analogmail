@@ -13,8 +13,7 @@
 // gitignored server/emails/generated.ts that the tests and the build import.
 //
 // The phases run in order because `nuxt typecheck` and `nuxt build` both regenerate `.nuxt/`
-// and `node_modules/@nuxthub`. They must not overlap each other, and they must not overlap
-// `forkless:check`, whose isolation guard fails when that module changes under it. Vitest
+// and `node_modules/@nuxthub`. They must not overlap each other. Vitest
 // runs in workerd and touches neither, so it runs alongside every phase.
 //
 //   bun run ci              # every gate, then the build
@@ -47,7 +46,7 @@ const cheap = [
 const background = fast ? run('test', '--changed', 'origin/main', '--passWithNoTests') : run('test')
 const phases: Gate[][] = fast
   ? [[...cheap, run('typecheck')]]
-  : [[...cheap, run('forkless:check')], [run('typecheck')], [run('build')]]
+  : [[...cheap], [run('typecheck')], [run('build')]]
 
 type Result = { gate: Gate; ok: boolean; seconds: number; output: string }
 

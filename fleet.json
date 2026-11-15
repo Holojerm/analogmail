@@ -12,8 +12,8 @@
   },
   "crons": ["0 4 * * *"],
   "deploy": "workers-builds",
-  "template": { "repo": "Holojerm/nuxt-cf-template", "syncedSha": null },
-  "features": { "auth": true, "billing": true, "posthog": null, "opsEvents": true },
+  "template": { "repo": "Holojerm/nuxt-cf-template", "syncedSha": "a5f887897288acfc4928409d1a2e863e767058c0" },
+  "features": { "auth": true, "billing": false, "posthog": null, "opsEvents": true },
   "product": {
     "northStar": "user_activated",
     "activation": { "event": "user_activated", "withinDays": 7 },

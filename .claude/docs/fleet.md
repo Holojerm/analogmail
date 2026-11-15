@@ -15,7 +15,7 @@ itself a fork). Three pieces, all shipped here so a fork gets them by syncing:
   ones production applied (`migrations.pending` non-empty = the
   deploy-before-migrate outage, live), and the cron map Nitro runs. That is a
   fingerprint of the deployment, so it sits behind `NUXT_FLEET_TOKEN` like
-  `GET /api/fleet` (counters only: users, entitlements by status, ops spool,
+  `GET /api/fleet` (counters only: users, ops spool,
   feedback queue, and a 28-day signup → activated → paid funnel with top
   signup sources, from `server/utils/fleet-funnel.ts`): `Authorization: Bearer …`, 404 when the token is unset, 401
   on a bad one (`requireFleetToken()`). `/api/health` stays public for dumb
@@ -30,9 +30,9 @@ itself a fork). Three pieces, all shipped here so a fork gets them by syncing:
   `server/utils/extensions.ts`. `registerFleetExtraContributor({ key, collect })` returns plain
   numbers that are merged into `extra`, which is the shape the dashboard already renders;
   `registerFleetCounterContributor()` adds a typed group beside `users` and `funnel`
-  (feedback's, and billing's `entitlements: { byStatus }`). The funnel's `paid` stage is the one
-  number core cannot count itself: billing registers it with `registerFunnelStageContributor({ key: 'paid', count })`,
-  and with no contributor `funnel.paid` reads 0, so the funnel keeps its shape. With nothing
+  (feedback's). The funnel's `paid` stage is the one number core cannot count itself: a feature
+  registers it with `registerFunnelStageContributor({ key: 'paid', count })`, and with no
+  contributor (this app) `funnel.paid` reads 0, so the funnel keeps its shape. With nothing
   registered the response carries only `users`, `ops`, `funnel` and `extra` (`{}`).
 - **`app-owned.json`** (template root) lists the template paths every app owns by
   design: brand, home page and layout, generated email and colour output, the
@@ -64,7 +64,7 @@ itself a fork). Three pieces, all shipped here so a fork gets them by syncing:
   registered), or `info` (the system handled it). Core knows `server_error` only, escalated to
   critical at `SERVER_ERROR_CRITICAL_COUNT` rows in the 24 h window. A layer or the app registers
   its own kinds with `registerOpsSeverity({ kind: { severity, action? } })` from a Nitro plugin,
-  next to the `recordOpsEvent` call (billing registers `paddle_webhook_unconfigured`).
+  next to the `recordOpsEvent` call.
   The `ops-triage` routine reads the same spool through `GET /api/ops/events`
   (bearer `NUXT_OPS_TOKEN`, 404 when unset). That route also reports the build sha
   and pending migrations, so the routine can tell when a merge never deployed.

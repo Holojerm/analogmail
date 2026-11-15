@@ -33,7 +33,7 @@ export default defineTask({
     }
 
     const started = Date.now()
-    // Template steps, then features' (billing's pass_expiring), then the app's.
+    // Template steps, then features', then the app's.
     const steps = [
       ...TEMPLATE_LIFECYCLE_STEPS,
       ...getRegisteredLifecycleSteps(),

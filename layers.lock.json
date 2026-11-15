@@ -1,5 +1,11 @@
 {
   "_comment": "Written by `bun run layers:pull`. Each entry is a layer copied from `repo` at `sha`; `hash` fingerprints the copy so `bun run layers:check` fails if anyone edits it. Change behaviour by shadowing a component/page/route from the app, through an extension point, or upstream in the template, then re-pull. Commit it.",
   "repo": "Holojerm/nuxt-cf-template",
-  "layers": {}
+  "layers": {
+    "feedback": {
+      "ref": "main",
+      "sha": "a5f887897288acfc4928409d1a2e863e767058c0",
+      "hash": "7fb37c31450aba5e5891f0b32e6dd5d153f3c62eff7889a92e17b5f1e98e57c2"
+    }
+  }
 }

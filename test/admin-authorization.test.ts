@@ -13,7 +13,7 @@ import { requireAdmin } from '../server/utils/admin'
 import { SESSION_ROLE_CONTEXT_KEY } from '../server/utils/session-guard'
 
 // Layer modules come through eager globs, not imports, so a fork that removed a
-// layer (TEARDOWN.md, `bun run ci:forkless`) still loads this file: the glob is
+// layer still loads this file: the glob is
 // simply empty and that layer's handlers are neither expected nor stubbed.
 const billingComps = Object.values(
   import.meta.glob<{ MAX_COMP_PASSES: number }>('../layers/billing/shared/utils/comps.ts', {

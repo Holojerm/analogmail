@@ -39,8 +39,6 @@
     "methods:check": "bun run scripts/check-method-bodies.ts",
     "layers:pull": "bun run scripts/layers-pull.ts",
     "layers:check": "bun run scripts/check-layers.ts",
-    "forkless:check": "bun run scripts/check-forkless.ts --fast",
-    "ci:forkless": "bun run scripts/check-forkless.ts",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "test:watch": "vitest",

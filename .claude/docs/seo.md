@@ -1,8 +1,8 @@
-# SEO, AEO, and blog content
+# SEO and AEO
 
-The `useSeo()` one-call-per-page contract, how `publicPage` meta feeds both `sitemap.xml` and `llms.txt`, structured-data rules, and how `@nuxt/content` blog posts are authored and served.
+The `useSeo()` one-call-per-page contract, how `publicPage` meta feeds both `sitemap.xml` and `llms.txt`, and structured-data rules.
 
-> **Load this when:** adding or editing a page, writing structured data, changing crawler behaviour, or working in `content/blog/`.
+> **Load this when:** adding or editing a page, writing structured data, or changing crawler behaviour.
 > Canonical index: [AGENTS.md](../../AGENTS.md).
 
 ---
@@ -18,24 +18,20 @@ The `useSeo()` one-call-per-page contract, how `publicPage` meta feeds both `sit
   there is no list to update. A page without it is in neither, which is the right
   default. `noindex: true` and `publicPage` are mutually exclusive and the gate enforces it.
 - **A dynamic route cannot reach either file that way.** The collecting hook skips any path
-  containing `:`, because `/blog/[slug]` is one pattern rather than N URLs. The blog is
-  enumerated server-side from content (`server/utils/blog.ts`); **any other set of URLs an app
-  owns is registered, not hand-added to the routes**: from a Nitro plugin,
+  containing `:`, because a dynamic route is one pattern rather than N URLs. **Any set of
+  URLs an app owns is registered, not hand-added to the routes**: from a Nitro plugin,
   `registerPublicPageSource({ key, list(db, { buildDate }), llmsHeading?, defaults? })`
   (`server/utils/public-pages.ts`) puts each returned `{ path, title?, description?, lastmod? }`
   in `sitemap.xml`, and in `llms.txt` under `llmsHeading` when it names one. A source that throws
-  is logged, skipped, and makes both documents `no-store`, like a failed blog query.
+  is logged, skipped, and makes both documents `no-store`.
   `registerRobotsDisallow(['/sessions'])` adds private paths to `robots.txt` (wildcard group
   and every named AI crawler). The page still declares `publicPage` (the gate's invariant is
   per-page), with a comment saying the values are inert. The three routes stay identical in
   every fork.
-- **Never write FAQ (or any) JSON-LD for content that isn't rendered.** `/pricing`
-  builds its `FAQPage` from the same `PRICING_FAQ` array it renders — see
-  `app/utils/faq.ts`. Structured data describing invisible content is a manual-action
-  risk with Google and a lie an answer engine will repeat.
-- **Prices go into schema as numbers**, never display strings. `layers/billing/app/utils/plans.ts`
-  carries `amount` + `currency` + `unit` alongside the `'$12'` display copy for exactly
-  this reason.
+- **Never write FAQ (or any) JSON-LD for content that isn't rendered.** Build the markup from
+  the same source the page renders. Structured data describing invisible content is a
+  manual-action risk with Google and a lie an answer engine will repeat.
+- **Prices go into schema as numbers**, never display strings.
 - Structured-data builders live in `shared/utils/schema.ts` and are pure functions of a
   `SiteContext` — add a node type there, unit-test it, then pass it via `useSeo({ schema: [...] })`.
 - `NUXT_PUBLIC_INDEXABLE=false` on preview deploys makes robots.txt disallow everything,
@@ -61,14 +57,14 @@ asset, so the Worker bundle does not grow. `bun run build` runs `scripts/og-imag
 `nuxt build` and `--check` after it.
 
 - **Where cards come from**: every static page with a literal `publicPage` (its `title` and
-  `summary` become the card's text), every non-draft post in `content/blog/`, and any
+  `summary` become the card's text), and any
   `layers/*/og-cards.ts` whose default export returns `{ path, title, summary? }[]`. A fork's
   own layer uses that last hook to card the dynamic routes it enumerates (a record's page, a
   per-item landing page); the same module may export `ogHost(path)` to name the footer host of pages
   served somewhere other than the app's own origin. The home page keeps the site card, `public/og.png`.
 - **How a page finds its card**: `useSeo()` links `/og/<route>.png` (`ogCardPath()` in
   `shared/utils/og.ts`) when the route is static and declares `publicPage`, else the site card. A
-  dynamic route names its own: `useSeo({ image: ogCardPath(route.path) })`, as the blog post does.
+  dynamic route names its own: `useSeo({ image: ogCardPath(route.path) })`.
   A card for a route nothing drew is a broken preview, so register the card in the same change.
 - **Drawing**: `satori` (layout to SVG) and `@resvg/resvg-js` (SVG to PNG), both
   devDependencies. Fonts are the families named in `main.css`, read from `@fontsource/<family>`
@@ -94,32 +90,3 @@ meta tag: it survives redesigns and needs no deploy.
 2. **Bing Webmaster Tools** → *Import from Google Search Console* (fastest; carries the
    sitemap), or add the site and verify by DNS the same way.
 3. Both report indexed pages, query impressions and inbound links, which nothing else here can.
-
-## Blog content (@nuxt/content)
-
-- **A post is a markdown file in `content/blog/`.** The filename is the URL. Frontmatter is
-  `title`, `description`, `date`, `author`, and optional `updated` and `draft`, declared in
-  `content.config.ts`. Quote the dates — unquoted YAML dates become `Date` objects and lose a
-  day to a timezone somewhere between YAML, SQLite, and JSON.
-- **The schema does not enforce its own bounds.** Content turns a collection schema into SQL
-  columns; it never runs the refinements against your frontmatter. Only the *types* and
-  *defaults* are real. `bun run seo:check` reads `content/blog/*.md` and applies the
-  title/description limits there instead, plus dates that are well-formed, not in the future,
-  and in the right order.
-- **`draft: true` hides a post from every list** (the query filters it, so it is absent from
-  /blog, sitemap.xml, and llms.txt) but leaves its URL readable in dev and 404 in production.
-  The rule is `isPostVisible()` in `shared/utils/blog.ts` — one function, tested, called from
-  the slug route.
-- **Never call `queryCollection()` from app code.** On the client it downloads the collection
-  dump and runs it through `@sqlite.org/sqlite-wasm` — a megabyte of WebAssembly, and blocked
-  by this app's CSP, which does not grant `'wasm-unsafe-eval'`. Query it in `server/`
-  (`server/utils/blog.ts`) and have pages `useFetch('/api/blog…')`.
-- **Content lives in the app's own `DB` D1 binding** as `_content_*` tables, and needs no
-  Drizzle migration: the Worker imports the build's SQL dump on the first request after a
-  deploy. Do not run `drizzle-kit push` — it diffs against the live database and would try to
-  drop them.
-- Render with `<ContentRenderer>`; NuxtUI's `Prose*` components are registered automatically
-  and are themed under `ui.prose` in `app/app.config.ts` (DESIGN.md › Component behavior ›
-  Long-form content).
-
-

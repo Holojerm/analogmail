@@ -23,21 +23,15 @@
 # warns about: a broken CSP fails silently, in exactly the way that gate exists
 # to catch. If you ever delete this workflow, you are deleting the CSP gate.
 #
-# Three jobs run side by side, and each is a required check in the
+# Two jobs run side by side, and each is a required check in the
 # "main: merge when green" ruleset, which is what lets the Mergify queue merge a PR
-# unattended: `ci` (the full `bun run ci`; the template has no Worker, so forks get
-# this gate from Workers Builds instead), `forkless` (the slow full `ci:forkless`)
-# and `browser-suites`.
+# unattended: `ci` (the full `bun run ci`) and `browser-suites`.
 # Renaming a job means renaming its required check in the ruleset too, or every
 # PR stays BLOCKED.
 #
-# Two-step CI: `forkless` and `browser-suites` are skipped on a pull request (a
-# skipped job passes a required check) and run on the merge queue's draft PRs,
-# which test it on top of main before it merges. Run them locally for feedback
-# before queueing. On the queue, `forkless` also skips its steps (the job still
-# passes) unless the change touches layers/, server/, app/, shared/,
-# .claude/docs/, nuxt.config.ts, TEARDOWN.md, package.json, bun.lock, fleet.json
-# or the forkless/layers/mirrors check scripts.
+# Two-step CI: `browser-suites` is skipped on a pull request (a skipped job passes
+# a required check) and runs on the merge queue's draft PRs, which test it on top
+# of main before it merges. Run it locally for feedback before queueing.
 
 name: Browser suites
 
@@ -86,76 +80,6 @@ jobs:
 
       # `bun run ci` checks formatting here (CI is set) and writes it locally.
       - run: bun run ci
-
-  forkless:
-    if: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'mergify/merge-queue/') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    steps:
-      # Full history: the path gate below diffs against the merge base.
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # A fork shape can only change when one of these paths does, so any other
-      # PR (a README, a test, a bump of a dev-only tool) skips the build. The
-      # steps below are skipped, not the job: the `forkless` check still reports
-      # success. On a merge-queue draft PR the base is main and HEAD is main plus
-      # every queued PR, so the three-dot diff against origin/main is the whole
-      # queued change. If the diff cannot be computed, run.
-      - name: Does this change touch a forkless shape?
-        id: gate
-        shell: bash
-        env:
-          BASE: ${{ github.base_ref }}
-          PATHS: '^(layers/|server/|app/|shared/|\.claude/docs/)|^(nuxt\.config\.ts|TEARDOWN\.md|package\.json|bun\.lock|fleet\.json|scripts/check-(forkless|layers|mirrors)\.ts)$'
-        run: |
-          if changed=$(git diff --name-only "origin/${BASE}...HEAD"); then
-            if printf '%s\n' "$changed" | grep -E -q "$PATHS"; then
-              echo "run=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "run=false" >> "$GITHUB_OUTPUT"
-              echo "No forkless-relevant path changed; skipping."
-            fi
-          else
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: oven-sh/setup-bun@v2
-        if: steps.gate.outputs.run == 'true'
-        with:
-          # Pinned to package.json `packageManager`, the version a fork's Mac
-          # mini runner image already has; `latest` always downloads.
-          bun-version-file: package.json
-
-      # @nuxt/content parses content/ with node:sqlite, which is only
-      # unflagged from 22.13 — see AGENTS.md › Gotchas. `.node-version` is the
-      # single source of truth so this cannot drift from Workers Builds.
-      - uses: actions/setup-node@v4
-        if: steps.gate.outputs.run == 'true'
-        with:
-          node-version-file: .node-version
-
-      # A fork's Mac mini runner (`mini-*`) keeps this cache on local disk;
-      # round-tripping it through GitHub's cache over a home uplink costs more
-      # than it saves.
-      - uses: actions/cache@v4
-        if: ${{ steps.gate.outputs.run == 'true' && !startsWith(runner.name, 'mini-') }}
-        with:
-          path: ~/.bun/install/cache
-          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
-          restore-keys: bun-${{ runner.os }}-
-
-      - if: steps.gate.outputs.run == 'true'
-        run: bun install --frozen-lockfile
-
-      # The full version of the forkless gate `bun run ci` runs scripts-only:
-      # forks without billing, referral and lifecycle email, built in temp
-      # copies, with typecheck, the unit tests and the Playwright listing run on
-      # each. Its own job because it is the slowest gate.
-      - if: steps.gate.outputs.run == 'true'
-        run: bun run ci:forkless
 
   browser-suites:
     if: ${{ github.event_name != 'pull_request' || startsWith(github.head_ref, 'mergify/merge-queue/') }}

@@ -229,37 +229,22 @@ carries no local patch for it. The checks that make that true:
   comment for this. A new template layer goes in `TEMPLATE_LAYERS`; `layers:check` fails in the
   template if the list and `layers/` disagree. Backticked bare symbols from a layer
   (`name()`) are not covered: point at them as `` `layers/<name>/…ts` › `name` ``.
-- **The billing access pins** in `scripts/check-mirrors.ts` are skipped when `layers/billing` is
-  absent, and enforced in full when it is present.
 - **The browser suites follow the layer.** A layer's specs live in `layers/<name>/test/e2e/`
   (an `e2e-<name>` Playwright project; its server env and warm-ups in `e2e.config.ts`, read by
   `test/e2e/layers.ts`). The a11y and CSP specs key on `hasLayer()` (`test/lib/layers.ts`).
-- **`bun run forkless:check`** (in `ci`, scripts only) and **`bun run ci:forkless`** (adds typecheck,
-  the unit tests and the Playwright listing) build forks without billing, without referral and
-  without lifecycle email in a temp copy, apply only the edits `TEARDOWN.md` lists, and run the
-  gates there. They also prove each rule still bites (a layer typo, a missing file in a present
-  layer, a changed billing pin, a template that imports a layer). Run `ci:forkless` after
-  touching `scripts/lib/`, `check-layers.ts`, `check-mirrors.ts`, a seam in `extensions.ts` or
-  anything under `layers/*/test/e2e/`.
-
 - **Updating**: `bun run layers:pull --all` re-pulls every locked layer at its recorded ref
   (`main` unless you passed `--ref`). The PR diff is exactly what the template changed.
 - **Customizing**: app files shadow a layer's components, pages and API routes. `server/utils`
   cannot be shadowed (the layer's export wins), so change server behaviour through the
   layer's `runtimeConfig` options (set in the app's `nuxt.config.ts`), an extension point,
   or upstream in the template. Feedback's options: `feedback.anonymiseUserId`,
-  `feedback.deletionCountKey`; billing's: `billing.passDays`,
-  `billing.alertUnmatchedAdjustments`, `paddle.productId`. Referral has none. A fork's own util whose file name
+  `feedback.deletionCountKey`. A fork's own util whose file name
   collides with a layer's must be renamed before vendoring.
 - **Why not `extends: ['github:…']`**: NuxtHub's merged schema types leave layers under
   `node_modules` untyped, so a remote layer's tables lose their types.
-- **In the template itself**, layers are authored, not vendored: its lock stays empty.
-  `layers/feedback/`, `layers/files/`, `layers/social/`, `layers/billing/` and `layers/referral/` are the
-  worked examples (billing is the largest: its own server routes, pages, composables and tests, plus a
-  replay script; referral is the one that meets another layer, only through core's seams); each reaches core through
-  `#server/utils/…`, reads other tables through `@nuxthub/db/schema`, and carries its own
-  tests in `layers/<name>/test/`. A layer table may reference core's (files → `users`) by
-  importing the app's `server/db/schema.ts` relatively; the path is the same in every app.
+- **In a fork**, the template's other layers (billing, referral, files, social) are not vendored:
+  analogmail's teardown removed them. Their seams in core (the table above) stay, registering
+  nothing, so a layer vendored later plugs in without a core change.
 
 ### Fork-owned layers
 

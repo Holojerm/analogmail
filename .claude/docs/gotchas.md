@@ -159,8 +159,8 @@ Production is unaffected — there the store is D1 (`content.database`), not a f
 
 `bun seed` (and anything else writing to `.data/db/sqlite.db` with `bun:sqlite`) writes the file
 correctly, but a **running** dev server keeps its own libsql connection and will keep returning
-the old rows. Observed directly: insert an entitlement while `bun dev` is up and
-`/api/billing/entitlement` still reports `active: false`, with the row plainly visible in the
+the old rows. Observed directly: insert a user while `bun dev` is up and
+the API still doesn't return it, with the row plainly visible in the
 file. Restart the dev server (or touch `nuxt.config.ts`) and it appears immediately.
 
 So: seed before starting the dev server, or restart after seeding. Don't go debugging the query.
@@ -215,7 +215,7 @@ How each gate stays scoped — **match this when you add a gate**:
 | Gate | Why a sibling worktree can't reach it |
 | --- | --- |
 | `lint` | `.oxlintrc.json` › `ignorePatterns` lists `.claude/**` |
-| `design:check` / `seo:check` / `brand:check` | Walk `ROOT/app`, `ROOT/app/pages`, `ROOT/content/blog`, and fixed root-relative asset paths |
+| `design:check` / `seo:check` / `brand:check` | Walk `ROOT/app`, `ROOT/app/pages`, and fixed root-relative asset paths |
 | `test` | `vitest.config.ts` › `include` is `test/**` + `server/**`, relative to the checkout |
 | `typecheck` | Nuxt's generated `.nuxt/tsconfig.*` use scoped includes (`../app/**/*`, `../server/**/*`), not a root glob |
 | `test:a11y` | Per-checkout port — see below |

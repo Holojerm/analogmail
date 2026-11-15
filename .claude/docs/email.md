@@ -68,8 +68,7 @@ only the HTML needs — a tone flag, a link target — is declared in the `.txt`
   next `</Raw>` and a self-closed one swallows the rest of the file.
 - **Sections** are `{{#list}}…{{/list}}` (loop, or "if truthy") and `{{^x}}…{{/x}}` ("if not").
   A value is truthy when it is non-empty and not `0`/`null`/`false`. A color that depends on
-  runtime data cannot be inlined at build time, so the template carries one copy per choice —
-  see `emails/templates/access-ended.vue`.
+  runtime data cannot be inlined at build time, so the template carries one copy per choice.
 - **Don't hand-format `emails/**/*.vue`** — it is excluded from `oxfmt`, which splits
   `</Raw>` across lines and breaks Maizzle's extraction.
 
@@ -154,11 +153,6 @@ Five rules that each cost real mail when they were broken:
   `ack()`/`retry()` runs inside `waitUntil` after the handler returned; the
   opposite flag would turn `retry()` into a silent no-op. Don't remove it.
 
-Billing emails are decided by `layers/billing/server/utils/billing-notifications.ts` › `decideNotification` on **status transitions**,
-not on events: Paddle fires `subscription.updated` for trivial changes, and
-emailing per event trains people to filter you — taking the payment-failed email
-with it. Add a case to that function, not an ad-hoc send in a handler.
-
 ---
 
 
@@ -173,11 +167,8 @@ plus a template; the runner owns preferences, undeliverable addresses, the per-r
 cap, the `lifecycle_email_sent` event, and once-only delivery through a
 `lifecycle_sends` row claimed before the send.
 
-- **Template steps** (`lifecycle-steps.ts`): `activation_nudge` (optional `tips`
-  preference; signed up 1–7 days ago, never activated) and `pass_expiring`
-  (mandatory `billing.pass_expiring`; a paid pass ends within 3 days with no
-  subscription or later pass behind it — with auto-renew off by default, this is
-  the only warning a customer gets).
+- **Template step** (`lifecycle-steps.ts`): `activation_nudge` (optional `tips`
+  preference; signed up 1–7 days ago, never activated).
 - **Fork steps** go in `lifecycle-app-steps.ts`, which the template ships empty.
   A win-back belongs there, keyed on whatever "used the product" means.
 - **Bound every window on both sides.** "Signed up more than a day ago" mails the

@@ -11,9 +11,7 @@ A production-ready template for full-stack apps on **Nuxt 4 + Cloudflare Workers
 | KV / Cache | Cloudflare KV |
 | File Storage | Cloudflare R2 |
 | Auth | nuxt-auth-utils — magic-link sign-in, plus Apple / Google / GitHub OAuth, wired end to end |
-| Billing | Paddle (merchant of record) — checkout, entitlements, self-serve cancellation |
-| Email | Resend over fetch — welcome, receipt, payment-failed, access-ended |
-| Content | `@nuxt/content` v3 — markdown blog, parsed at build time into the app's own D1 |
+| Email | Resend over fetch — sign-in link, welcome, security notices |
 | Linting | oxlint + oxfmt |
 | Validation | Zod |
 | Testing | Vitest + `@cloudflare/vitest-plugin` (real `workerd` runtime, real bindings) |
@@ -24,7 +22,7 @@ A production-ready template for full-stack apps on **Nuxt 4 + Cloudflare Workers
 
 ## Product decisions
 
-**Single-user by design.** This template is a consumer product: one person, one account, one subscription. There are no teams, seats, workspaces, or org switchers, and `entitlements.userId` is the correct shape — not a placeholder for a `team_id`. If you are building B2B, that is a different data model; retrofitting teams onto this one costs more than starting from a B2B starter.
+**Single-user by design.** This template is a consumer product: one person, one account. There are no teams, seats, workspaces, or org switchers. If you are building B2B, that is a different data model; retrofitting teams onto this one costs more than starting from a B2B starter.
 
 **English-only, deliberately.** The template ships without an i18n layer on purpose: for a consumer SaaS the cost of maintaining translations before you have users in a market is pure overhead, and half-translated UI is worse than honest English. Revisit when a real market signal exists — meaningful non-English traffic in analytics, or a paid-user request pattern — and add `@nuxtjs/i18n` at that point, not speculatively.
 
@@ -39,7 +37,7 @@ bun run rename acme-widgets --display "Acme Widgets"
 ```
 
 That rewrites every occurrence of `my-app` across `wrangler.toml`, `package.json`
-(scripts + `portless.name`), `.mcp.json.example`, `fleet.json`, and `mcp/`, sets both `[[ratelimits]]`
+(scripts + `portless.name`), `.mcp.json.example` and `fleet.json`, sets both `[[ratelimits]]`
 `namespace_id`s to a pair derived from the new name (the namespace is scoped to your Cloudflare
 account, so every app on it needs its own — `scripts/ratelimit-namespace.ts`), and prints what's
 left for you to do by hand. Missing one of these is not obvious later: Workers Builds refuses every build when
@@ -121,21 +119,17 @@ Only three things are actually required to run:
 NUXT_SESSION_PASSWORD=   # 32+ char random string: openssl rand -base64 32
                          # Safe to rotate: sign-out-everywhere is the
                          # users.sessions_invalid_before watermark, not this.
-                         # Rotating it must NOT re-arm spent referral welcome
-                         # trials — that is why their salt is a generated row
-                         # in D1 (instance_secrets) rather than derived from
-                         # this value. Never delete that row.
+                         # The per-address salt is a generated row in D1
+                         # (instance_secrets), not derived from this value.
+                         # Never delete that row.
 CLOUDFLARE_API_TOKEN=    # Cloudflare API token with Workers + D1 + KV + R2 edit perms
 CLOUDFLARE_ACCOUNT_ID=   # Your Cloudflare account ID
 ```
 
-Everything else — OAuth, Paddle, Resend, PostHog, Turnstile — is optional and **degrades instead of
-breaking**: an unset provider means that sign-in button doesn't render, an unset Paddle price
-means that plan's button is disabled, an unset Resend key means emails are logged no-ops, an unset
-Turnstile key means no bot check renders or runs. You can go all the way through the app before
-creating a single third-party account. The one exception inside Paddle: once you sell anything,
-`NUXT_PADDLE_API_KEY` is **required** — it is what the cancel button on /account calls, and
-without it every cancel attempt 503s (see Billing, step 4).
+Everything else — OAuth, Resend, PostHog, Turnstile — is optional and **degrades instead of
+breaking**: an unset provider means that sign-in button doesn't render, an unset Resend key means
+emails are logged no-ops, an unset Turnstile key means no bot check renders or runs. You can go all
+the way through the app before creating a single third-party account.
 
 The one to revisit before you ship is **Resend**, because magic-link sign-in is the primary way in
 and it is the one email that cannot degrade to a no-op. In dev the link goes to the server console
@@ -181,12 +175,10 @@ CI/CD runs on [Workers Builds](https://developers.cloudflare.com/workers/ci-cd/b
 
 Pushes to `main` typecheck, build and deploy. Pushes to other branches run `bun run ci` and deploy nothing. The required checks are `browser-suites` and `Workers Builds: <worker>`, and the ruleset requires branches to be up to date before merging, so nothing re-runs after a merge.
 
-**Node.js version.** The build shells out to the `nuxt` bin, which runs under Node, and
-`@nuxt/content` needs Node ≥ 22.13 for the built-in `node:sqlite` it uses to parse `content/`
-(see [Blog](#blog)). Workers Builds defaults to Node 24 and preinstalls 22 and 24, so this is
-satisfied out of the box — the committed `.node-version` pins it anyway, because the failure
-mode if someone later sets `NODE_VERSION` to something older is not a clear error but an
-interactive install prompt that dies in `postinstall`. Workers Builds reads `.node-version`,
+**Node.js version.** The build shells out to the `nuxt` bin, which runs under Node. Workers Builds
+defaults to Node 24 and preinstalls 22 and 24; the committed `.node-version` pins it anyway,
+because the failure mode if someone later sets `NODE_VERSION` to something older is not a clear
+error but an interactive install prompt that dies in `postinstall`. Workers Builds reads `.node-version`,
 `.nvmrc`, and a `NODE_VERSION` build variable, in case you prefer the dashboard.
 
 ### 5. Run locally and deploy
@@ -247,7 +239,7 @@ bun db:migrate        # Apply migrations to local D1 (via wrangler)
 bun db:migrate:remote # Apply migrations to remote/prod D1
 bun db:migrate:preview # Apply migrations to the preview D1 (nothing does this for you)
 bun db:studio         # Open Drizzle Studio (visual DB browser)
-bun seed              # Seed the local dev DB — one user per entitlement status, see scripts/seed.ts
+bun seed              # Seed the local dev DB — a demo user and an admin, see scripts/seed.ts
 bun run rename <name> # Rewrite the my-app placeholder everywhere it appears
 bun run test          # Run Vitest in workerd via @cloudflare/vitest-plugin
 bun test:watch        # Same, in watch mode
@@ -268,35 +260,30 @@ bun run deploy:preview # Same, then deploy — creates/updates the my-app-previe
 ├── app/
 │   ├── components/     # Reusable UI components (group by feature)
 │   │   └── Brand/      # Logo.vue — the mark, and the only place it is drawn
-│   ├── composables/    # Shared stateful logic (usePaddle)
+│   ├── composables/    # Shared stateful logic
 │   ├── layouts/        # Page layouts (default.vue: nav + footer + legal links)
-│   ├── middleware/     # Route guards: auth, subscription (UX only — not the boundary)
-│   ├── pages/          # File-based routing (landing, pricing, login, account, dashboard, legal)
+│   ├── middleware/     # Route guards: auth (UX only — not the boundary)
+│   ├── pages/          # File-based routing (landing, login, account, dashboard, legal)
 │   ├── types/          # Frontend-only TypeScript types
-│   └── utils/          # Auto-imported client helpers (plans.ts)
+│   └── utils/          # Auto-imported client helpers
 ├── server/
 │   ├── api/
-│   │   ├── auth/       # Magic link, OAuth providers, logout, provider list, dev sign-in
-│   │   └── billing/    # Entitlement status + customer-portal link
+│   │   └── auth/       # Magic link, OAuth providers, logout, provider list, dev sign-in
 │   ├── db/
 │   │   ├── schema.ts   # Single source of truth for DB schema
 │   │   └── migrations/ # Generated by drizzle-kit
 │   ├── middleware/     # Auth guard + auth-surface rate limiting
-│   ├── routes/         # Non-/api routes: paddle webhook, ingest proxy, robots, sitemap
-│   └── utils/          # auth, users, email, rate-limit, entitlements, billing
-├── content/
-│   └── blog/           # The blog, as markdown. Add a file, get a page.
-├── mcp/                # Optional second worker: remote MCP server (OAuth + shared D1)
+│   ├── routes/         # Non-/api routes: ingest proxy, robots, sitemap
+│   └── utils/          # auth, users, email, rate-limit
 ├── test/               # Vitest tests (workerd-runtime, real CF bindings)
 ├── .claude/            # Claude Code config (commands, skills, MCP)
 ├── .github/            # Dependabot config (CI/CD lives in Cloudflare Workers Builds)
-├── content.config.ts   # Blog collection + frontmatter schema (@nuxt/content)
 ├── vitest.config.ts    # Vitest + @cloudflare/vitest-plugin config
 ├── DESIGN.md           # Visual design system — the source of truth, see /design-sync
 ├── brand.lock.json     # Fingerprint of the generated brand assets (see brand:check)
 ├── wrangler.toml       # Cloudflare config (rename project here)
 ├── AGENTS.md           # AI development guide — the index, kept small
-├── TEARDOWN.md         # How to remove billing / referrals / the MCP worker
+├── TEARDOWN.md         # Template teardown recipes
 └── .claude/docs/       # Per-subsystem detail, loaded on demand by agents
 ```
 
@@ -337,25 +324,17 @@ See [`test/identity.test.ts`](./test/identity.test.ts) for the starter pattern. 
 `test/e2e/` and each layer's `layers/<name>/test/e2e/` cover the flows the product exists for, in a
 real browser against a real (dev) server — the a11y and CSP suites only ever look at signed-out
 routes, so this is the only place `/dashboard` and `/account` get exercised at all. Core's specs
-need no optional layer; billing's money path lives in the billing layer, so a fork that does not
-vendor billing has none of it to delete:
+need no optional layer; a layer that ships browser specs adds its own project:
 
 | Spec | Proves |
 | --- | --- |
 | [`sign-in-gated-page.spec.ts`](./test/e2e/sign-in-gated-page.spec.ts) | Signed-out → `/login?redirect=…`. |
 | [`sign-out-everywhere.spec.ts`](./test/e2e/sign-out-everywhere.spec.ts) | Revoking from one device signs the other out, and only the other. |
-| [`gated-without-plan.spec.ts`](./layers/billing/test/e2e/gated-without-plan.spec.ts) (billing) | Signed-in with no entitlement → `/pricing?from=…` with the gated alert on screen, and the session cookie the dev endpoint set is one `GET /api/_auth/session` actually accepts. |
-| [`purchase-access.spec.ts`](./layers/billing/test/e2e/purchase-access.spec.ts) (billing) | A one-time pass and a subscription each unlock `/dashboard` and flip `GET /api/billing/entitlement` to `active: true` with the right `kind`. |
-| [`cancel-lose-access.spec.ts`](./layers/billing/test/e2e/cancel-lose-access.spec.ts) (billing) | Cancelling a subscription revokes access (`/dashboard` → `/pricing`, `/account` shows the ended state). A `past_due` subscription routes to `/account` instead — the dunning alert, not a re-sell. |
 
 **State is driven through the server, not around it.** `bun seed`'s `bun:sqlite` writes are invisible
 to an already-running dev server (see .claude/docs/gotchas.md › "The dev server caches its DB
 connection"), so these specs sign in via
-`POST /api/auth/dev` — the same dev-only shortcut described under [Auth](#auth) — and then create or
-end entitlements by POSTing **signed Paddle webhooks** to `/paddle/webhook`, exactly as a real
-purchase or cancellation would arrive. `layers/billing/test/e2e/fixtures.ts` signs each one with the same HMAC
-construction `layers/billing/server/utils/paddle.ts` verifies; [`webhook-signing.test.ts`](./layers/billing/test/webhook-signing.test.ts) (vitest)
-checks that mirror against the real verifier rather than trusting it by inspection. Every user is
+`POST /api/auth/dev` — the same dev-only shortcut described under [Auth](#auth). Every user is
 fresh and unique per run (`e2e-<run>-<case>@example.com`) — nothing here reads the rows `bun seed`
 writes, on purpose, since the whole point is proving the flow works starting from nothing.
 
@@ -482,26 +461,17 @@ registering anything at all.
 | Sign-in tail | [`server/utils/auth.ts`](./server/utils/auth.ts) | Provisions the user, seals the session, sends the welcome email, redirects. Adding a provider is ~15 lines of profile mapping. |
 | Provisioning | [`server/utils/users.ts`](./server/utils/users.ts) | Find-or-create by verified email. Covered by [`test/users.test.ts`](./test/users.test.ts). |
 | Which buttons to show | `GET /api/auth/providers` | Reports which providers are configured (and whether email can be sent at all), so nothing renders a button that dead-ends. |
-| Dev sign-in | [`server/api/auth/dev.post.ts`](./server/api/auth/dev.post.ts) | Email, no password. `import.meta.dev` is a build-time constant, so the handler is dead code in production and the route 404s. `bun seed` writes one account per billing state you can sign in as this way — see below. |
-| Server guard | [`server/middleware/auth.ts`](./server/middleware/auth.ts) | 401s every `/api/*` route except the allowlist in [`server/utils/public-routes.ts`](./server/utils/public-routes.ts) (documented in [`.claude/docs/auth.md › Public API surface`](./.claude/docs/auth.md)): `/api/health`, `/api/auth/`, `/api/_auth/`, the token-guarded `/api/status` and `/api/fleet`, `GET /api/blog*`, `/api/email/unsubscribe`, and whatever a feature registers (feedback: `POST /api/feedback`). Also rate-limits the auth surface. |
-| Client guards | [`app/middleware/auth.ts`](./app/middleware/auth.ts), [`subscription.ts`](./layers/billing/app/middleware/subscription.ts) | `definePageMeta({ middleware: ['auth', 'subscription'] })`. UX only — see below. |
+| Dev sign-in | [`server/api/auth/dev.post.ts`](./server/api/auth/dev.post.ts) | Email, no password. `import.meta.dev` is a build-time constant, so the handler is dead code in production and the route 404s. `bun seed` writes a demo user and an admin you can sign in as this way — see below. |
+| Server guard | [`server/middleware/auth.ts`](./server/middleware/auth.ts) | 401s every `/api/*` route except the allowlist in [`server/utils/public-routes.ts`](./server/utils/public-routes.ts) (documented in [`.claude/docs/auth.md › Public API surface`](./.claude/docs/auth.md)): `/api/health`, `/api/auth/`, `/api/_auth/`, the token-guarded `/api/status` and `/api/fleet`, `/api/email/unsubscribe`, and whatever a feature registers (feedback: `POST /api/feedback`). Also rate-limits the auth surface. |
+| Client guard | [`app/middleware/auth.ts`](./app/middleware/auth.ts) | `definePageMeta({ middleware: 'auth' })`. UX only — see below. |
 
-**Seed accounts (`bun seed`, [`scripts/seed.ts`](./scripts/seed.ts)):** sign in as any of these via
-the dev endpoint above to land directly on that billing state, no checkout required. Idempotent —
-re-running never duplicates a row.
+**Seed accounts (`bun seed`, [`scripts/seed.ts`](./scripts/seed.ts)):** sign in as either via the
+dev endpoint above. Idempotent — re-running never duplicates a row.
 
 | Email | State |
 | --- | --- |
-| `demo@example.com` | Signed in, no entitlement |
-| `admin@example.com` | Admin console access, no entitlement |
-| `seed-active-sub@example.com` | Active subscription |
-| `seed-trialing@example.com` | Subscription mid-trial |
-| `seed-past-due@example.com` | Failed payment, dunning (`/account`'s payment-failed alert) |
-| `seed-paused@example.com` | Subscription paused — no access |
-| `seed-canceled@example.com` | Subscription ended — no access |
-| `seed-pass-active@example.com` | One-time pass, still running |
-| `seed-pass-expired@example.com` | One-time pass, ran out — no access |
-| `seed-comp@example.com` | Admin-comped pass, still running |
+| `demo@example.com` | Signed in |
+| `admin@example.com` | Admin console access |
 
 **The link does not sign you in by being fetched.** Mail security gateways — Defender Safe Links,
 Proofpoint, Mimecast — fetch every URL in an incoming message before the recipient sees it, and
@@ -522,7 +492,7 @@ a silent "check your inbox" for a message that was never sent.
 
 **A deleted account cannot be resurrected through it.** Deletion anonymizes the `users` row in place
 and leaves it keyed by `deleted-<id>@deleted.invalid`; identity is the email address, so a link
-minted for that tombstone would redeem into the deleted account's id, entitlements and role
+minted for that tombstone would redeem into the deleted account's id and role
 included. `isUndeliverableAddress()` refuses the whole RFC 2606 `.invalid` TLD at mint time — with
 the same success body as any other address, and *after* the rate limiter, so the `X-RateLimit-*`
 headers don't leak what the body withholds. Relying on Resend rejecting `.invalid` would put an
@@ -536,20 +506,20 @@ account, so there is no user id to look a preference up by in the first place.
 
 **Identity is the verified email address.** Sign in with GitHub today and Google tomorrow on the
 same address and you get the same account, which is what people expect and what avoids duplicate
-accounts holding separate subscriptions. That's only safe because every caller passes an explicit
+accounts. That's only safe because every caller passes an explicit
 `emailVerified` flag: an unverified address would let someone register the victim's email at a lax
-provider and inherit their subscription. Never default that flag to `true`.
+provider and inherit their account. Never default that flag to `true`.
 
 **The client middleware is not a security boundary.** It runs in the browser so people see a login
-page instead of an empty one. The boundary is `getUserSession` / `requireSubscription` inside the
+page instead of an empty one. The boundary is `getUserSession` / `requireAccess` inside the
 API routes. Delete the client middleware and a gated page renders empty; delete the server check
 and it leaks.
 
 **Sessions are revocable, which sealed cookies are not by default.** Every session records the
 second it was sealed (`issuedAt`), every account can carry a `users.sessions_invalid_before`
 watermark, and `server/middleware/auth.ts` refuses any session issued before it — so deleting your
-account on a laptop ends it on the phone in the other room, instead of leaving it full paid access
-to the retained entitlements until the cookie expires. The cost is one indexed read on `users` per
+account on a laptop ends it on the phone in the other room, instead of leaving it fully signed in
+until the cookie expires. The cost is one indexed read on `users` per
 authenticated API request, uncached on purpose: caching the answer would reintroduce a window in
 which a revoked session still works, which is the bug. See
 [`server/utils/session-guard.ts`](./server/utils/session-guard.ts). The column is a timestamp
@@ -604,7 +574,6 @@ numbers:
 | --- | --- | --- |
 | `/api/auth/**` — 30 per 60s | native | Matches the `[[ratelimits]]` block, which was sized for it |
 | `/api/health` — 60 per 60s | KV | Different limit |
-| `mcp-connect-code` — 10 per 300s | KV | The binding's `period` may only be 10 or 60 |
 
 The strictness is the point. A binding's `(limit, period)` is fixed at deploy — `limit({ key })`
 takes only a key — so routing a 20/60s handler through a 30/60s binding would enforce 30 while the
@@ -655,7 +624,7 @@ challenge second and the rate limit becomes the attack it was added to prevent. 
 route's own source and fails if the two calls ever swap.
 
 **Unset `NUXT_TURNSTILE_SECRET_KEY` and nothing happens** — no widget renders, no verification runs,
-the form works exactly as before. Same posture as Resend and Paddle. Setting *only*
+the form works exactly as before. Same posture as Resend. Setting *only*
 `NUXT_PUBLIC_TURNSTILE_SITE_KEY` is the one bad state: the widget appears and nothing checks the
 answer, so the server logs `turnstile_half_configured` rather than passing quietly. Both keys come
 from dash.cloudflare.com → Turnstile → Add site.
@@ -700,25 +669,15 @@ Adding a scheduled job is two edits plus a file:
 > log line. If a task never runs, compare those two strings first.
 
 The one task that ships is [`purge-expired-tokens`](./server/tasks/purge-expired-tokens.ts),
-daily at 04:00 UTC. It deletes spent and expired `magic_link_tokens` and `mcp_connect_codes`
-older than a 24-hour grace window — nothing in the request path ever deleted them, so both
-tables grew forever with sign-ins. It also drops applied Paddle `event_id`s from
-`paddle_events` after 30 days (the webhook's redelivery dedup; see
-[`.claude/docs/billing.md`](./.claude/docs/billing.md)). The grace window is deliberate: a spent token is the only
+daily at 04:00 UTC. It deletes spent and expired `magic_link_tokens` older than a 24-hour grace
+window — nothing in the request path ever deleted them, so the table grew forever with sign-ins.
+The grace window is deliberate: a spent token is the only
 evidence a link was replayed, and an expired one is what lets the verify page say "expired"
-rather than "invalid". Each run deletes at most 5000 rows per table, so a long backlog drains
-over several days instead of timing out forever on one enormous `DELETE`. Both tables carry
+rather than "invalid". Each run deletes at most 5000 rows, so a long backlog drains
+over several days instead of timing out forever on one enormous `DELETE`. The table carries
 indexes on `expires_at` and `used_at` for this sweep: the `LIMIT` bounds rows *deleted*, not
 rows *examined*, so without them the nightly job scanned the fastest-growing table in the
 database and got slower as the product succeeded.
-
-The same task also collects **abandoned uploads**: `files` rows are written before the object
-exists (the client uploads to R2 directly), so a row still `pending` a day later is an upload
-someone started and walked away from. The schema had promised a sweeper since the table was
-added and none existed, so those rows — and the R2 objects they pointed at — accumulated
-forever. The object is deleted before the row, because the row is the only record of the key:
-delete it first and the object is orphaned permanently, where the other order at worst leaves a
-row whose object is already gone, which the next run retries.
 
 **It runs in `bun dev` too** — the dev preset drives the same map with croner, in-process. To
 run it right now instead of waiting for 04:00, Nitro mounts a dev-only route:
@@ -787,7 +746,7 @@ kept (`features`), and the secret **names** production needs. Shape and field-by
 
 It is only worth reading if it is true, so `bun run fleet:check` (part of `bun run ci`) fails the
 build when it stops matching `wrangler.toml` — Worker name, binding names and ids, crons,
-`NUXT_PUBLIC_APP_URL`, the `mcp/` Worker — or still carries a `YOUR_…` placeholder outside
+`NUXT_PUBLIC_APP_URL` — or still carries a `YOUR_…` placeholder outside
 `stage: "unreleased"`. `bun run rename` rewrites it with everything else. Edit it in the same
 commit as the wrangler change it describes.
 
@@ -800,7 +759,7 @@ fingerprint the deployment. It carries no secrets:
 ```json
 {
   "schema": 1, "status": "ok", "database": "connected",
-  "app": { "slug": "my-app", "stage": "unreleased", "workers": ["my-app", "my-app-mcp"] },
+  "app": { "slug": "my-app", "stage": "unreleased", "workers": ["my-app"] },
   "build": { "sha": "d0b2f48…", "date": "2026-08-22" },
   "versions": { "nuxt": "^4.5.2", "wrangler": "^4.125.0", "templateSyncedSha": null },
   "migrations": { "repo": { "head": "0013_…", "count": 14 }, "applied": { "table": "d1_migrations", "head": "0013_…", "count": 14 }, "pending": [], "unknown": [] },
@@ -814,7 +773,7 @@ Gotchas, reported by the Worker the moment it opens instead of by a user. `statu
 while it is non-empty, `down` (HTTP 503) when D1 is unreachable. `/api/health` is unchanged and
 still the thing to point a dumb uptime check at.
 
-[`/api/fleet`](./server/api/fleet.get.ts) is counters only — users, entitlements by status, the
+[`/api/fleet`](./server/api/fleet.get.ts) is counters only — users, the
 ops spool, the feedback queue — behind `Authorization: Bearer $NUXT_FLEET_TOKEN`. With the token
 unset it **404s**, so an app that has not opted into the dashboard advertises nothing. Rotation
 accepts `NUXT_FLEET_TOKEN_PREVIOUS` alongside the current one
@@ -837,8 +796,8 @@ The [spool above](#ops-alerting) is the third piece: the dashboard reads `ops.ki
 [`server/utils/email.ts`](./server/utils/email.ts) posts to Resend over plain `fetch` — no SDK, for
 the same reason the PostHog helper has none. Swapping providers means editing one URL and body.
 
-**It never throws.** Every call site is something more important than the email: a sign-in, or a
-Paddle webhook that must return 200 or get retried forever. Unset `NUXT_RESEND_API_KEY` and every
+**It never throws.** Every call site is something more important than the email: a sign-in or a
+request that must not fail because a mail API is down. Unset `NUXT_RESEND_API_KEY` and every
 send becomes a logged no-op, so the template runs without a Resend account.
 
 **It goes through a queue in production.** When the `EMAIL_QUEUE` producer binding exists,
@@ -887,17 +846,15 @@ email is the one message a user is actively waiting on.
 > future `compatibility_date` made it default, every batch would be acked immediately and
 > `retry()` would silently become a no-op. Pinning the disable flag makes a date bump safe.
 
-Which emails exist, and when they fire — decided by `decideNotification()` in
-[`layers/billing/server/utils/billing-notifications.ts`](./layers/billing/server/utils/billing-notifications.ts), covered by
-[`layers/billing/test/billing-notifications.test.ts`](./layers/billing/test/billing-notifications.test.ts):
+Which emails exist, and when they fire:
 
 | Email | Trigger |
 | --- | --- |
 | Sign-in link | Every `POST /api/auth/magic-link`. The one email that is not optional — see Auth. |
 | Welcome | First sign-in only |
-| Subscription/pass active | Transition **into** `active`/`trialing`, or a pass actually granted |
-| Payment failed | Transition into `past_due` |
-| Access ended | Cancellation, approved refund, or chargeback |
+| Activation nudge | Lifecycle task, for accounts that have not finished onboarding |
+| Account deleted | Confirms a deletion |
+| Feedback reply | An admin answers a feedback message |
 
 **Unsubscribing takes a click, and that is not friction.** `List-Unsubscribe` is a URL sitting in
 inbound mail, and mail security gateways GET every URL in a message on delivery — so a GET that
@@ -907,106 +864,9 @@ the token and redirects to the public `/unsubscribe` page whose button POSTs. Gm
 one-click button POSTs directly (RFC 8058), so the experience their bulk-sender rules are written
 about is untouched.
 
-They fire on **status transitions, not events**. Paddle sends a `subscription.updated` for a card
-edit or a metadata tweak; emailing on every one teaches people to filter you — and the
-payment-failed email is the one that must not end up in a folder.
+They fire on **state transitions, not events**: emailing on every change teaches people to
+filter you.
 
----
-
-## Billing (Paddle)
-
-Subscription billing is pre-wired for [Paddle](https://www.paddle.com) (merchant of record), sandbox-first. With no Paddle env vars set, all of it no-ops — the template runs fine without a Paddle account.
-
-The pieces:
-
-| Piece | Where | What it does |
-| --- | --- | --- |
-| Webhook | [`layers/billing/server/routes/paddle/webhook.post.ts`](./layers/billing/server/routes/paddle/webhook.post.ts) | Verifies the `Paddle-Signature` HMAC (see `layers/billing/server/utils/paddle.ts`), then hands the event to `applyPaddleEvent`. Lives outside `/api/` — the signature is the auth. |
-| Entitlement writes | [`layers/billing/server/utils/entitlements.ts`](./layers/billing/server/utils/entitlements.ts) | Subscriptions, one-time passes, and refund revocation. Takes the `db` explicitly so [`layers/billing/test/entitlements.test.ts`](./layers/billing/test/entitlements.test.ts) can drive real Paddle events against a real D1. |
-| Entitlements | `entitlements` table in [`server/db/schema.ts`](./server/db/schema.ts) | One row per Paddle ref — `sub_…` for subscriptions, `txn_…` for one-time passes — mapped to a user via checkout `custom_data.userId`, and to a plan via the item's `price.id`, which must be one of the configured `NUXT_PUBLIC_PADDLE_PRICE_*` values (`layers/billing/server/utils/paddle-prices.ts`). |
-| Gating | `requireSubscription(event, productKey?)` in [`layers/billing/server/utils/billing.ts`](./layers/billing/server/utils/billing.ts) | Composes on `requireUserSession`; throws 401 signed-out, 402 unsubscribed. Auto-imported in all server routes. |
-| Checkout | `usePaddle()` in [`layers/billing/app/composables/usePaddle.ts`](./layers/billing/app/composables/usePaddle.ts) | Lazy-loads Paddle.js, opens overlay checkout with the signed-in user's email and `custom_data.userId`. |
-| Status + cancel | `GET /api/billing/entitlement`, `POST /api/billing/portal` | Access status and history for an account page, and a fresh Paddle customer-portal link deep-linked to cancel. The portal route needs `NUXT_PADDLE_API_KEY`. |
-
-What the webhook does with each event:
-
-- Before any of them: an `event_id` already applied is a no-op, and an event whose `occurred_at` is older than the row's last applied event is refused — Paddle delivers out of order. `refunded`/`chargeback` rows ignore lifecycle events until an adjustment reverses them or Paddle bills a new period.
-- `subscription.*` — upsert the row; Paddle's status is the source of truth.
-- `transaction.completed` **without** a subscription — a one-time pass: grants `PASS_DAYS` of access, stacking on top of any unexpired access rather than starting from the purchase date. Idempotent across redelivery.
-- `adjustment.created` / `adjustment.updated` — money going back out. An **approved** refund or a chargeback revokes the matching entitlement (status `refunded`/`chargeback`, window closed immediately). Credits, chargeback warnings, and reversals never revoke. Refunds arrive as `pending_approval` first, so access survives a refund that gets rejected.
-
-Refunds have no `custom_data`, so they're matched by the transaction/subscription id already on the row — which is why the row stores whichever Paddle ref the purchase came from.
-
-Setup (sandbox):
-
-1. Create a sandbox account at [sandbox-vendors.paddle.com](https://sandbox-vendors.paddle.com), add a product + price.
-2. Client token (Developer tools → Authentication) → `NUXT_PUBLIC_PADDLE_CLIENT_TOKEN`, keep `NUXT_PUBLIC_PADDLE_ENV=sandbox`.
-3. Notification destination (Developer tools → Notifications) pointing at `https://<your-app>/paddle/webhook`, subscribed to `subscription.*`, `transaction.completed`, `adjustment.created`, and `adjustment.updated`; its secret → `NUXT_PADDLE_WEBHOOK_SECRET` (via `wrangler secret put` in prod, `.env` in dev). **Miss the adjustment events and refunded customers keep their access.**
-4. API key (Developer tools → Authentication) → `NUXT_PADDLE_API_KEY`, so `/api/billing/portal` can mint customer-portal links. **Required once billing is on**: the "Manage or cancel" button on /account always renders for a paying customer and calls this route; with the key unset every click 503s (`paddle_portal_unconfigured` in the logs) and the toast tells the customer to email `NUXT_PUBLIC_SUPPORT_EMAIL`. There is deliberately no "reply to your receipt" fallback — a cancel path that routes through a support inbox is the dark pattern this page exists to avoid. With `billing.cancelOnDeletion` on, the key also needs **Subscriptions: write**, so deleting an account can cancel the subscription first ([`.claude/docs/billing.md`](./.claude/docs/billing.md)).
-5. In a page: `const { openCheckout } = usePaddle()` then `openCheckout('pri_…')`. Gate API routes with `await requireSubscription(event)`.
-
-Test the refund path before launch: Paddle → Developer tools → Notifications → Simulate, pick `adjustment.created`, and watch the entitlement flip.
-
-Going live: swap the token/secret for live ones and set `NUXT_PUBLIC_PADDLE_ENV=production`.
-
----
-
-## Uploads (R2)
-
-Cloudflare R2 was wired (`hub.blob: true`) but had no upload path — this is the worked, paid-gated example. Every route requires an active subscription, same as `/dashboard`.
-
-| Route | What it does |
-| --- | --- |
-| `POST /api/files` | Server-mediated upload: the client posts multipart form data, the server validates it (`ensureBlob`, an exact MIME allowlist, an 8 MB cap) and writes it to R2 itself — it never trusts a client-supplied storage key or path. Inserts a `pending` row, calls `blob.put()`, then flips the row to `uploaded`; a crash in between leaves a `pending` row with no object behind it — an abandoned upload a future sweep could find, not a row lying about what's in the bucket. |
-| `GET /api/files` | The caller's own files, newest first, cursor-paginated over the `(user_id, created_at)` index. |
-| `GET /api/files/:id` | Streams one file via `blob.serve()`, after an ownership check scoped to the caller's own `userId`. |
-| `DELETE /api/files/:id` | Deletes the R2 object, then the row — deliberately in that order. R2's delete is idempotent, so if the row delete fails afterward, the file is still listed and a retry finishes the job; deleting the row first risks a silent, permanently orphaned object if the object delete then fails. |
-
-**Where keys live.** Every object is stored at `uploads/<user_id>/<uuid>.<ext>` (`layers/files/server/utils/files.ts` › `buildR2Key()`). The key is built from the session's own user id and the *validated* MIME type — never from anything the client sends — so one user's uploads can never collide with, overwrite, or be guessed from another's. See the `files` table's comment in `server/db/schema.ts` for the invariant this protects.
-
-**Limits.** JPEG, PNG, WebP, and PDF only, 8 MB per file (`layers/files/shared/utils/files.ts`, imported by both the server route and the client's pre-check in `layers/files/app/components/Upload/FileUpload.vue`, so the two can't disagree about what gets rejected). The client-side check is a courtesy — the server re-validates every one of these regardless of what a modified client sends.
-
-**Private, not public.** R2 objects here have no public URL; `GET /api/files/:id` is the only path to the bytes, gated the same way as every other paid route (`requireSubscription`) plus the ownership check above. There's no signed or short-lived URL layered on top, because there's no direct path to the object that one would be protecting against.
-
-**Local dev.** `bun dev` writes uploads to NuxtHub's local blob directory, `.data/blob` (gitignored) — a filesystem-backed emulation of the R2 driver, parallel to `.data/db/sqlite.db` for D1. It's created automatically on first upload; no setup needed.
-
----
-
-## Images
-
-Two transform paths, split by whether the image is behind a session — because one of them
-physically cannot serve the other's images.
-
-**Public images go through the edge.** `@nuxt/image` is configured with the `cloudflare`
-provider, so `<NuxtImg src="/og.png" width="640" />` renders
-`/cdn-cgi/image/w=640,f=auto,q=85/og.png` and Cloudflare resizes and re-encodes it on the
-way out. No build step, no image binary in the bundle, srcset and AVIF/WebP negotiation for
-free. `f=auto` and the width ladder are set globally in `nuxt.config.ts` rather than per
-call site, so forgetting them once cannot quietly ship a 400 kB PNG.
-
-> **`/cdn-cgi/image/` is a zone feature, not a Worker one.** It needs a custom domain with
-> Images › Transformations enabled; on `*.workers.dev` and under `bun dev` the path 404s.
-> `nuxt.config.ts` carries a `$development` override that swaps in the `none` provider, so
-> local pages render originals rather than broken images. If images break locally, check
-> that override before anything else.
-
-**Private uploads transform inside the Worker.** The edge resolves a `/cdn-cgi/image/` URL
-by fetching the source itself, with no cookie — so against `GET /api/files/:id`, which is
-gated by `requireSubscription()` plus an ownership check, it would fetch a 401. Those
-images use the `IMAGES` binding instead, *after* both checks have passed:
-
-```
-GET /api/files/<id>?w=512&format=auto
-```
-
-`w` is snapped up to a fixed ladder rather than honoured verbatim — a free integer lets one
-account ask for 4,000 distinct widths of one file and get 4,000 transforms out of it. The
-binding is feature-detected: unset, or throwing, and the original streams instead, the same
-"runs without an account" posture as Resend and Turnstile. Every transformed response
-carries `Cache-Control: private`, because those bytes passed an ownership check scoped to
-one user.
-
-Full contract in [`.claude/docs/images.md`](.claude/docs/images.md).
 
 ---
 
@@ -1015,15 +875,11 @@ Full contract in [`.claude/docs/images.md`](.claude/docs/images.md).
 | Route | Access | Notes |
 | --- | --- | --- |
 | `/` | Public | Landing page — hero, features, CTA. Indexed. |
-| `/pricing` | Public | Two plans from `layers/billing/app/utils/plans.ts` (monthly subscription, 30-day pass — monthly only, no yearly, by rule) + price IDs in runtime config. Indexed. |
-| `/blog` | Public | Post index, newest first. Indexed. |
-| `/blog/:slug` | Public | One post, from `content/blog/<slug>.md`. Indexed, with `BlogPosting` JSON-LD. |
 | `/login` | Public | Magic-link form, then buttons for configured OAuth providers, then dev sign-in. `noindex`. |
 | `/auth/verify` | Public | Where a magic link lands. Confirming is what spends the token. `noindex`. |
 | `/unsubscribe` | Public | Where an email footer's unsubscribe link lands. Confirming is what opts you out — a GET must not, because mail gateways fetch it. `noindex`. |
-| `/account` | Signed in | Plan status, billing history, self-serve cancel, MCP connect code, sign out. |
-| `/dashboard` | Signed in **and** paying | The gated example. Replace with your product. |
-| `/files` | Signed in **and** paying | Upload, list, download, and delete files in R2 — see [Uploads (R2)](#uploads-r2). |
+| `/account` | Signed in | Email preferences, sign out everywhere, export and delete your data. |
+| `/dashboard` | Signed in | The signed-in example. Replace with your product. |
 | `/terms`, `/privacy` | Public | Templates written to match what this codebase actually does. **Have a lawyer read them.** |
 | `/design-system` | Dev only | Stripped from the production route table in `nuxt.config.ts`. |
 
@@ -1098,10 +954,10 @@ things that have to happen together, three of which are easy to forget:
 
 ```ts
 useSeo({
-  title: 'Pricing',                        // `· My App` is appended for you
-  description: 'Plans and pricing …',
-  breadcrumb: [{ name: 'Pricing', path: '/pricing' }],
-  schema: [softwareApplicationSchema(site, { … }), faqSchema(PRICING_FAQ)],
+  title: 'About',                          // `· My App` is appended for you
+  description: 'What this is …',
+  breadcrumb: [{ name: 'About', path: '/about' }],
+  schema: [softwareApplicationSchema(site, { … })],
 })
 ```
 
@@ -1109,7 +965,7 @@ useSeo({
 
 ```ts
 definePageMeta({
-  publicPage: { changefreq: 'weekly', priority: '0.8', title: 'Pricing', summary: '…' },
+  publicPage: { changefreq: 'weekly', priority: '0.8', title: 'About', summary: '…' },
 })
 ```
 
@@ -1120,16 +976,14 @@ and it was simply never in the sitemap, with nothing failing.
 
 A page without the key is in neither, which is the right default: most pages added to an app
 are private. Dynamic routes are one pattern, not N URLs, so the collecting hook skips any path
-containing `:` — `/blog/[slug]` is enumerated by querying the content collection inside
-[`sitemap.xml.get.ts`](./server/routes/sitemap.xml.get.ts) instead, which is the pattern to
-copy for public profiles or anything else driven by data. Such a page still declares
+containing `:`. Data-driven pages (public profiles, a catalogue) are enumerated by a query inside
+[`sitemap.xml.get.ts`](./server/routes/sitemap.xml.get.ts) instead. Such a page still declares
 `publicPage`, because `seo:check` enforces "indexable ⇔ declared public" across every page; the
 declaration is inert as a sitemap entry and says so in a comment.
 
 `<lastmod>` is the **build date** for static pages, not the request date. `new Date()` at
 request time tells crawlers every page changed today, on every fetch, and they discount a
-lastmod that always says "now". Blog posts are the exception and carry a real per-URL date,
-because their frontmatter states when they were published and last revised.
+lastmod that always says "now".
 
 ### Structured data
 
@@ -1138,18 +992,11 @@ their shapes are unit-testable without booting Nuxt. Nodes are linked by `@id` r
 duplicated — one `Organization`, one `WebSite`, everything else pointing at them — which is
 what lets a consumer resolve "this page" and "this company" to single entities.
 
-`/` and `/pricing` carry `SoftwareApplication` with a real `AggregateOffer`; `/pricing` adds
-`FAQPage`; every blog post carries `BlogPosting` with `datePublished`/`dateModified` and an
-author that resolves to the existing `Organization` node when the byline is the company
-itself. Two rules worth keeping:
+`/` carries `SoftwareApplication`. The rule worth keeping:
 
-- **Never describe something in JSON-LD that isn't on the page.** The pricing FAQ is rendered
-  from the same [`PRICING_FAQ`](./app/utils/faq.ts) array that feeds the markup, so the two
-  cannot disagree. FAQ markup without a visible FAQ is a manual-action risk with Google.
-- **Prices are numbers, not display strings.** `layers/billing/app/utils/plans.ts` carries `amount`,
-  `currency`, and `unit` next to the `'$12'` copy, because parsing a currency glyph out of
-  display text breaks the first time someone writes `'From $12'` — and a wrong price published
-  to answer engines is a bad failure to have.
+- **Never describe something in JSON-LD that isn't on the page.** FAQ markup without a visible
+  FAQ is a manual-action risk with Google, so structured data is built from the same source the
+  page renders.
 
 ### The three crawler files
 
@@ -1161,23 +1008,20 @@ can use the real deployment origin:
   wrong, but because a policy you can read is a policy you can change. Defaults to allowing
   them: for a SaaS marketing site, being quotable is distribution, not theft. Flip with
   `NUXT_PUBLIC_ALLOW_AI_CRAWLERS=false`.
-- **`sitemap.xml`** — derived from the route table, as above, plus the blog posts queried out
-  of the content collection.
+- **`sitemap.xml`** — derived from the route table, as above, plus any data-driven sources an app registers.
 - **`llms.txt`** — the [llmstxt.org](https://llmstxt.org) convention: a short Markdown map of
   the site for a model with limited context and no patience for navigation. A map, not a
   mirror — every line is a link plus one sentence, built from the same `publicPage`
-  declarations, so it can't drift. Posts get their own `## Blog` section with the publication
-  date on each line, because a model that cannot date a claim will repeat it as current.
+  declarations, so it can't drift.
 
 Set `NUXT_PUBLIC_INDEXABLE=false` on preview deploys: robots.txt disallows everything, every
 page renders `noindex`, sitemap.xml goes empty and llms.txt 404s. An indexed preview URL
 competes with production for the same content.
 
-If the blog query fails, sitemap.xml and llms.txt still serve — a document missing its posts
-beats a 500 — but they switch to `Cache-Control: no-store`. A crawler cannot tell "the query
-failed" from "the posts were deleted", and the usual one-hour public cache would turn a
-momentary D1 blip into an hour of that misreading. Suppression is different from degradation:
-an empty preview sitemap is a deliberate, stable answer and stays cacheable.
+If a data-driven source query fails, sitemap.xml and llms.txt still serve — a document missing
+entries beats a 500 — but they switch to `Cache-Control: no-store`, so a momentary D1 blip is not
+cached for an hour as the truth. Suppression is different from degradation: an empty preview
+sitemap is a deliberate, stable answer and stays cacheable.
 
 ### The gate
 
@@ -1192,123 +1036,15 @@ traffic graph months later. The gate fails the build on a page that skips `useSe
 declared), has a missing or badly-sized description, or has more than one `<h1>`. Escape hatch
 is `seo-check-ignore`, same as the design-token gate.
 
-It reads `content/blog/*.md` too, applying the same title and description bounds to their
-frontmatter and insisting each post has a valid `date` and an `author`. That is not duplicated
-enforcement: `content.config.ts` declares those bounds, but `@nuxt/content` turns a collection
-schema into SQL columns and never runs its refinements against your frontmatter — a
-300-character description parses fine and ships.
-
 `public/og.png` is generated, not hand-made: `bun run brand:generate` composes it from the brand
 mark, the DESIGN.md colours, and the app name in `wrangler.toml`. So the fix for a share image
 that still says "My App" is to rename the project and re-run that command — and `bun run
 brand:check` fails the build until you do. See [Design system & brand mark](#design-system--brand-mark).
 
-The legal pages are the part people skip and then get stuck on: Paddle's onboarding review checks
-for reachable terms and privacy pages before approving an account. The ones here name the actual
-processors this template ships with (Cloudflare, Paddle, PostHog, Resend) and describe the real
-refund behaviour. They are still a starting point, not legal advice, and each carries a banner
-saying so until you remove it.
-
----
-
-## Blog
-
-The SEO machinery above needs something to rank, and answer engines need something to quote.
-Seven evergreen marketing pages are not that. The blog is [`@nuxt/content`
-v3](https://content.nuxt.com) — the only runtime dependency this template adds beyond the
-stack table.
-
-### Writing a post
-
-Drop a markdown file in `content/blog/`. The filename is the URL.
-
-```md
----
-title: 'Sign-in without passwords'
-description: 'A magic link is the front door and OAuth sits underneath it. Why the account key is a verified email address.'
-date: '2026-08-05'
-author: 'My Company Ltd'
----
-
-Prose. Start at `##` — the `<h1>` is rendered from `title`.
-```
-
-| Field | Required | Notes |
-| --- | --- | --- |
-| `title` | yes | ≤ 70 chars. Becomes the `<h1>`, the `<title>`, and the `headline`. |
-| `description` | yes | 50–160 chars. The search snippet, the `og:description`, and the `llms.txt` line. |
-| `date` | yes | **Quoted** `'YYYY-MM-DD'`. Sort order, `datePublished`, `<lastmod>`. |
-| `updated` | no | Same format. Only when the post was actually revised. |
-| `author` | yes | Matching the legal entity attributes the post to the `Organization` node; anything else becomes a `Person`. |
-| `draft` | no | `true` hides the post from every list. Still openable by URL in dev; a 404 in production. |
-
-Quote the dates. Unquoted YAML dates are parsed into `Date` objects and then round-tripped
-through SQLite and JSON, which is three chances to pick up a timezone that shifts the day.
-`bun run seo:check` fails the build on a malformed date, on one in the future, on an `updated`
-that precedes its `date`, and on a description outside the bounds — the collection schema in
-[`content.config.ts`](./content.config.ts) declares those bounds but **does not enforce them**:
-@nuxt/content walks a collection schema to derive SQL columns and never runs its refinements
-against your frontmatter.
-
-A draft is filtered out in the query, so it reaches neither `/blog`, nor `sitemap.xml`, nor
-`llms.txt`. The dev-only URL is the point of the flag: a draft you cannot open is a draft you
-cannot proofread, and the workflow that replaces it — flip the flag, look, flip it back — is
-how an unfinished post gets published by accident.
-
-Three seed posts ship with the template. **They describe the template, not your product** —
-replace them, the same way you replace the changelog entries.
-
-### Where the content actually lives
-
-Content v3 does not ship markdown to the browser. It parses `content/` at build time into SQL,
-and a Worker has no filesystem, so at runtime that store is D1.
-
-**It shares the app's `DB` binding**, creating `_content_info` and `_content_blog` next to your
-own tables. Drizzle never sees them: `drizzle-kit generate` diffs `schema.ts` against its own
-snapshot rather than the live database, and `wrangler d1 migrations apply` only runs the files
-in `server/db/migrations` and tracks them in its own table. (`drizzle-kit push` *does* diff
-against a live database and is deliberately not wired up — keep it that way, or exclude
-`_content_*`.) The alternative — a second `CONTENT_DB` binding — buys isolation at the cost of <!-- refs-check-ignore: names a binding this repo deliberately does not create -->
-a placeholder database id that every fork must replace before `wrangler deploy` will accept the
-config. To take it anyway: create the database, add the `[[d1_databases]]` block, and change
-`bindingName` in `nuxt.config.ts`. Nothing else reads these tables.
-
-**There is no migration step.** Unlike the app's own schema — which you *do* have to apply
-yourself with `bun run db:migrate:remote` — the content tables are created and filled by the
-Worker itself: the build writes a compressed SQL dump into the static assets, and the first
-request after a deploy compares its checksum against `_content_info` and imports it if they
-differ.
-
-In dev, none of that applies: parsing and queries go to a local SQLite file under `.data/`
-through Node's built-in `node:sqlite`. That is why `package.json` declares a `node >=22.13`
-engine — 22.13.0 (and 23.4.0) is where `node:sqlite` stopped requiring `--experimental-sqlite`,
-which this stack has no way to pass. The module's default is `better-sqlite3`, a native module
-this repo does not have and which it tries to install *by prompting on stdin* — under `bun run`
-that is not a prompt, it is a crash in `postinstall`, and it is also what an older Node falls
-back to.
-
-### Reading it
-
-Pages fetch `/api/blog` and `/api/blog/:slug` rather than calling `queryCollection()` directly,
-and that is not ceremony. Content's app-side `queryCollection()` runs in the browser by
-downloading the collection dump and executing it in `@sqlite.org/sqlite-wasm` — a megabyte of
-WebAssembly to read three posts, and it would not run anyway, because compiling WebAssembly
-needs `'wasm-unsafe-eval'` in `script-src` and [this app's CSP](./nuxt.config.ts) does not
-grant it.
-The failure would appear only after a client-side navigation, in production. So the queries
-live in [`server/utils/blog.ts`](./server/utils/blog.ts) and the browser gets JSON.
-
-Markdown renders through `<ContentRenderer>` onto NuxtUI's `Prose*` components, which are
-registered automatically because `@nuxt/content` is installed. They already read the token
-layer; the two defaults that contradict `DESIGN.md` — `font-bold` on serif headings and
-hover-only link underlines — are overridden under `ui.prose` in `app/app.config.ts`.
-
-What the blog costs the client bundle, measured against the build immediately before it: **no
-sqlite wasm at all** (`.output/public/_nuxt` contains zero matching files), **+38 KB on the
-entry JS** and **+38 KB on the entry CSS**, uncompressed, plus 79 lazily-loaded chunks that
-only download on a page that renders them. The two entry costs are the 44 `Prose*` components
-NuxtUI registers globally; they are not configurable away without patching NuxtUI, and they are
-what makes a post look like the rest of the app.
+The legal pages are the part people skip and then get stuck on. The ones here name the actual
+processors this app ships with (Cloudflare, PostHog, Resend) and describe the real behaviour.
+They are still a starting point, not legal advice, and each carries a banner saying so until you
+remove it.
 
 ---
 
@@ -1326,7 +1062,7 @@ It's open to **signed-out visitors on purpose** — requiring a login before som
 
 ### What one submission produces
 
-1. **A row in the `feedback` table (D1)** — yours forever, joinable against `users` and `entitlements`, and it survives dropping PostHog. Carries the kind, message, route, optional reply-to email, optional 1–5 rating, and a deep link to the PostHog session replay of that exact moment.
+1. **A row in the `feedback` table (D1)** — yours forever, joinable against `users`, and it survives dropping PostHog. Carries the kind, message, route, optional reply-to email, optional 1–5 rating, and a deep link to the PostHog session replay of that exact moment.
 2. **A PostHog `feedback_submitted` event** on the submitter's distinct id, so the note lands on their person timeline next to the replay. Capture is **server-side only** — the client passes the replay URL and distinct id but never captures, so a blocked SDK can't lose the event and it can't be double-counted.
 
 Abuse control: 5 submissions per hour per source, counted against a salted SHA-256 of the IP (`ip_hash`) — enough to rate-limit, useless as an identifier.
@@ -1350,29 +1086,6 @@ await submit({ kind: 'other', message: reason, rating: 2 })
 
 ---
 
-## MCP server (optional second worker)
-
-[`mcp/`](./mcp) is a self-contained second Worker exposing a **remote MCP server** (Streamable HTTP at `/mcp`) that agents like Claude Code, Claude.ai, and Cursor can connect to with just the URL. It's optional — ignore the directory if your app doesn't need one.
-
-How it hangs together:
-
-- **OAuth 2.1** via [`@cloudflare/workers-oauth-provider`](https://github.com/cloudflare/workers-oauth-provider) (dynamic client registration included, so MCP clients self-register). Tokens/grants live in the worker's own `OAUTH_KV` namespace.
-- **Identity bridge** (`mcp/src/authorize.ts`): device-code style. A signed-in user mints a single-use, 10-minute connect code in the app (`POST /api/mcp/connect-code` — only its SHA-256 hash is stored), pastes it into the worker's `/authorize` consent page, and their `userId` is sealed into the OAuth grant. No shared cookies, no upstream IdP.
-- **Tools** (`mcp/src/server.ts`) run on `createMcpHandler` from the [`agents` SDK](https://developers.cloudflare.com/agents/) (stateless, MCP SDK v2). Every tool starts with `loadAuthorizedUser(env)` rather than reading the grant's `userId` directly — see below; `subscription_status` shows the entitlement-gating pattern against the shared `entitlements` table.
-- **Shared D1**: the worker binds the *same* `database_id` as the Nuxt app (D1 bindings are shareable). The app owns schema + migrations; the worker reads with plain SQL.
-
-**Revoking a grant, given that the app cannot reach OAUTH_KV.** Grants live in this worker's own KV namespace, so deleting your account cannot delete them — the app does not know they exist. And deletion *anonymizes* the `users` row rather than removing it (the id is a live foreign key from `entitlements`), so a stale grant would otherwise keep answering tool calls against the tombstone, including reporting the retained billing rows as a live subscription.
-
-`loadAuthorizedUser()` closes that with the same two refusals as the app's [`checkSession()`](./server/utils/session-guard.ts): a `users` row whose email is a `.invalid` tombstone is refused, and a grant is refused when the account has a `sessions_invalid_before` watermark and the grant either predates it or has no `grantedAt` at all. Accounts that never revoked anything have a NULL watermark and are untouched, so adding it disconnects nobody. The tombstone rule is **written twice on purpose** — the worker is a separate build and cannot import the app's TypeScript — so a change to `isUndeliverableAddress()` in `server/utils/users.ts` needs the same change in `mcp/src/server.ts`.
-
-Commands (from the repo root): `bun run mcp:dev`, `bun run mcp:typecheck`, `bun run mcp:deploy` (run `bun install` inside `mcp/` first — it has its own lockfile-less package.json). The wrangler scripts pass `-c wrangler.jsonc` explicitly because the parent app's build writes a deploy-config redirect (`.wrangler/deploy/config.json`) that otherwise confuses wrangler.
-
-Deploying it for real: create a KV namespace for `OAUTH_KV`, paste the app's D1 `database_id` into `mcp/wrangler.jsonc`, rename `my-app-mcp`, and either `bun run mcp:deploy` locally or add a second Workers Builds project with root directory `mcp/`.
-
-Local dev caveat: `wrangler dev` uses its own local D1 sandbox (`.wrangler/`), not the Nuxt dev server's NuxtHub DB (`.data/`). Hydrate it with `bun run db:migrate:local` (inside `mcp/`) and seed rows by hand, or develop against remote D1.
-
----
-
 ## Claude Code setup
 
 This template ships with Claude Code configuration out of the box:
@@ -1381,7 +1094,6 @@ This template ships with Claude Code configuration out of the box:
 - **Slash commands** (`.claude/commands/`): `/new-feature`, `/scaffold-component`, `/scaffold-api`, `/db-migrate`
 - **Skills** (`.claude/skills/`): NuxtUI, frontend design, theming, and more
 - **AI guide** (`AGENTS.md`): stack conventions, styling rules, commands, and an index into `.claude/docs/` — kept small on purpose, since it loads into every agent session
-- **Subsystem docs** (`.claude/docs/`): auth, billing, email, SEO, patterns, brand, agent tooling, and the gotchas list — read on demand, not all at once
-- **Teardown guide** (`TEARDOWN.md`): ordered removal steps for billing, referrals, and the MCP worker
+- **Subsystem docs** (`.claude/docs/`): auth, email, SEO, patterns, brand, agent tooling, and the gotchas list — read on demand, not all at once
 
 The Nuxt MCP server requires `bun dev` to be running — its URL in the MCP config is `https://<your-portless-name>.localhost/__mcp/sse` (defaults to `my-app`; rename when you fork). Everything else works without any extra setup.
