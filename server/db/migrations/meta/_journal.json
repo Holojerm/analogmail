@@ -8,6 +8,13 @@
       "when": 1794762209575,
       "tag": "0000_windy_miss_america",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794762916958,
+      "tag": "0001_gigantic_whizzer",
+      "breakpoints": true
     }
   ]
 }
