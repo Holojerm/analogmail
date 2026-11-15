@@ -16,12 +16,7 @@ const supportEmail = config.public.supportEmail
 const year = new Date().getFullYear()
 
 const navLinks = computed(() => [
-  ...(loggedIn.value
-    ? [
-        { label: 'Dashboard', to: '/dashboard' },
-        { label: 'Files', to: '/files' },
-      ]
-    : []),
+  ...(loggedIn.value ? [{ label: 'Dashboard', to: '/dashboard' }] : []),
   // Admins never had a way to /admin except typing it.
   ...(isAdmin.value ? [{ label: 'Admin', to: '/admin' }] : []),
 ])
