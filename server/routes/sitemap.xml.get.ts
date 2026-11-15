@@ -13,13 +13,9 @@
 // `scripts/check-seo.ts` fails the build if an indexable page forgets to
 // declare itself.
 //
-// Blog posts are the other half, and they cannot work that way: `/blog/[slug]`
-// is one route-table entry describing N URLs, so the hook skips it by design.
-// They are queried out of the content collection below — which is also the only
-// place in this sitemap where `<lastmod>` is a real per-URL date rather than the
-// build date.
+// This app has no blog, so `posts` is always empty.
 //
-// Pages an app owns beyond those two (a catalogue, public profiles) come from
+// Pages an app owns beyond the static ones (a catalogue, public profiles) come from
 // registered sources — server/utils/public-pages.ts — so this file stays
 // identical in every fork. With none registered the query below is skipped.
 //
@@ -29,7 +25,6 @@
 
 import { db } from '@nuxthub/db'
 
-import { tryListBlogPosts } from '../utils/blog'
 import { collectPublicPages } from '../utils/public-pages'
 import { sitemapResponse } from '../utils/seo'
 
@@ -39,12 +34,6 @@ export default defineEventHandler(async (event) => {
   const indexable = config.public.indexable !== false
 
   setResponseHeader(event, 'Content-Type', 'application/xml; charset=utf-8')
-
-  // Skip the query entirely when the document is going to be empty anyway — a
-  // preview deploy should not be waking D1 to build a sitemap it suppresses.
-  // A skipped query is not a failed one, hence `ok: true`.
-  const { posts, ok } =
-    indexable && appUrl ? await tryListBlogPosts(event) : { posts: [], ok: true }
 
   const dynamic =
     indexable && appUrl
@@ -56,9 +45,9 @@ export default defineEventHandler(async (event) => {
     indexable,
     buildDate: config.buildDate,
     pages: config.publicPages ?? [],
-    posts,
+    posts: [],
     dynamic: dynamic.entries,
-    complete: ok && dynamic.complete,
+    complete: dynamic.complete,
   })
 
   setResponseHeader(event, 'Cache-Control', cacheControl)

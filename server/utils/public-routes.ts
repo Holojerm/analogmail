@@ -29,8 +29,8 @@ export interface PublicApiRoute {
 /**
  * What core ships. Frozen here rather than in the middleware so the list in
  * `.claude/docs/auth.md › Public API surface` has one place to be checked
- * against. Features register their own (feedback: `POST /api/feedback`; the
- * blog: server/plugins/blog-routes.ts), so removing one removes its routes.
+ * against. Features register their own (feedback: `POST /api/feedback`), so
+ * removing one removes its routes.
  */
 export const CORE_PUBLIC_API_ROUTES: readonly PublicApiRoute[] = [
   // Exact, not prefix: a bare `/api/status` prefix would make a later

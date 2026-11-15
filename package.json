@@ -57,7 +57,6 @@
     "deploy:smoke": "bun run scripts/deploy-smoke.ts"
   },
   "dependencies": {
-    "@nuxt/content": "^3.15.2",
     "@nuxt/image": "^2.1.0",
     "@nuxt/ui": "^4.10.0",
     "@nuxtjs/turnstile": "^1.1.3",

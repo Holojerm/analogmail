@@ -16,11 +16,6 @@ const supportEmail = config.public.supportEmail
 const year = new Date().getFullYear()
 
 const navLinks = computed(() => [
-  // In the header, not only the footer: the blog is the top of the funnel, and
-  // a link a search visitor never sees is a link that never earns a second page
-  // view. It is also the internal link that tells a crawler /blog exists
-  // without waiting for the sitemap.
-  { label: 'Blog', to: '/blog' },
   ...(loggedIn.value
     ? [
         { label: 'Dashboard', to: '/dashboard' },
@@ -148,7 +143,6 @@ watch(
         <div class="flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-sm text-muted">© {{ year }} {{ appName }}</p>
           <nav aria-label="Footer" class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <ULink to="/blog" class="text-muted hover:text-default">Blog</ULink>
             <ULink to="/changelog" class="text-muted hover:text-default">Changelog</ULink>
             <ULink to="/terms" class="text-muted hover:text-default">Terms</ULink>
             <ULink to="/privacy" class="text-muted hover:text-default">Privacy</ULink>

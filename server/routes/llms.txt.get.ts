@@ -10,20 +10,15 @@
 // the alternative is letting a model infer the shape of the product from
 // whichever marketing page it happened to land on.
 //
-// Blog posts are appended from the content collection, for the same reason they
-// are appended to sitemap.xml: they have no route-table entry to collect. They
-// are also the part of this file with the most to offer an answer engine — a
-// marketing page states what the product is, a post explains how it works, and
-// the second is what gets quoted.
+// This app has no blog, so `posts` is always empty.
 //
-// Pages an app owns beyond those two come from registered sources, as in
+// Pages an app owns beyond the static ones come from registered sources, as in
 // sitemap.xml — see server/utils/public-pages.ts.
 //
 // Suppressed on preview deploys for the same reason robots.txt is.
 
 import { db } from '@nuxthub/db'
 
-import { tryListBlogPosts } from '../utils/blog'
 import { collectPublicPages } from '../utils/public-pages'
 import { llmsTxtResponse } from '../utils/seo'
 
@@ -37,8 +32,6 @@ export default defineEventHandler(async (event) => {
     return 'Not found\n'
   }
 
-  const { posts, ok } = await tryListBlogPosts(event)
-
   const dynamic = await collectPublicPages(db, { buildDate: config.buildDate })
 
   const { body, cacheControl } = llmsTxtResponse({
@@ -48,15 +41,10 @@ export default defineEventHandler(async (event) => {
     supportEmail: config.public.supportEmail,
     legalEntity: config.public.legalEntity,
     pages: config.publicPages ?? [],
-    posts: posts.map((post) => ({
-      path: post.path,
-      title: post.title,
-      description: post.description,
-      date: post.date,
-    })),
+    posts: [],
     sections: dynamic.sections,
-    // A failed post or source query must not be cached as if it were the truth.
-    complete: ok && dynamic.complete,
+    // A failed source query must not be cached as if it were the truth.
+    complete: dynamic.complete,
   })
 
   setResponseHeader(event, 'Cache-Control', cacheControl)

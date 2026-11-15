@@ -55,12 +55,6 @@ export default defineNuxtConfig({
   modules: [
     '@nuxt/ui',
     '@nuxthub/core',
-    // The blog. Markdown in content/, parsed at build time into SQL, queried at
-    // runtime out of D1 — see the `content` block further down for which
-    // database that is and why. Registering it also makes @nuxt/ui register its
-    // Prose* components globally, which is what gives rendered markdown the
-    // DESIGN.md type scale without a stylesheet of our own.
-    '@nuxt/content',
     // Images. `<NuxtImg>`/`<NuxtPicture>` emit `/cdn-cgi/image/w=…,f=auto/<src>`
     // URLs that Cloudflare's edge rewrites — resize, format negotiation, and
     // srcset for free, with no build step and no image binary in the bundle.
@@ -159,70 +153,6 @@ export default defineNuxtConfig({
     // wrangler.toml. Sharing is safe: Nitro prefixes its entries with
     // `cache:`, which nothing else in this app writes.
     cache: { driver: 'cloudflare-kv-binding', binding: 'KV' },
-  },
-
-  // ─── Blog content (@nuxt/content v3) ───────────────────────────────────────
-  //
-  // Content v3 does not ship markdown to the client; it parses content/ at
-  // build time into SQL and queries it at runtime. A Worker has no filesystem,
-  // so on Cloudflare that store has to be D1.
-  //
-  // WHICH D1. This points at the app's own `DB` binding rather than a second
-  // `CONTENT_DB`, and that is a deliberate trade:
-  //
-  //   * Cost of sharing: content creates its own `_content_info` and
-  //     `_content_blog` tables inside the app's database. Drizzle never sees
-  //     them — `drizzle-kit generate` diffs schema.ts against its own snapshot
-  //     in server/db/migrations/meta, not against the live database, and
-  //     `wrangler d1 migrations apply` only runs the files in that directory
-  //     and records them in its own `d1_migrations` table. So `bun db:generate`
-  //     will not try to drop these, and `bun db:migrate` will not try to create
-  //     them. (`drizzle-kit push`, which DOES diff against a live database,
-  //     is not wired up here — keep it that way, or exclude `_content_*`.)
-  //   * Cost of not sharing: a second `[[d1_databases]]` block with a
-  //     placeholder id, which every fork must replace with a real database
-  //     before `wrangler deploy` will even accept the config. That is a second
-  //     setup step, on the deploy path, to isolate three markdown files.
-  //
-  // Sharing wins at this size. If the blog ever grows into something with real
-  // write traffic, split it: create the database, add the binding, and change
-  // `bindingName` here — nothing else in the app reads these tables.
-  //
-  // NO MIGRATION STEP. Unlike the app's own schema (AGENTS.md › Gotchas:
-  // "Nothing applies migrations to production D1"), the content tables need no
-  // `db:migrate:remote`. The build writes a compressed SQL dump into the
-  // Worker's static assets, and the first request after a deploy compares its
-  // checksum against `_content_info` and imports it if they differ. That is
-  // content's `integrityCheck`, and it stays on precisely because we deploy
-  // with wrangler: NuxtHub's own "apply queries during build" path is disabled
-  // for the d1 driver, and it would not reach the remote database anyway.
-  //
-  // DEV AND BUILD both ignore the setting above: parsing content, and every
-  // `nuxt dev` query, run against a local SQLite file in .data/ instead. Which
-  // SQLite is the `sqliteConnector` below, and it is not optional here.
-  //
-  // The module's default is `better-sqlite3` — a native module this repo does
-  // not have, which it tries to install by *prompting on stdin*. Under `bun
-  // run` that is not a prompt, it is a crash: consola cannot open a TTY, and
-  // `nuxt prepare` dies in postinstall with `uv_tty_init returned EINVAL`.
-  // Observed on a clean install here, before this line existed.
-  //
-  // `native` is `node:sqlite` — nothing to install, nothing to compile, and
-  // Node is the runtime that actually executes the build (`bun run dev` and
-  // `bun run build` both shell out to the `nuxt` bin, which has a node shebang,
-  // so `process.versions.bun` is undefined inside it and the module's own Bun
-  // detection never fires).
-  //
-  // The floor is **22.13.0**, not the 22.5.0 that first shipped the module:
-  // until 22.13 / 23.4 it was behind `--experimental-sqlite`, and this stack has
-  // no way to pass that flag. On 22.5–22.12 the module's availability probe
-  // simply returns false and falls back to the better-sqlite3 prompt above — so
-  // the wrong Node here reads as the same confusing crash, not as a version
-  // error. package.json's `engines` and the committed `.node-version` both
-  // record it.
-  content: {
-    database: { type: 'd1', bindingName: 'DB' },
-    experimental: { sqliteConnector: 'native' },
   },
 
   // NuxtUI v4 + Tailwind v4

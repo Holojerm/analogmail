@@ -26,8 +26,8 @@
 import { chromium } from '@playwright/test'
 import type { FullConfig } from '@playwright/test'
 
-/** Enough to pull both halves of the graph: the app shell, and rendered markdown. */
-const WARM_PATHS = ['/', '/blog/how-billing-works']
+/** Enough to pull the app shell and its module graph. */
+const WARM_PATHS = ['/']
 
 export default async function globalSetup(config: FullConfig): Promise<void> {
   const baseURL = config.projects[0]?.use?.baseURL
