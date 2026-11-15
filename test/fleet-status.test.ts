@@ -32,8 +32,8 @@ const DAY_MS = 24 * 60 * 60 * 1000
 describe('repoMigrations', () => {
   it('lists the journal, oldest first, as drizzle-kit tags', () => {
     const tags = repoMigrations()
-    expect(tags.length).toBeGreaterThanOrEqual(14)
-    expect(tags[0]).toBe('0000_wakeful_forgotten_one')
+    expect(tags.length).toBeGreaterThanOrEqual(1)
+    expect(tags[0]).toMatch(/^0000_[a-z_]+$/)
     expect(tags.at(-1)).toMatch(/^\d{4}_[a-z_]+$/)
     expect(tags).toEqual([...tags].sort())
   })

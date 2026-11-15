@@ -21,38 +21,35 @@ const timestamps = {
 // `email` is the account key: sign-in links providers by verified email rather
 // than minting a row per provider (see server/utils/users.ts). `provider` is
 // support context only, never an authorization input.
-export const users = sqliteTable(
-  'users',
-  {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    email: text('email').notNull().unique(),
-    name: text('name').notNull(),
-    avatarUrl: text('avatar_url'),
-    role: text('role').notNull().default('user'),
-    provider: text('provider'),
-    lastLoginAt: integer('last_login_at', { mode: 'timestamp' }),
-    // Revocation primitive for sealed-cookie sessions, which store nothing
-    // server-side. Every session carries its issue second
-    // (server/utils/auth.ts › establishSession); one issued before this instant
-    // is dead, checked per request by server/middleware/auth.ts. A timestamp, not
-    // a `deleted_at` flag, so it also answers "sign out everywhere" and admin
-    // force-logout. NULL = never revoked. A session with no issued-at that meets
-    // a non-null value is treated as revoked: "cannot prove" has to mean no.
-    sessionsInvalidBefore: integer('sessions_invalid_before', { mode: 'timestamp' }),
-    // First-touch attribution, written once at account creation from the cookie
-    // set on the first landing (shared/utils/attribution.ts), never updated:
-    // last-touch overwrites destroy "which channel produced this customer".
-    // Duplicated from PostHog because ad blockers make that record lossy exactly
-    // where it matters; these are first-party and joinable to `entitlements`.
-    signupSource: text('signup_source'),
-    signupMedium: text('signup_medium'),
-    signupCampaign: text('signup_campaign'),
-    signupReferrer: text('signup_referrer'),
-    ...timestamps,
-  },
-)
+export const users = sqliteTable('users', {
+  id: text('id')
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  email: text('email').notNull().unique(),
+  name: text('name').notNull(),
+  avatarUrl: text('avatar_url'),
+  role: text('role').notNull().default('user'),
+  provider: text('provider'),
+  lastLoginAt: integer('last_login_at', { mode: 'timestamp' }),
+  // Revocation primitive for sealed-cookie sessions, which store nothing
+  // server-side. Every session carries its issue second
+  // (server/utils/auth.ts › establishSession); one issued before this instant
+  // is dead, checked per request by server/middleware/auth.ts. A timestamp, not
+  // a `deleted_at` flag, so it also answers "sign out everywhere" and admin
+  // force-logout. NULL = never revoked. A session with no issued-at that meets
+  // a non-null value is treated as revoked: "cannot prove" has to mean no.
+  sessionsInvalidBefore: integer('sessions_invalid_before', { mode: 'timestamp' }),
+  // First-touch attribution, written once at account creation from the cookie
+  // set on the first landing (shared/utils/attribution.ts), never updated:
+  // last-touch overwrites destroy "which channel produced this customer".
+  // Duplicated from PostHog because ad blockers make that record lossy exactly
+  // where it matters; these are first-party and joinable to `entitlements`.
+  signupSource: text('signup_source'),
+  signupMedium: text('signup_medium'),
+  signupCampaign: text('signup_campaign'),
+  signupReferrer: text('signup_referrer'),
+  ...timestamps,
+})
 
 // Magic-link tokens — the primary consumer sign-in path (POST /api/auth/magic-link,
 // redeemed from /auth/verify). SHA-256 hash only,

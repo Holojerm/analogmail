@@ -15,7 +15,6 @@ import type { Result } from 'axe-core'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
-
 // Public routes only. /dashboard and /account redirect to /login when signed
 // out, so scanning them here would just scan /login a second time; they need a
 // session fixture to be worth anything.
@@ -36,15 +35,7 @@ import type { Page } from '@playwright/test'
 // likely to meet on a bad day, and therefore the one whose error copy has to
 // survive both color modes. Both are public and reachable straight from an
 // email, by people who are not signed in and may never have been.
-const ROUTES = [
-  '/',
-  '/changelog',
-  '/login',
-  '/auth/verify',
-  '/unsubscribe',
-  '/terms',
-  '/privacy',
-]
+const ROUTES = ['/', '/changelog', '/login', '/auth/verify', '/unsubscribe', '/terms', '/privacy']
 
 const WCAG_TAGS = [
   'wcag2a',

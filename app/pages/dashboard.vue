@@ -172,9 +172,7 @@ useSeo({ title: 'Dashboard', description: 'The gated example page.', noindex: tr
   <div class="flex flex-col gap-8 py-12">
     <div>
       <h1 class="text-3xl text-highlighted">Welcome back, {{ user?.name }}</h1>
-      <p class="mt-2 text-muted">
-        You're signed in.
-      </p>
+      <p class="mt-2 text-muted">You're signed in.</p>
     </div>
 
     <!-- Shared min-height across both children: the checklist card and the
