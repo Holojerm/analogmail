@@ -1,6 +1,21 @@
-# nuxt-cf-template
+# Analog Mail
 
-A production-ready template for full-stack apps on **Nuxt 4 + Cloudflare Workers**.
+Digital letters between friends that arrive on a postal rhythm, so people can write less
+often without it feeling rude.
+
+- Letters take as long as the post would: two to nine postal days by distance, never on a Sunday.
+- The sender sees "In transit, arrives Thursday" and nothing after. No read receipts, no delivery confirmation.
+- The only notification is the flag going up: you have mail. It never says from whom or how many.
+- Letters are end-to-end encrypted. The server knows who writes to whom and when, never what.
+- Invite-only pairs of people who already know each other. No discovery, no streaks, no couriers.
+
+**Status:** in development, not yet open to sign-ups.
+
+**Licence:** [FSL-1.1-MIT](LICENSE). The source is public so the privacy claims can be checked;
+each release becomes MIT after two years. See [NOTICE.md](NOTICE.md).
+
+Built on [nuxt-cf-template](https://github.com/Holojerm/nuxt-cf-template). The rest of this
+file is the template's operating reference for **Nuxt 4 + Cloudflare Workers**.
 
 | Layer | Technology |
 |---|---|

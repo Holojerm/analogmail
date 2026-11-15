@@ -7,6 +7,44 @@ and is read on demand.
 
 ---
 
+## What this is
+
+Analog Mail: digital letters between friends that arrive on a postal rhythm, so people can
+write less often without it feeling rude. A fork of `Holojerm/nuxt-cf-template`. Licence is
+FSL-1.1-MIT (see `NOTICE.md`); do not accept outside contributions. Read the full plan, with
+every product decision and the build order, before any product work. It lives outside the repo:
+
+- `~/code/analogmail-plan.md` <!-- refs-check-ignore -->
+
+
+**Rules the code must never break.** They are the product, not preferences:
+
+- No delivery confirmation, read receipt, typing indicator or "opened" status reaches anyone
+  but the recipient. The sender sees "In transit, arrives Thursday", then only the postmark.
+- A recipient sees nothing about a letter before its release.
+- The notice says only that mail has arrived: no sender names, no count, no content. Its link
+  carries no token and needs a signed-in session.
+- Letter text, stationery and photos are end-to-end encrypted. Nothing derived from them goes
+  into logs, error reports, analytics, session replay, `ops_events` or the email queue, and
+  there is no admin view of letters.
+- Sunday is never a postal day. At most one release and one notice per person per local day.
+- A letter belongs to its recipient and survives the sender deleting their account.
+- Not gamified: no streaks, couriers, tracking maps or nudges to write.
+
+**Where product code goes.** Fork-owned layers, never template-owned paths:
+
+| Layer | Holds |
+| --- | --- |
+| `layers/post` | Calendar, transit, the release task, notices, the `Notifier` interface, the dev clock |
+| `layers/letters` | Invites, correspondences, letters, mailbox, writing desk, stationery |
+| `layers/keys` | Key generation and wrapping, recovery code, browser crypto |
+| `layers/credentials`, `layers/feedback` | Vendored from the template (`bun run layers:pull`), pinned in `layers.lock.json` |
+
+Scheduling functions are pure, live in `layers/post/shared/`, and take `now` as an argument;
+nothing in scheduling reads the system clock. Keep modules near 150–200 lines.
+
+---
+
 ## Where things are documented
 
 Read the row that matches what you are about to touch. Do not load them all.
