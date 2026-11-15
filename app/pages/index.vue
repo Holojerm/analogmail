@@ -64,7 +64,7 @@ useSeo({
   titleMode: 'exact',
   title: `${config.public.appName} — ship the product, not the plumbing`,
   description,
-  schema: [softwareApplicationSchema(site, { description })],
+  schema: [softwareApplicationSchema(site, { description, offers: [] })],
 })
 </script>
 
