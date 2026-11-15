@@ -200,11 +200,6 @@ export async function deleteAccount(
             signupMedium: null,
             signupCampaign: null,
             signupReferrer: null,
-            referralCode: null,
-            // referredBy is left alone on purpose — it names the OTHER
-            // account's referral code, not this one's, and this account leaving
-            // doesn't get to erase where somebody else's customer came from.
-            //
             // The one line that makes deletion mean anything on a device other
             // than this one. Sessions are sealed cookies with no server-side
             // record, so without this watermark the phone in the other room
@@ -270,7 +265,6 @@ export interface AccountExportUser {
   signupMedium: string | null
   signupCampaign: string | null
   signupReferrer: string | null
-  referralCode: string | null
   lastLoginAt: string | null
   createdAt: string
   updatedAt: string
@@ -317,9 +311,7 @@ export type AccountExport = AccountExportCore & Partial<AccountExportSections>
 /**
  * Everything /privacy promises a "copy of your data" means, as one document.
  *
- * `user` omits `referred_by` on purpose — it's the OTHER account's referral
- * code, not data about this person, the same reasoning deleteAccount() uses to
- * leave it untouched. `auditEntries` omits `actor_user_id` on purpose too:
+ * `auditEntries` omits `actor_user_id` on purpose too:
  * these are the privileged actions taken ON this account (an admin viewing it,
  * this deletion itself), and naming which admin looked is a fact about that
  * admin, not about the export's owner — the console has its own view for that.
@@ -372,7 +364,6 @@ export async function exportAccount(db: AccountDb, userId: string): Promise<Acco
       signupMedium: user.signupMedium,
       signupCampaign: user.signupCampaign,
       signupReferrer: user.signupReferrer,
-      referralCode: user.referralCode,
       lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),

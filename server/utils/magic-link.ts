@@ -4,7 +4,7 @@
 // must lose, an expired one must not work) against real D1 in workerd.
 //
 // The token is 32 bytes of CSPRNG, base64url. Not the alphabet-and-modulo shape
-// of connect and referral codes: nobody reads it aloud, so a confusable-free
+// of a human-readable code: nobody reads it aloud, so a confusable-free
 // alphabet buys nothing, and `byte % alphabet.length` is biased unless the
 // alphabet divides 256, which matters for the one token protected only by being
 // unguessable. base64url maps 6 bits per character with no remainder. Only its
@@ -137,9 +137,6 @@ export async function createMagicLinkToken(
         signupMedium: input.attribution?.medium ?? null,
         signupCampaign: input.attribution?.campaign ?? null,
         signupReferrer: input.attribution?.referrer ?? null,
-        // Shape-validated by attributionSchema, re-validated at redemption before it
-        // can name an account; this column only carries it across devices.
-        referralCode: input.attribution?.referralCode ?? null,
       })
       .returning(),
     db
@@ -234,8 +231,7 @@ export async function discardMagicLinkToken(db: MagicLinkDb, id: string): Promis
 /**
  * Rebuild the first-touch attribution captured at mint time. `undefined` (none)
  * lets establishSession() fall back to the `attr` cookie; `null` would suppress
- * it. `referralCode` is carried so a link opened on another device still credits
- * the sharer.
+ * it.
  */
 export function attributionFromRecord(record: MagicLinkToken): Attribution | undefined {
   const attribution: Attribution = {
@@ -243,7 +239,6 @@ export function attributionFromRecord(record: MagicLinkToken): Attribution | und
     medium: record.signupMedium ?? undefined,
     campaign: record.signupCampaign ?? undefined,
     referrer: record.signupReferrer ?? undefined,
-    referralCode: record.referralCode ?? undefined,
   }
   const known = Object.values(attribution).some((value) => value !== undefined)
   return known ? attribution : undefined

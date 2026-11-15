@@ -45,15 +45,14 @@ export function isMandatoryNotification(eventType: string): boolean {
  * collide with a mandatory prefix above (none of these start with `billing.`,
  * `security.`, or `account.`).
  *
- * `product_updates` and `referral` are reserved for later waves — no email
- * sends for either yet, but the preference exists so someone who opts out
- * today isn't surprised the day that email ships.
+ * `product_updates` is reserved for a later wave — no email sends for it yet,
+ * but the preference exists so someone who opts out today isn't surprised the
+ * day that email ships.
  */
 export const OPTIONAL_NOTIFICATION_EVENT_TYPES = [
   'welcome',
   'tips',
   'product_updates',
-  'referral',
 ] as const
 
 export type OptionalNotificationEventType = (typeof OPTIONAL_NOTIFICATION_EVENT_TYPES)[number]
@@ -85,9 +84,5 @@ export const OPTIONAL_NOTIFICATION_COPY: Record<
   product_updates: {
     label: 'Product updates',
     description: 'Occasional email about new features and changes.',
-  },
-  referral: {
-    label: 'Referral program',
-    description: 'Updates about referral rewards and program changes.',
   },
 }

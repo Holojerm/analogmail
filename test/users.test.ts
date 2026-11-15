@@ -133,21 +133,19 @@ describe('upsertOAuthUser', () => {
 })
 
 // ── Signup contributors ─────────────────────────────────────────────────────
-// What a feature adds to a new account (the referral code, `referred_by`) comes
-// through core's signup seam. With nothing registered an account is created
-// with only the columns the template itself sets.
+// What a feature adds to a new account comes through core's signup seam. With
+// nothing registered an account is created with only the columns the template
+// itself sets.
 
 describe('upsertOAuthUser with no signup contributors', () => {
-  it('creates the account with no referral code and no referrer', async () => {
+  it('creates the account with only the columns the template itself sets', async () => {
     const { user, created } = await upsertOAuthUser(
       db,
       { provider: 'github', email: 'ada@example.com' },
-      { source: 'newsletter', referralCode: 'AB2CD3EF' },
+      { source: 'newsletter' },
       { contributors: [] },
     )
     expect(created).toBe(true)
-    expect(user.referralCode).toBeNull()
-    expect(user.referredBy).toBeNull()
     expect(user.signupSource).toBe('newsletter')
   })
 

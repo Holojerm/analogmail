@@ -23,7 +23,7 @@ const { data: billing, status } = await useFetch('/api/billing/entitlement')
 
 // ── Email preferences ───────────────────────────────────────────────────────
 // One row per optional event type (welcome/onboarding today; product-update
-// and referral mail later waves add). Billing and security email never shows
+// mail a later wave adds). Billing and security email never shows
 // up here — there is nothing to toggle, and a switch that silently didn't
 // work would be worse than no switch (server/api/account/notifications.get.ts).
 const { data: notificationPrefs, refresh: refreshNotificationPrefs } = await useFetch(
@@ -346,36 +346,20 @@ useSeo({
              status `active` until the notice period ends — so without this the
              page tells someone who cancelled weeks ago that they renew
              automatically, next to no cancel button. -->
-        <!-- Referral days are a pass by shape and not by story, so they get
-             their own sentence. Telling somebody who just signed up through a
-             friend's link that they "have a one-time pass" describes a purchase
-             they never made; telling a referrer the same thing hides the reason
-             they have the days at all. Welcome and reward differ too — one was
-             given, one was earned. -->
         <p class="text-default">
           {{
             billing.cancelsAt
               ? 'Your subscription is cancelled. You keep access until it ends.'
-              : billing.referralKind === 'welcome'
-                ? 'You have free days from the invite you signed up with. They will not renew.'
-                : billing.referralKind === 'reward'
-                  ? 'You have referral days you earned by inviting someone. They will not renew.'
-                  : billing.kind === 'pass'
-                    ? 'You have a one-time pass. It will not renew.'
-                    : 'Your subscription renews automatically.'
+              : billing.kind === 'pass'
+                ? 'You have a one-time pass. It will not renew.'
+                : 'Your subscription renews automatically.'
           }}
         </p>
         <dl class="grid gap-4 sm:grid-cols-2">
           <div>
             <dt class="text-sm text-muted">Type</dt>
             <dd class="text-default">
-              {{
-                billing.referralKind
-                  ? 'Referral days'
-                  : billing.kind === 'pass'
-                    ? 'One-time pass'
-                    : 'Subscription'
-              }}
+              {{ billing.kind === 'pass' ? 'One-time pass' : 'Subscription' }}
             </dd>
           </div>
           <div>
@@ -431,18 +415,10 @@ useSeo({
               <!-- A comped row is a pass nobody paid for. Unlabelled it reads
                    as a purchase, which starts a support conversation about a
                    charge that never happened. -->
-              <!-- Referral days are the same shape: a pass nobody was charged
-                   for. Its own badge rather than reusing `comp`, because the
-                   two answer different questions — "support gave me this" and
-                   "my invite earned this" — and the second one is the only
-                   place the product ever confirms the referral loop paid out. -->
               <td class="py-2 pr-4 text-default">
                 {{ item.kind === 'pass' ? 'Pass' : 'Subscription' }}
                 <UBadge v-if="item.comped" color="neutral" variant="subtle" size="sm">
                   comp
-                </UBadge>
-                <UBadge v-else-if="item.referral" color="neutral" variant="subtle" size="sm">
-                  referral
                 </UBadge>
               </td>
               <!-- A withdrawn comp gets a badge rather than a bare status word.
@@ -473,25 +449,11 @@ useSeo({
       </div>
 
       <template #footer>
-        <div class="flex flex-col gap-2">
-          <p class="text-sm text-muted">
-            Invoices and receipts come from Paddle, our merchant of record.
-          </p>
-          <!-- Only when there is one to explain. A referral row's "Ends" date
-               sits after everything else the account holds, which reads as an
-               error unless the stacking rule is stated — and for a subscriber
-               it can be a year out. Literally the same string the share card
-               promises, not a second copy of it (the referral layer's shared constants). -->
-          <p v-if="billing.history.some((item) => item.referral)" class="text-sm text-muted">
-            {{ REFERRAL_STACKING_NOTE }}
-          </p>
-        </div>
+        <p class="text-sm text-muted">
+          Invoices and receipts come from Paddle, our merchant of record.
+        </p>
       </template>
     </UCard>
-
-    <!-- Referrals. Sits under billing rather than at the top: it is an offer,
-         and an offer above the thing somebody came here to do is an ad. -->
-    <ReferralShareCard />
 
     <!-- MCP -->
     <UCard>

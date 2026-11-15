@@ -35,11 +35,10 @@ describe('buildSessionPayload', () => {
   })
 
   it('carries only the five identity fields, and no others from the row', () => {
-    // The session is a cookie on every request. Entitlements, attribution, and
-    // referral codes are all on the same `users` row and none of them belong
+    // The session is a cookie on every request. Entitlements and attribution are all on the same `users` row and none of them belong
     // here — read state from the database, keep identity in the cookie.
     expect(
-      Object.keys(buildSessionPayload({ ...USER, referralCode: 'ABC' } as never).user).sort(),
+      Object.keys(buildSessionPayload({ ...USER, signupSource: 'x' } as never).user).sort(),
     ).toEqual(['avatarUrl', 'email', 'id', 'name', 'role'])
   })
 

@@ -37,7 +37,7 @@ beforeEach(async () => {
   await env.DB.exec('DELETE FROM users')
   await db
     .insert(schema.users)
-    .values({ id: USER, email: 'ada@example.com', name: 'Ada', referralCode: 'ADA22222' })
+    .values({ id: USER, email: 'ada@example.com', name: 'Ada' })
 })
 
 async function addConnectCode(

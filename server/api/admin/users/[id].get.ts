@@ -67,8 +67,6 @@ export default defineEventHandler(async (event) => {
           signupMedium: user.signupMedium,
           signupCampaign: user.signupCampaign,
           signupReferrer: user.signupReferrer,
-          referralCode: user.referralCode,
-          referredBy: user.referredBy,
         },
         audit: auditRows.map(toAuditView),
         ...sections,

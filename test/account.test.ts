@@ -44,9 +44,6 @@ beforeEach(async () => {
     signupMedium: 'social',
     signupCampaign: 'launch',
     signupReferrer: 'https://twitter.com',
-    referralCode: 'ABC12345',
-    // Another person's attribution — deleting THIS account must not erase it.
-    referredBy: 'XYZ99999',
   })
 })
 
@@ -55,7 +52,7 @@ describe('deleteAccount', () => {
     expect(await deleteAccount(db, 'ghost')).toEqual({ outcome: 'not_found' })
   })
 
-  it('anonymizes every PII column on the users row but leaves referred_by alone', async () => {
+  it('anonymizes every PII column on the users row every PII column on the users row', async () => {
     const outcome = await deleteAccount(db, USER)
     expect(outcome.outcome).toBe('deleted')
 
@@ -68,10 +65,6 @@ describe('deleteAccount', () => {
     expect(row?.signupMedium).toBeNull()
     expect(row?.signupCampaign).toBeNull()
     expect(row?.signupReferrer).toBeNull()
-    expect(row?.referralCode).toBeNull()
-    // Not this account's to erase — it names where somebody ELSE's signup
-    // came from.
-    expect(row?.referredBy).toBe('XYZ99999')
   })
 
   it('hard-deletes mcp connect codes and notification preferences', async () => {
@@ -273,18 +266,13 @@ describe('exportAccount', () => {
       id: USER,
       email: `${USER}@example.com`,
       name: 'Ada Lovelace',
-      referralCode: 'ABC12345',
     })
-    // Someone else's attribution, not this export owner's data.
-    expect(result.user).not.toHaveProperty('referredBy')
-
-    // Every optional type appears — welcome/referral default-on since neither
+    // Every optional type appears — welcome/tips default-on since neither
     // was ever toggled, product_updates reflects the row above.
     expect(result.notificationPreferences).toEqual([
       { eventType: 'welcome', enabled: true },
       { eventType: 'tips', enabled: true },
       { eventType: 'product_updates', enabled: false },
-      { eventType: 'referral', enabled: true },
     ])
 
     // Only the row that targets THIS user — and never who did it.

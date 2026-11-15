@@ -36,12 +36,10 @@ export default defineNuxtPlugin(() => {
     secure: window.location.protocol === 'https:',
   })
 
-  // First touch wins for the CHANNEL — a returning visitor already has the one
+  // First touch wins for the channel — a returning visitor already has the one
   // that introduced them, and overwriting it here is how attribution quietly
-  // becomes "everyone came from Google". The one exception is a referral code
-  // arriving on a cookie that has none, which is a hole rather than a competing
-  // claim; nextAttributionCookie() owns that decision and explains it, and
-  // returns null when there is nothing to write.
+  // becomes "everyone came from Google". nextAttributionCookie() owns that
+  // decision and returns null when there is nothing to write.
   const next = nextAttributionCookie(
     readAttributionCookie(cookie.value ?? undefined),
     parseAttribution({

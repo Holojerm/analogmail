@@ -50,22 +50,8 @@ export const users = sqliteTable(
     signupMedium: text('signup_medium'),
     signupCampaign: text('signup_campaign'),
     signupReferrer: text('signup_referrer'),
-    // The user's own code, minted at provisioning (server/utils/users.ts).
-    // Nullable: legacy accounts have none and backfilling would hand codes to
-    // dormant accounts. Nullable-unique is right: SQLite treats NULLs as distinct
-    // in a unique index.
-    referralCode: text('referral_code').unique(),
-    // The *other* account's referral_code, resolved at signup. Deliberately NOT a
-    // foreign key (as with `feedback.user_id`): a blocked signup is a lost
-    // customer, and attribution must survive the referrer's row being deleted.
-    referredBy: text('referred_by'),
     ...timestamps,
   },
-  (table) => [
-    // "How many people used my code", read on every /account referral-card view;
-    // unindexed that is a full users scan. Not unique: many accounts share a code.
-    index('users_referred_by_idx').on(table.referredBy),
-  ],
 )
 
 // MCP connect codes — short-lived, single-use codes bridging the app's session
@@ -124,14 +110,6 @@ export const magicLinkTokens = sqliteTable(
     signupMedium: text('signup_medium'),
     signupCampaign: text('signup_campaign'),
     signupReferrer: text('signup_referrer'),
-    // The fifth field of the same cookie, and the one worth money: a lost
-    // `signup_source` reads `direct`, a lost referral code silently denies
-    // someone promised days, and cross-device (no `attr` cookie on the phone) is
-    // the common magic-link path. NOT a foreign key, like `users.referred_by`: it
-    // is an unverified cookie claim resolved at redemption
-    // (layers/referral/server/utils/referral-codes.ts › findReferrerByCode), and
-    // a constraint would let a junk value fail someone's sign-in.
-    referralCode: text('referral_code'),
     // The canonical mailbox (server/utils/users.ts › canonicalizeEmailForLimiting)
     // the per-address budget counts on: `victim+1@gmail.com` … `+9999` are one
     // inbox. Empty on rows written before the column existed.

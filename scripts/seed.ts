@@ -59,7 +59,6 @@ import { resolve } from 'node:path'
 import { existsSync } from 'node:fs'
 
 import * as schema from '../server/db/schema'
-import { generateReferralCode } from '../layers/referral/server/utils/referral-codes'
 import { upsertSubscription } from '../layers/billing/server/utils/entitlements'
 import type { EntitlementDb } from '../layers/billing/server/utils/entitlements'
 
@@ -220,17 +219,12 @@ for (const seedUser of seedUsers) {
     console.info(`= ${seedUser.email} already exists, skipping`)
     userId = existing.id
   } else {
-    // Minted with the real generator, not left null — see the original note
-    // this replaced: a seeded account otherwise skips the one code path that
-    // gives every user a referral code, so anything built on `referral_code`
-    // looks broken in dev for exactly the accounts a developer signs in as.
     const [inserted] = await db
       .insert(schema.users)
       .values({
         email: seedUser.email,
         name: seedUser.name,
         role: seedUser.role,
-        referralCode: generateReferralCode(),
       })
       .returning({ id: schema.users.id })
     userId = inserted!.id
