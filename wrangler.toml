@@ -14,7 +14,7 @@
 # read what it prints; the placeholders it cannot fill in are listed there.
 # ─────────────────────────────────────────────────────────────────────────────
 
-name = "my-app"
+name = "analogmail"
 compatibility_date = "2025-09-01"
 # `queue_consumer_wait_for_wait_until` is not decoration — it PINS today's
 # default, and the email consumer's correctness rests on it.
@@ -35,17 +35,17 @@ compatibility_flags = ["nodejs_compat", "queue_consumer_wait_for_wait_until"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "my-app-db"
-database_id = "YOUR_D1_DATABASE_ID"
+database_name = "analogmail-db"
+database_id = "79e082b2-e7e3-40f4-8b39-9fe1ad064c6a"
 migrations_dir = "./server/db/migrations"
 
 [[kv_namespaces]]
 binding = "KV"
-id = "YOUR_KV_NAMESPACE_ID"
+id = "38ddbba5b8cf4066acf10f07422af525"
 
 [[r2_buckets]]
 binding = "BLOB"
-bucket_name = "my-app-blob"
+bucket_name = "analogmail-blob"
 
 # Native rate limiting, the primary limiter for the auth surface.
 # server/utils/rate-limit.ts prefers this and falls back to the KV counter.
@@ -72,7 +72,7 @@ bucket_name = "my-app-blob"
 # /api/auth/ at 30 requests per 60s, and this is that limit made native.
 [[ratelimits]]
 name = "RATE_LIMITER"
-namespace_id = "1001"
+namespace_id = "6280"
 simple = { limit = 30, period = 60 }
 
 # ─── Images ──────────────────────────────────────────────────────────────────
@@ -98,7 +98,7 @@ binding = "IMAGES"
 # YOU MUST CREATE THESE FIRST — `wrangler deploy` fails on a queue that does not
 # exist (unlike the dead-letter queue, which is created for you):
 #
-#     wrangler queues create my-app-email
+#     wrangler queues create analogmail-email
 #
 # One producer and one consumer naming the SAME queue is a Worker sending to
 # itself. That is a supported pattern and the right one here: there is no second
@@ -106,10 +106,10 @@ binding = "IMAGES"
 # already has.
 [[queues.producers]]
 binding = "EMAIL_QUEUE"
-queue = "my-app-email"
+queue = "analogmail-email"
 
 [[queues.consumers]]
-queue = "my-app-email"
+queue = "analogmail-email"
 # 1 second, not the 30s default. The default is tuned for throughput, and it
 # would add up to half a minute to the magic-link email — the one message a user
 # is actively waiting on with a "check your inbox" screen in front of them.
@@ -136,7 +136,7 @@ max_retries = 3
 # with account access. The consumer is careful never to log those; this queue
 # stores them by design. Drain it rather than letting it accumulate, and
 # remember it exists when you answer a deletion request.
-dead_letter_queue = "my-app-email-dlq"
+dead_letter_queue = "analogmail-email-dlq"
 
 # ─── Workers Logs ────────────────────────────────────────────────────────────
 # Structured logs and the Observability tab in the dashboard, retained 7 days on
@@ -181,21 +181,21 @@ head_sampling_rate = 1
 crons = ["0 4 * * *"]
 
 [vars]
-NUXT_PUBLIC_APP_NAME = "My App"
+NUXT_PUBLIC_APP_NAME = "Analog Mail"
 # Which queue server/plugins/email-queue-consumer.ts owns. MUST equal the
 # `queue` in [[queues.consumers]] above — and the [env.preview] copy must equal
 # ITS consumer's queue, which is a different string. That is the whole reason
 # this is a var and not a constant in the bundle: a constant matched production
 # and silently failed to match preview, and a consumer that skips a batch acks
 # it by omission, so every preview email was destroyed without a log line.
-NUXT_EMAIL_QUEUE_NAME = "my-app-email"
+NUXT_EMAIL_QUEUE_NAME = "analogmail-email"
 # Canonical public origin, no trailing slash. Emails, sitemap.xml, robots.txt
 # and og: tags build absolute links from this — a webhook has no request to
 # infer it from. Set it to your real domain before the first production deploy.
-NUXT_PUBLIC_APP_URL = "https://my-app.example.workers.dev"
+NUXT_PUBLIC_APP_URL = "https://analogmail.jeremy-ettlinger.workers.dev"
 # Named on /terms and /privacy, and used as Reply-To on transactional email.
 NUXT_PUBLIC_SUPPORT_EMAIL = "support@example.com"
-NUXT_PUBLIC_LEGAL_ENTITY = "My Company Ltd"
+NUXT_PUBLIC_LEGAL_ENTITY = "Jeremy Ettlinger"
 # Paddle price IDs for /pricing. Sandbox and production have DIFFERENT ids —
 # override these per environment rather than hardcoding them in app code.
 # NUXT_PUBLIC_PADDLE_PRICE_MONTHLY = "pri_..."
@@ -245,7 +245,7 @@ NUXT_PUBLIC_POSTHOG_KEY = ""
 #
 # ── Why `name` is set here ───────────────────────────────────────────────────
 # `name` is inheritable, so without this line a preview build would produce a
-# config still named `my-app` — preview bindings on the production Worker,
+# config still named `analogmail` — preview bindings on the production Worker,
 # sharing its secrets, one accidental promotion away from being live. Naming it
 # explicitly makes the preview a genuinely separate Worker, which is also what
 # wrangler's own `--env` would have done (`{name}-{env}`).
@@ -276,11 +276,11 @@ NUXT_PUBLIC_POSTHOG_KEY = ""
 
 # Inheritable, so it MUST be set — see "Why `name` is set here" above.
 [env.preview]
-name = "my-app-preview"
+name = "analogmail-preview"
 
 [[env.preview.d1_databases]]
 binding = "DB"
-database_name = "my-app-db-preview"
+database_name = "analogmail-db-preview"
 database_id = "YOUR_PREVIEW_D1_DATABASE_ID"
 migrations_dir = "./server/db/migrations"
 
@@ -290,7 +290,7 @@ id = "YOUR_PREVIEW_KV_NAMESPACE_ID"
 
 [[env.preview.r2_buckets]]
 binding = "BLOB"
-bucket_name = "my-app-blob-preview"
+bucket_name = "analogmail-blob-preview"
 
 # A DIFFERENT namespace_id from production's 1001, and that is load-bearing
 # rather than tidy. The namespace is scoped to the Cloudflare ACCOUNT, not to
@@ -305,7 +305,7 @@ bucket_name = "my-app-blob-preview"
 # sharing the paragraph above exists to prevent.
 [[env.preview.ratelimits]]
 name = "RATE_LIMITER"
-namespace_id = "1002"
+namespace_id = "6281"
 simple = { limit = 30, period = 60 }
 
 # Repeated for preview for the same reason `ratelimits` is: NuxtHub flattens
@@ -317,27 +317,27 @@ binding = "IMAGES"
 
 [[env.preview.queues.producers]]
 binding = "EMAIL_QUEUE"
-queue = "my-app-email-preview"
+queue = "analogmail-email-preview"
 
 [[env.preview.queues.consumers]]
-queue = "my-app-email-preview"
+queue = "analogmail-email-preview"
 max_batch_timeout = 1
 max_batch_size = 10
 max_retries = 3
-dead_letter_queue = "my-app-email-preview-dlq"
+dead_letter_queue = "analogmail-email-preview-dlq"
 
 [env.preview.vars]
-NUXT_PUBLIC_APP_NAME = "My App (preview)"
+NUXT_PUBLIC_APP_NAME = "Analog Mail (preview)"
 # The PREVIEW queue's name — deliberately different from the one in [vars], and
 # the reason that value cannot be a compile-time constant.
-NUXT_EMAIL_QUEUE_NAME = "my-app-email-preview"
+NUXT_EMAIL_QUEUE_NAME = "analogmail-email-preview"
 # The preview Worker's own origin. `wrangler versions upload` also mints a
 # per-version URL that this cannot know in advance; this value is what emails,
 # canonical tags and sitemap entries are built from, so pointing it at the
 # stable preview origin keeps them from claiming to be production.
-NUXT_PUBLIC_APP_URL = "https://my-app-preview.example.workers.dev"
+NUXT_PUBLIC_APP_URL = "https://analogmail-preview.jeremy-ettlinger.workers.dev"
 NUXT_PUBLIC_SUPPORT_EMAIL = "support@example.com"
-NUXT_PUBLIC_LEGAL_ENTITY = "My Company Ltd"
+NUXT_PUBLIC_LEGAL_ENTITY = "Jeremy Ettlinger"
 # The point of the whole block, from an SEO angle: robots.txt disallows
 # everything, every page renders noindex, and sitemap.xml and llms.txt go empty.
 # A public preview URL indexed alongside production splits your ranking between
@@ -368,7 +368,7 @@ NUXT_PUBLIC_TURNSTILE_SITE_KEY = ""
 #   NUXT_PADDLE_API_KEY          REQUIRED once billing is on: the cancel button on
 #                                /account mints portal links with it; unset = 503
 #   NUXT_RESEND_API_KEY          transactional email; unset = emails no-op
-#   NUXT_RESEND_FROM             e.g. "My App <hello@myapp.com>" (verified domain)
+#   NUXT_RESEND_FROM             e.g. "Analog Mail <hello@myapp.com>" (verified domain)
 #   NUXT_TURNSTILE_SECRET_KEY    bot check on the public forms; unset = skipped.
 #                                Pairs with NUXT_PUBLIC_TURNSTILE_SITE_KEY below —
 #                                set BOTH or neither. Site key alone renders a

@@ -103,7 +103,7 @@ async function loadAuthorizedUser(env: Env): Promise<AuthorizedUser | null> {
 const REFUSED = 'This connection is no longer authorized. Reconnect from the app to continue.'
 
 export function createServer(env: Env): McpServer {
-  const server = new McpServer({ name: 'my-app-mcp', version: '0.1.0' })
+  const server = new McpServer({ name: 'analogmail-mcp', version: '0.1.0' })
 
   server.registerTool(
     'whoami',

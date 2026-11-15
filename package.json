@@ -1,10 +1,10 @@
 {
   "name": "nuxt-cf-template",
   "private": true,
-  "license": "MIT",
+  "license": "FSL-1.1-MIT",
   "type": "module",
   "portless": {
-    "name": "my-app",
+    "name": "analogmail",
     "script": "dev:app"
   },
   "scripts": {
@@ -20,9 +20,9 @@
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "wrangler d1 migrations apply my-app-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply my-app-db --remote",
-    "db:migrate:preview": "wrangler d1 migrations apply my-app-db-preview --remote --env preview",
+    "db:migrate": "wrangler d1 migrations apply analogmail-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply analogmail-db --remote",
+    "db:migrate:preview": "wrangler d1 migrations apply analogmail-db-preview --remote --env preview",
     "db:studio": "drizzle-kit studio",
     "seed": "bun run scripts/seed.ts",
     "rename": "bun run scripts/rename.ts",

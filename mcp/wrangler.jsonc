@@ -1,16 +1,16 @@
 // Second worker: the remote MCP server. Deployed separately from the Nuxt app
-// (`bun run mcp:deploy` from the repo root). Rename `my-app-mcp` when you fork
+// (`bun run mcp:deploy` from the repo root). Rename `analogmail-mcp` when you fork
 // (see the README rename list).
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "my-app-mcp",
+  "name": "analogmail-mcp",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-01",
   // agents' createMcpHandler needs AsyncLocalStorage (getMcpAuthContext)
   "compatibility_flags": ["nodejs_compat"],
 
   // Required by @cloudflare/workers-oauth-provider — stores tokens/grants.
-  // Create with: wrangler kv namespace create my-app-mcp-oauth
+  // Create with: wrangler kv namespace create analogmail-mcp-oauth
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
@@ -28,7 +28,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "my-app-db",
+      "database_name": "analogmail-db",
       "database_id": "YOUR_D1_DATABASE_ID",
       "migrations_dir": "../server/db/migrations",
     },

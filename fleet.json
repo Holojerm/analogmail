@@ -1,14 +1,14 @@
 {
   "schema": 1,
-  "slug": "my-app",
-  "name": "My App",
+  "slug": "analogmail",
+  "name": "Analog Mail",
   "stage": "unreleased",
-  "urls": { "prod": "https://my-app.example.workers.dev" },
-  "workers": ["my-app", "my-app-mcp"],
+  "urls": { "prod": "https://analogmail.jeremy-ettlinger.workers.dev" },
+  "workers": ["analogmail"],
   "bindings": {
-    "d1": [{ "name": "my-app-db", "id": "YOUR_D1_DATABASE_ID" }],
-    "kv": ["YOUR_KV_NAMESPACE_ID"],
-    "r2": ["my-app-blob"]
+    "d1": [{ "name": "analogmail-db", "id": "79e082b2-e7e3-40f4-8b39-9fe1ad064c6a" }],
+    "kv": ["38ddbba5b8cf4066acf10f07422af525"],
+    "r2": ["analogmail-blob"]
   },
   "crons": ["0 4 * * *"],
   "deploy": "workers-builds",

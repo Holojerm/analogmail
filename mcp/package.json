@@ -1,5 +1,5 @@
 {
-  "name": "my-app-mcp",
+  "name": "analogmail-mcp",
   "private": true,
   "type": "module",
   "description": "Remote MCP server worker — OAuth-protected (workers-oauth-provider), sharing the app's D1 database.",
@@ -7,7 +7,7 @@
     "dev": "wrangler dev -c wrangler.jsonc",
     "deploy": "wrangler deploy -c wrangler.jsonc",
     "typecheck": "tsc --noEmit",
-    "db:migrate:local": "wrangler d1 migrations apply my-app-db --local -c wrangler.jsonc"
+    "db:migrate:local": "wrangler d1 migrations apply analogmail-db --local -c wrangler.jsonc"
   },
   "dependencies": {
     "@cloudflare/workers-oauth-provider": "^0.10.3",
