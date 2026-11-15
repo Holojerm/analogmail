@@ -1,0 +1,301 @@
+// Self-serve account deletion and export, run against a real D1 inside
+// workerd. Three things have to hold, and each has a way of failing silently:
+//
+//   1. Deletion anonymizes the `users` row rather than erasing it — the id has
+//      to survive so rows that reference it (billing's entitlements, a real
+//      foreign key) don't orphan or block.
+//   2. A registered DeletionGuard refuses the whole thing, before anything is
+//      touched. Billing's guard is tested in the billing layer
+//      (layers/billing/test/billing-account.test.ts); core's own seam is
+//      tested with nothing registered in test/extensions.test.ts.
+//   3. The export never leaks more than it says it does: no admin identity on
+//      an audit entry, no other person's referral attribution on the user
+//      object, nothing from a different account's audit trail.
+
+import { env } from 'cloudflare:test'
+import { and, eq } from 'drizzle-orm'
+import { drizzle } from 'drizzle-orm/d1'
+import { beforeEach, describe, expect, it } from 'vitest'
+
+import * as schema from '../server/db/schema'
+import { deleteAccount, exportAccount, revokeSessions } from '../server/utils/account'
+import { checkSession } from '../server/utils/session-guard'
+
+const db = drizzle(env.DB, { schema })
+
+const USER = 'user-1'
+const OTHER = 'user-2'
+
+beforeEach(async () => {
+  await db.delete(schema.lifecycleSends)
+  await db.delete(schema.auditLog)
+  await db.delete(schema.notificationPreferences)
+  await db.delete(schema.mcpConnectCodes)
+  await db.delete(schema.magicLinkTokens)
+  await db.delete(schema.users)
+
+  await db.insert(schema.users).values({
+    id: USER,
+    email: `${USER}@example.com`,
+    name: 'Ada Lovelace',
+    avatarUrl: 'https://example.com/avatar.png',
+    provider: 'github',
+    signupSource: 'twitter',
+    signupMedium: 'social',
+    signupCampaign: 'launch',
+    signupReferrer: 'https://twitter.com',
+    referralCode: 'ABC12345',
+    // Another person's attribution — deleting THIS account must not erase it.
+    referredBy: 'XYZ99999',
+  })
+})
+
+describe('deleteAccount', () => {
+  it('reports not_found for a missing user, without touching anything else', async () => {
+    expect(await deleteAccount(db, 'ghost')).toEqual({ outcome: 'not_found' })
+  })
+
+  it('anonymizes every PII column on the users row but leaves referred_by alone', async () => {
+    const outcome = await deleteAccount(db, USER)
+    expect(outcome.outcome).toBe('deleted')
+
+    const row = await db.query.users.findFirst({ where: eq(schema.users.id, USER) })
+    expect(row?.email).toBe(`deleted-${USER}@deleted.invalid`)
+    expect(row?.name).toBe('Deleted user')
+    expect(row?.avatarUrl).toBeNull()
+    expect(row?.provider).toBeNull()
+    expect(row?.signupSource).toBeNull()
+    expect(row?.signupMedium).toBeNull()
+    expect(row?.signupCampaign).toBeNull()
+    expect(row?.signupReferrer).toBeNull()
+    expect(row?.referralCode).toBeNull()
+    // Not this account's to erase — it names where somebody ELSE's signup
+    // came from.
+    expect(row?.referredBy).toBe('XYZ99999')
+  })
+
+  it('hard-deletes mcp connect codes and notification preferences', async () => {
+    await db.insert(schema.mcpConnectCodes).values({
+      id: 'code-1',
+      userId: USER,
+      codeHash: 'hash-value',
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+    await db.insert(schema.notificationPreferences).values({
+      id: 'pref-1',
+      userId: USER,
+      channel: 'email',
+      eventType: 'payment_failed',
+      enabled: false,
+    })
+
+    expect((await deleteAccount(db, USER)).outcome).toBe('deleted')
+
+    // The tally is asserted on the AUDIT ROW, which is the copy that outlives
+    // the request and the one an investigation reads. The return value
+    // deliberately carries none — two counts of the same event are two things
+    // that can disagree.
+    const audit = await db.query.auditLog.findFirst({
+      where: eq(schema.auditLog.action, 'account.deleted'),
+    })
+    expect(audit?.metadata).toMatchObject({
+      connectCodesCount: 1,
+      notificationPreferencesCount: 1,
+    })
+
+    expect(
+      await db.query.mcpConnectCodes.findMany({ where: eq(schema.mcpConnectCodes.userId, USER) }),
+    ).toHaveLength(0)
+    expect(
+      await db.query.notificationPreferences.findMany({
+        where: eq(schema.notificationPreferences.userId, USER),
+      }),
+    ).toHaveLength(0)
+  })
+
+  it('revokes outstanding magic-link tokens for the address', async () => {
+    // A sign-in link is a live credential for this mailbox, the same class of
+    // thing as the connect codes above — deleting an account has to revoke the
+    // credentials that reach it. Keyed by address, not user id: a link is minted
+    // before we know whether the address has an account at all.
+    await db.insert(schema.magicLinkTokens).values([
+      {
+        id: 'link-1',
+        email: `${USER}@example.com`,
+        tokenHash: 'h1',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+      {
+        id: 'link-2',
+        email: `${USER}@example.com`,
+        tokenHash: 'h2',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+      // Somebody else's link, in the same table, must survive.
+      {
+        id: 'link-other',
+        email: 'other@example.com',
+        tokenHash: 'h3',
+        expiresAt: new Date(Date.now() + 60_000),
+      },
+    ])
+
+    expect((await deleteAccount(db, USER)).outcome).toBe('deleted')
+
+    const audit = await db.query.auditLog.findFirst({
+      where: eq(schema.auditLog.action, 'account.deleted'),
+    })
+    expect(audit?.metadata).toMatchObject({ magicLinkTokensCount: 2 })
+
+    const remaining = await db.select().from(schema.magicLinkTokens)
+    expect(remaining.map((row) => row.id)).toEqual(['link-other'])
+  })
+
+  it('writes an account.deleted audit row, actor and target both the deleting user', async () => {
+    await deleteAccount(db, USER)
+
+    const rows = await db.query.auditLog.findMany({
+      where: and(
+        eq(schema.auditLog.actorUserId, USER),
+        eq(schema.auditLog.action, 'account.deleted'),
+      ),
+    })
+    expect(rows).toHaveLength(1)
+    const row = rows[0]!
+    expect(row.actorType).toBe('user')
+    expect(row.targetType).toBe('user')
+    expect(row.targetId).toBe(USER)
+    // Counts only — never PII (see server/utils/audit.ts policy note).
+    expect(row.metadata).toMatchObject({
+      connectCodesCount: 0,
+      notificationPreferencesCount: 0,
+    })
+  })
+})
+
+describe('revokeSessions — sign out everywhere', () => {
+  it('kills sessions issued before the watermark and keeps one issued with it', async () => {
+    const now = new Date('2026-09-08T12:00:00.500Z')
+    const before = Math.floor(now.getTime() / 1000) - 1
+    expect((await checkSession(db, { userId: USER, issuedAt: before })).valid).toBe(true)
+
+    const outcome = await revokeSessions(db, USER, now)
+    expect(outcome.outcome).toBe('revoked')
+
+    // The phone in the other room.
+    expect(await checkSession(db, { userId: USER, issuedAt: before })).toEqual({
+      valid: false,
+      reason: 'revoked',
+    })
+    // The cookie the route re-issues at the same instant — same second as the
+    // watermark, and the guard is a strict less-than.
+    const reissued = Math.floor(now.getTime() / 1000)
+    expect((await checkSession(db, { userId: USER, issuedAt: reissued })).valid).toBe(true)
+    // A session with no date at all is refused once a watermark exists.
+    expect((await checkSession(db, { userId: USER })).valid).toBe(false)
+  })
+
+  it('writes an account.sessions_revoked audit row by and about the user', async () => {
+    const now = new Date('2026-09-08T12:00:00Z')
+    await revokeSessions(db, USER, now)
+
+    const rows = await db.select().from(schema.auditLog)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toMatchObject({
+      actorUserId: USER,
+      actorType: 'user',
+      action: 'account.sessions_revoked',
+      targetType: 'user',
+      targetId: USER,
+      metadata: { sessionsInvalidBefore: now.toISOString() },
+    })
+  })
+
+  it('reports not_found for a missing user and writes nothing', async () => {
+    expect((await revokeSessions(db, 'nobody')).outcome).toBe('not_found')
+    expect(await db.select().from(schema.auditLog)).toHaveLength(0)
+  })
+
+  it('touches only this account', async () => {
+    await db.insert(schema.users).values({ id: OTHER, email: `${OTHER}@example.com`, name: 'Bob' })
+    await revokeSessions(db, USER)
+    const other = await db.query.users.findFirst({ where: eq(schema.users.id, OTHER) })
+    expect(other?.sessionsInvalidBefore).toBeNull()
+  })
+})
+
+describe('exportAccount', () => {
+  it('returns null for a missing user', async () => {
+    expect(await exportAccount(db, 'ghost')).toBeNull()
+  })
+
+  it('shapes the export and never leaks more than it says', async () => {
+    // Only one optional type is overridden — the export should still report
+    // the EFFECTIVE state of every optional type, not just the rows that
+    // happen to exist (see AccountExportNotificationPreference).
+    await db.insert(schema.notificationPreferences).values({
+      id: 'pref-1',
+      userId: USER,
+      channel: 'email',
+      eventType: 'product_updates',
+      enabled: false,
+    })
+    // Targets this user — belongs in the export.
+    await db.insert(schema.auditLog).values({
+      id: 'audit-1',
+      actorUserId: 'admin-1',
+      actorType: 'admin',
+      action: 'admin.user_viewed',
+      targetType: 'user',
+      targetId: USER,
+    })
+    const sentAt = new Date('2026-09-20T04:00:00.000Z')
+    await db.insert(schema.users).values({ id: OTHER, email: `${OTHER}@example.com`, name: 'Bob' })
+    await db.insert(schema.lifecycleSends).values([
+      { userId: USER, stepId: 'activation_nudge', sentAt },
+      { userId: OTHER, stepId: 'activation_nudge', sentAt },
+    ])
+    // Targets a DIFFERENT user — must not leak into this export.
+    await db.insert(schema.auditLog).values({
+      id: 'audit-2',
+      actorUserId: 'admin-1',
+      actorType: 'admin',
+      action: 'admin.user_viewed',
+      targetType: 'user',
+      targetId: OTHER,
+    })
+
+    const result = await exportAccount(db, USER)
+    expect(result).toBeTruthy()
+    if (!result) return
+
+    expect(result.user).toMatchObject({
+      id: USER,
+      email: `${USER}@example.com`,
+      name: 'Ada Lovelace',
+      referralCode: 'ABC12345',
+    })
+    // Someone else's attribution, not this export owner's data.
+    expect(result.user).not.toHaveProperty('referredBy')
+
+    // Every optional type appears — welcome/referral default-on since neither
+    // was ever toggled, product_updates reflects the row above.
+    expect(result.notificationPreferences).toEqual([
+      { eventType: 'welcome', enabled: true },
+      { eventType: 'tips', enabled: true },
+      { eventType: 'product_updates', enabled: false },
+      { eventType: 'referral', enabled: true },
+    ])
+
+    // Only the row that targets THIS user — and never who did it.
+    expect(result.lifecycleEmails).toEqual([
+      { step: 'activation_nudge', sentAt: '2026-09-20T04:00:00.000Z' },
+    ])
+    expect(result.auditEntries).toEqual([
+      { action: 'admin.user_viewed', actorType: 'admin', createdAt: expect.any(String) },
+    ])
+    expect(result.auditEntries[0]).not.toHaveProperty('actorUserId')
+
+    expect(typeof result.exportedAt).toBe('string')
+  })
+})
