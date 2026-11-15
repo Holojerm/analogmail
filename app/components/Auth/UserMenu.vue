@@ -5,7 +5,6 @@
 
 const { loggedIn, user } = useUserSession()
 const { signOut } = useSignOut()
-const { data: entitlement } = useEntitlement()
 const route = useRoute()
 const isLoginPage = computed(() => route.path === '/login')
 
@@ -18,12 +17,8 @@ const items = computed(() => [
     },
   ],
   [
-    // Same gate as the header nav: paying-only pages only for paying customers.
-    ...(entitlement.value?.active
-      ? [{ label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' }]
-      : []),
+    { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
     { label: 'Account', icon: 'i-lucide-user', to: '/account' },
-    { label: 'Pricing', icon: 'i-lucide-tag', to: '/pricing' },
     ...(user.value?.role === 'admin'
       ? [{ label: 'Admin', icon: 'i-lucide-shield', to: '/admin' }]
       : []),

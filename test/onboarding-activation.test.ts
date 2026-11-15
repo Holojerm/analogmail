@@ -10,16 +10,13 @@
 // instead of before, and every test here still passes on the first call.
 
 import { env } from 'cloudflare:test'
+import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/d1'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as schema from '../server/db/schema'
 import { registerFeedbackExtensions } from '../layers/feedback/server/utils/feedback-extensions'
 import { listAudit } from '../server/utils/audit'
-import {
-  clearExtensionsForTest,
-  registerOnboardingSignalContributor,
-} from '../server/utils/extensions'
 import {
   activateIfComplete,
   computeOnboardingInputs,
@@ -33,24 +30,12 @@ const db = drizzle(env.DB, { schema })
 // signal the feedback layer contributes; register it as its plugin does.
 registerFeedbackExtensions()
 
-// …and 'plan' reads `entitlementActive`, which billing supplies in a real app
-// (layers/billing/test/billing-onboarding.test.ts covers that against the real
-// table). Core is tested against a stand-in so this suite needs no billing.
-const paying = new Set<string>()
-const registerPlanSignal = () =>
-  registerOnboardingSignalContributor({
-    key: 'plan',
-    read: async (_db, userId) => ({ entitlementActive: paying.has(userId) }),
-  })
-registerPlanSignal()
-
 const USER_ID = 'user-onboarding-1'
 
 beforeEach(async () => {
   await db.delete(schema.auditLog)
   await db.delete(schema.feedback)
   await db.delete(schema.notificationPreferences)
-  paying.clear()
   await db.delete(schema.users)
   await db.insert(schema.users).values({ id: USER_ID, email: 'ada@example.com', name: 'Ada' })
 })
@@ -184,24 +169,10 @@ describe('hasActivated', () => {
   })
 })
 
-describe('computeOnboardingInputs without a plan signal', () => {
-  it('leaves entitlementActive out when no feature supplies it, so the plan step reads as not done', async () => {
-    clearExtensionsForTest()
-    try {
-      const inputs = await computeOnboardingInputs(db, USER_ID)
-      expect(inputs).toEqual({ hasNotificationPreference: false })
-    } finally {
-      registerPlanSignal()
-      registerFeedbackExtensions()
-    }
-  })
-})
-
 describe('computeOnboardingInputs', () => {
   it('reads false/absent for every signal on a freshly created account', async () => {
     const inputs = await computeOnboardingInputs(db, USER_ID)
     expect(inputs).toEqual({
-      entitlementActive: false,
       hasNotificationPreference: false,
       hasSentFeedback: false,
     })
@@ -237,7 +208,6 @@ describe('computeOnboardingInputs', () => {
   // true, call only the read function, and prove nothing landed in
   // audit_log regardless.
   it('never writes an audit row, even for an already-complete account', async () => {
-    paying.add(USER_ID)
     await db.insert(schema.notificationPreferences).values({
       userId: USER_ID,
       channel: 'email',
@@ -248,7 +218,6 @@ describe('computeOnboardingInputs', () => {
 
     const inputs = await computeOnboardingInputs(db, USER_ID)
     expect(inputs).toEqual({
-      entitlementActive: true,
       hasNotificationPreference: true,
       hasSentFeedback: true,
     })
@@ -269,18 +238,12 @@ describe('activateIfComplete', () => {
   })
 
   it('does not trust a caller into activating a still-incomplete account — it recomputes and finds the same gap', async () => {
-    // Three of four signals true; entitlementActive still false. There's no
+    // One of two signals true; notifications still false. There's no
     // "trust me, it's done" input to this function at all — the only way to
-    // make it return activated:true is to actually seed the fourth signal,
+    // make it return activated:true is to actually seed the other signal,
     // which is the point: recomputing from D1, not from what the caller
     // (POST /api/onboarding/activated) claims, is what makes this endpoint
     // safe to call with a client-asserted variant but nothing else.
-    await db.insert(schema.notificationPreferences).values({
-      userId: USER_ID,
-      channel: 'email',
-      eventType: 'product_updates',
-      enabled: true,
-    })
     await db.insert(schema.feedback).values({ userId: USER_ID, kind: 'idea', message: 'Almost' })
 
     const result = await activateIfComplete(db, USER_ID, 'control')
@@ -291,7 +254,6 @@ describe('activateIfComplete', () => {
 
   it('activates once a complete account is seeded, and records the variant passed in', async () => {
     const fetchMock = stubPosthog()
-    paying.add(USER_ID)
     await db.insert(schema.notificationPreferences).values({
       userId: USER_ID,
       channel: 'email',
@@ -316,7 +278,6 @@ describe('activateIfComplete', () => {
 
   it('is idempotent through the same path a repeat POST would take', async () => {
     const fetchMock = stubPosthog()
-    paying.add(USER_ID)
     await db.insert(schema.notificationPreferences).values({
       userId: USER_ID,
       channel: 'email',
@@ -340,17 +301,14 @@ describe('activateIfComplete', () => {
   // The efficiency claim from the review: once an account is activated,
   // every subsequent call — which, in practice, is every dashboard load for
   // that account forever — must resolve from the one-read hasActivated()
-  // guard alone, without paying for computeOnboardingInputs's four reads.
+  // guard alone, without paying for computeOnboardingInputs's reads.
   // Asserting "it's fast" isn't meaningful in a test; asserting "it
   // couldn't have looked at the current signals" is: delete the
-  // entitlement that made the account complete in the first place, and
-  // confirm the answer doesn't change. If activateIfComplete were still
-  // recomputing, this would flip to activated:false (or worse, throw, since
-  // buildEntitlementView would now see no row) — it does neither, because
-  // the guard check short-circuits before computeOnboardingInputs ever runs.
+  // preference that made the account complete in the first place, and
+  // confirm no event fires. The guard check short-circuits before
+  // computeOnboardingInputs ever runs.
   it('skips recomputing the checklist entirely once already activated', async () => {
     const fetchMock = stubPosthog()
-    paying.add(USER_ID)
     await db.insert(schema.notificationPreferences).values({
       userId: USER_ID,
       channel: 'email',
@@ -365,14 +323,15 @@ describe('activateIfComplete', () => {
 
     // The checklist is no longer complete by any honest recomputation — if
     // this call recomputed, it would have nothing left to activate.
-    paying.delete(USER_ID)
+    await db
+      .delete(schema.notificationPreferences)
+      .where(eq(schema.notificationPreferences.userId, USER_ID))
 
     const second = await activateIfComplete(db, USER_ID, 'control')
 
     expect(second).toEqual({ activated: false })
     // Not "false because incomplete" — false because the guard alone
-    // answered it, before computeOnboardingInputs (and therefore
-    // buildEntitlementView) ever ran.
+    // answered it, before computeOnboardingInputs ever ran.
     expect(fetchMock).not.toHaveBeenCalled()
   })
 })

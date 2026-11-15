@@ -20,7 +20,6 @@ import {
 const db = drizzle(env.DB, { schema })
 
 beforeEach(async () => {
-  await env.DB.exec('DELETE FROM entitlements')
   await env.DB.exec('DELETE FROM users')
 })
 

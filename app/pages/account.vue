@@ -1,16 +1,6 @@
 <script setup lang="ts">
-// Everything a customer needs to do to themselves, in one page: see what they're
-// paying for, change or cancel it, sign out.
-//
-// The cancellation path is deliberately prominent. Making people email support
-// to stop paying is a dark pattern, it generates the support load you least want,
-// and in several jurisdictions it isn't legal. One button, straight to Paddle.
-//
-// The one thing between that button and Paddle is a question, never an obstacle:
-// cancelling happens on Paddle's hosted portal, a different origin where no
-// survey of ours can run, so this is the only moment the reason can be asked at
-// all. The prompt's primary button leaves whether or not anything is answered,
-// and no retention offer is inserted — see layers/billing/app/utils/churn.ts.
+// Everything a customer needs to do to themselves, in one page: email
+// preferences, signing out, and taking or deleting their data.
 
 definePageMeta({ middleware: 'auth' })
 
@@ -19,11 +9,9 @@ const { signOut, pending: signOutPending } = useSignOut()
 const toast = useToast()
 const config = useRuntimeConfig()
 
-const { data: billing, status } = await useFetch('/api/billing/entitlement')
-
 // ── Email preferences ───────────────────────────────────────────────────────
 // One row per optional event type (welcome/onboarding today; product-update
-// mail a later wave adds). Billing and security email never shows
+// mail a later wave adds). Security email never shows
 // up here — there is nothing to toggle, and a switch that silently didn't
 // work would be worse than no switch (server/api/account/notifications.get.ts).
 const { data: notificationPrefs, refresh: refreshNotificationPrefs } = await useFetch(
@@ -49,73 +37,6 @@ async function toggleNotification(eventType: string, enabled: boolean): Promise<
 // device they weren't signed in on used to get bounced to /login with no idea
 // whether the opt-out had worked. See server/api/email/unsubscribe.get.ts.
 
-const portalPending = ref(false)
-
-// ── Cancellation prompt ─────────────────────────────────────────────────────
-const cancelOpen = ref(false)
-// `undefined`, not `null`: URadioGroup's modelValue is `T | undefined`.
-const cancelReason = ref<string | undefined>()
-const cancelDetail = ref('')
-const cancelReasons = CANCEL_REASONS
-const { submit: submitFeedback } = useFeedback()
-
-/**
- * "Manage or cancel" on a live subscription asks why first. "Manage billing"
- * (no cancellable subscription) goes straight through — someone updating a card
- * has not told us they're leaving, and asking would be noise.
- */
-function requestPortal(): void {
-  if (billing.value?.cancellable) {
-    cancelOpen.value = true
-    return
-  }
-  void openBillingPortal()
-}
-
-async function continueToPortal(): Promise<void> {
-  // Awaited, not floated: the very next thing this function does is navigate
-  // to another origin, which cancels in-flight requests. submit() swallows its
-  // own errors and returns a boolean, so a failed write costs a few hundred
-  // milliseconds and never blocks the cancellation.
-  if (cancelReason.value) {
-    await submitFeedback({
-      kind: 'churn',
-      message: cancelFeedbackMessage(cancelReason.value, cancelDetail.value),
-    })
-  }
-  cancelOpen.value = false
-  await openBillingPortal()
-}
-
-async function openBillingPortal(): Promise<void> {
-  portalPending.value = true
-  try {
-    const links = await $fetch('/api/billing/portal', { method: 'POST' })
-    // Deep-link straight to cancel when Paddle gave us one — the person who
-    // clicked "Manage or cancel" on a live subscription usually means cancel,
-    // and burying it one screen deeper is the pattern this page exists to avoid.
-    const target = links.cancelUrl || links.overviewUrl
-    if (!target) throw new Error('No portal URL returned')
-    await navigateTo(target, { external: true })
-    return
-  } catch (error) {
-    const code = (error as { data?: { data?: { code?: string } } }).data?.data?.code
-    // Loud, never a dead end: the portal is the cancel path, so when it fails
-    // the toast says so and names a human. `portal_unconfigured` is the 503 a
-    // fork gets until NUXT_PADDLE_API_KEY is set (README › Billing).
-    toast.add({
-      title: 'Could not open the billing portal',
-      description:
-        code === 'portal_unconfigured'
-          ? `The billing portal isn't configured on this deployment yet. Email ${config.public.supportEmail} and we'll cancel it for you the same day.`
-          : `Paddle didn't answer. Try again in a minute, or email ${config.public.supportEmail} and we'll cancel it for you the same day.`,
-      color: 'error',
-    })
-  } finally {
-    portalPending.value = false
-  }
-}
-
 // Every other device's cookie dies on its next request; this one is re-issued
 // by the route, so nothing here has to change client state.
 const { pending: revokePending, run: revokeOtherSessions } = useAsyncAction(
@@ -135,8 +56,7 @@ async function signOutEverywhere(): Promise<void> {
 // ── Your data ────────────────────────────────────────────────────────────────
 // Self-serve export and deletion — exactly what /privacy promises under "your
 // rights", moved off the support inbox. Routing account deletion through email
-// is the same friction layers/billing/app/utils/churn.ts refuses to add at the cancellation
-// flow, at the same exit door: the whole point is that leaving isn't hard.
+// is friction at the exit door: the whole point is that leaving isn't hard.
 /**
  * `Content-Disposition` on the response doesn't make a `fetch()` download
  * anything — that header only does its job on a real navigation. Building the
@@ -171,10 +91,6 @@ const { pending: exportPending, run: downloadData } = useAsyncAction(
 
 const deleteOpen = ref(false)
 const deletePending = ref(false)
-// True when the server refused because a live subscription is still billing
-// this account — the modal switches to guidance-plus-portal-link rather than
-// just closing on an error, so the refusal isn't a dead end.
-const deleteBlockedBySubscription = ref(false)
 const confirmEmailInput = ref('')
 const canConfirmDelete = computed(
   () => confirmEmailInput.value.trim().toLowerCase() === (user.value?.email ?? '').toLowerCase(),
@@ -182,7 +98,6 @@ const canConfirmDelete = computed(
 
 function openDeleteModal(): void {
   confirmEmailInput.value = ''
-  deleteBlockedBySubscription.value = false
   deleteOpen.value = true
 }
 
@@ -196,41 +111,20 @@ async function confirmDelete(): Promise<void> {
     deleteOpen.value = false
     await clearSession()
     await navigateTo('/')
-  } catch (error) {
-    const code = (error as { data?: { data?: { code?: string } } }).data?.data?.code
-    if (code === 'live_subscription') {
-      // Stays open — see deleteBlockedBySubscription above.
-      deleteBlockedBySubscription.value = true
-    } else {
-      toast.add({
-        title: 'Could not delete your account',
-        description: 'Something went wrong. Try again, or reply to any email from us.',
-        color: 'error',
-      })
-    }
+  } catch {
+    toast.add({
+      title: 'Could not delete your account',
+      description: 'Something went wrong. Try again, or reply to any email from us.',
+      color: 'error',
+    })
   } finally {
     deletePending.value = false
   }
 }
 
-// Status is never carried by colour alone (DESIGN.md › Accessibility): every
-// state pairs its hue with an icon and a word. `past_due` is amber — reversible
-// risk — and says "payment failed" rather than repeating Paddle's jargon back
-// at someone who has never read Paddle's docs.
-// Shared with the admin console's badge (app/utils/admin.ts › billingStateMeta).
-// The two were hand-maintained copies and had already drifted on two of the
-// four states — on screens whose whole point is that support and customer see
-// the same thing.
-const statusBadge = computed(() => billingStateMeta(billing.value?.state))
-
-function formatDate(value: string | null) {
-  if (!value) return '—'
-  return new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' })
-}
-
 useSeo({
   title: 'Account',
-  description: 'Your plan, billing history, and account settings.',
+  description: 'Your account settings.',
   noindex: true,
 })
 </script>
@@ -276,173 +170,6 @@ useSeo({
       </template>
     </UCard>
 
-    <!-- Plan -->
-    <UCard>
-      <template #header>
-        <div class="flex items-center justify-between gap-4">
-          <h2 class="text-xl text-highlighted">Plan</h2>
-          <UBadge
-            v-if="status !== 'pending'"
-            :color="statusBadge.color"
-            :icon="statusBadge.icon"
-            variant="subtle"
-          >
-            {{ statusBadge.label }}
-          </UBadge>
-        </div>
-      </template>
-
-      <!-- The plan card's four states, in priority order: still loading,
-           dunning, holding access, holding nothing.
-
-           Dunning is second, and it is the loudest thing on the page while it's
-           true. It REPLACES the plan detail rather than sitting beside it —
-           during past_due there is nothing honest to say under "Renews",
-           because the renewal is precisely what didn't happen. The one action
-           that fixes it is the only primary button on the page, and the layout
-           banner hides itself on this route so the story is told once.
-
-           Keep comments out of the branches themselves. Vue absorbs a comment
-           sitting between v-if and v-else-if into the following branch, making
-           it a fragment on the client while the SSR compiler drops it — which
-           hydrates as a node mismatch on this exact card. -->
-      <div v-if="status === 'pending'" class="flex flex-col gap-3">
-        <USkeleton class="h-4 w-48" />
-        <USkeleton class="h-4 w-64" />
-      </div>
-
-      <BillingPastDueAlert
-        v-else-if="billing?.state === 'past_due'"
-        :portal-available="billing.portalAvailable"
-      >
-        <p>
-          This can clear on its own — but if the card has expired or been replaced, updating it is
-          the only thing that will. Nothing is deleted in the meantime, and access comes back as
-          soon as a payment goes through.
-        </p>
-        <p v-if="billing?.portalAvailable">
-          Want to stop instead? The same portal cancels the subscription.
-        </p>
-
-        <div class="flex flex-wrap gap-3">
-          <UButton to="/pricing" color="neutral" variant="outline">See plans</UButton>
-        </div>
-      </BillingPastDueAlert>
-
-      <div v-else-if="billing?.active" class="flex flex-col gap-4">
-        <!-- `cancelsAt` first, because Paddle keeps a cancelled subscription at
-             status `active` until the notice period ends — so without this the
-             page tells someone who cancelled weeks ago that they renew
-             automatically, next to no cancel button. -->
-        <p class="text-default">
-          {{
-            billing.cancelsAt
-              ? 'Your subscription is cancelled. You keep access until it ends.'
-              : billing.kind === 'pass'
-                ? 'You have a one-time pass. It will not renew.'
-                : 'Your subscription renews automatically.'
-          }}
-        </p>
-        <dl class="grid gap-4 sm:grid-cols-2">
-          <div>
-            <dt class="text-sm text-muted">Type</dt>
-            <dd class="text-default">
-              {{ billing.kind === 'pass' ? 'One-time pass' : 'Subscription' }}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-sm text-muted">
-              {{ billing.cancelsAt ? 'Ends' : billing.kind === 'pass' ? 'Expires' : 'Renews' }}
-            </dt>
-            <dd class="font-mono text-default">
-              {{ formatDate(billing.cancelsAt ?? billing.currentPeriodEnd) }}
-            </dd>
-          </div>
-        </dl>
-
-        <div class="flex flex-wrap gap-3">
-          <UButton
-            v-if="billing.portalAvailable"
-            :loading="portalPending"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-external-link"
-            @click="requestPortal"
-          >
-            {{ billing.cancellable ? 'Manage or cancel' : 'Manage billing' }}
-          </UButton>
-          <UButton to="/pricing" variant="ghost" color="neutral">See all plans</UButton>
-        </div>
-      </div>
-
-      <div v-else class="flex flex-col items-start gap-4">
-        <p class="text-muted">You don't have an active plan.</p>
-        <UButton to="/pricing">See plans</UButton>
-      </div>
-    </UCard>
-
-    <!-- History -->
-    <UCard v-if="billing?.history?.length">
-      <template #header>
-        <h2 class="text-xl text-highlighted">Billing history</h2>
-      </template>
-
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-default text-left text-muted">
-              <th class="py-2 pr-4 font-medium">Purchased</th>
-              <th class="py-2 pr-4 font-medium">Type</th>
-              <th class="py-2 pr-4 font-medium">Status</th>
-              <th class="py-2 text-right font-medium">Ends</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in billing.history" :key="item.ref" class="border-b border-default">
-              <td class="py-2 pr-4 font-mono text-default">{{ formatDate(item.purchasedAt) }}</td>
-              <!-- A comped row is a pass nobody paid for. Unlabelled it reads
-                   as a purchase, which starts a support conversation about a
-                   charge that never happened. -->
-              <td class="py-2 pr-4 text-default">
-                {{ item.kind === 'pass' ? 'Pass' : 'Subscription' }}
-                <UBadge v-if="item.comped" color="neutral" variant="subtle" size="sm">
-                  comp
-                </UBadge>
-              </td>
-              <!-- A withdrawn comp gets a badge rather than a bare status word.
-                   It is the one row here whose change the customer was never
-                   part of — nobody paid, nobody cancelled, access simply
-                   stopped — so this table is the only place the product ever
-                   explains it. Neutral, with the word spelled out: nothing went
-                   wrong and nothing is owed (DESIGN.md › never state by colour
-                   alone). -->
-              <td class="py-2 pr-4 text-muted">
-                <UBadge
-                  v-if="item.status === 'revoked'"
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                  icon="i-lucide-circle-minus"
-                >
-                  revoked
-                </UBadge>
-                <template v-else>{{ item.status }}</template>
-              </td>
-              <td class="py-2 text-right font-mono text-default">
-                {{ formatDate(item.currentPeriodEnd) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <template #footer>
-        <p class="text-sm text-muted">
-          Invoices and receipts come from Paddle, our merchant of record.
-        </p>
-      </template>
-    </UCard>
-
     <!-- Email preferences -->
     <UCard>
       <template #header>
@@ -464,8 +191,8 @@ useSeo({
         />
 
         <p class="text-sm text-muted">
-          Billing and security email can't be turned off — they cover things like payment issues and
-          account access.
+          Security email can't be turned off — it covers things like sign-in links and account
+          access.
         </p>
       </div>
     </UCard>
@@ -483,7 +210,7 @@ useSeo({
           <div>
             <p class="text-default">Download a copy of your data</p>
             <p class="text-sm text-muted">
-              One JSON file: your profile, billing history, feedback, and notification settings.
+              One JSON file: your profile, feedback, and notification settings.
             </p>
           </div>
           <UButton
@@ -503,8 +230,7 @@ useSeo({
           <div>
             <p class="text-default">Delete your account</p>
             <p class="text-sm text-muted">
-              Removes your account and its contents. Billing records are kept as tax law requires —
-              see the
+              Removes your account and its contents. See the
               <!-- Underlined: a prose link distinguished by colour alone is the
                    one thing DESIGN.md › Accessibility rules out, and axe agrees
                    (link-in-text-block). -->
@@ -520,28 +246,29 @@ useSeo({
       </div>
     </UCard>
 
-    <!-- Cancellation prompt. Every control here leads out; there is no path
-         that keeps someone subscribed against their intent. -->
-    <UModal v-model:open="cancelOpen" title="Before you go">
+    <!-- Delete-account confirmation. Typed-email match is the safeguard
+         against a stray click — not an "are you sure?" dialog, which people
+         dismiss by reflex without reading. -->
+    <UModal v-model:open="deleteOpen" title="Delete your account">
       <template #body>
         <div class="flex flex-col gap-5">
           <p class="text-muted">
-            What's making you cancel? Answering is optional and changes nothing about your
-            cancellation — it just tells us what to fix.
+            This deletes your account and its contents: your notification settings. Feedback you've
+            sent stays, with anything that identifies you removed from it.
           </p>
-
-          <URadioGroup
-            v-model="cancelReason"
-            legend="Reason for cancelling"
-            :items="cancelReasons"
-          />
-
-          <UFormField label="Anything else?" name="cancel-detail">
-            <UTextarea
-              v-model="cancelDetail"
-              :rows="3"
+          <p class="text-muted">
+            See the
+            <ULink to="/privacy" class="text-primary underline underline-offset-2">
+              Privacy Policy </ULink
+            >. There's no undo after this.
+          </p>
+          <UFormField label="Type your email to confirm" name="confirm-email">
+            <UInput
+              v-model="confirmEmailInput"
+              type="email"
               class="w-full"
-              placeholder="Optional — the more specific, the more useful."
+              :placeholder="user?.email"
+              autocomplete="off"
             />
           </UFormField>
         </div>
@@ -549,84 +276,14 @@ useSeo({
 
       <template #footer>
         <div class="flex flex-wrap gap-3">
-          <UButton :loading="portalPending" @click="continueToPortal"> Continue to cancel </UButton>
-          <UButton color="neutral" variant="ghost" @click="cancelOpen = false">
-            Never mind
+          <UButton
+            color="error"
+            :disabled="!canConfirmDelete"
+            :loading="deletePending"
+            @click="confirmDelete"
+          >
+            Delete my account
           </UButton>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- Delete-account confirmation. Typed-email match is the safeguard
-         against a stray click — not an "are you sure?" dialog, which people
-         dismiss by reflex without reading. The live-subscription refusal
-         swaps the body for guidance and the same portal action /account
-         already uses to cancel, so a 409 isn't a dead end. -->
-    <UModal v-model:open="deleteOpen" title="Delete your account">
-      <template #body>
-        <div class="flex flex-col gap-5">
-          <template v-if="deleteBlockedBySubscription">
-            <UAlert
-              color="warning"
-              variant="subtle"
-              icon="i-lucide-triangle-alert"
-              title="Cancel your subscription first"
-              :description="
-                billing?.cancelsOnDeletion
-                  ? 'We couldn\'t cancel your subscription, so nothing was deleted. Cancel it from the billing portal, then come back and delete.'
-                  : 'Deleting your account wouldn\'t stop the charges — Paddle owns the subscription, not this account. Cancel it from the billing portal, then come back and delete.'
-              "
-            />
-            <UButton
-              :loading="portalPending"
-              color="neutral"
-              variant="outline"
-              icon="i-lucide-external-link"
-              @click="openBillingPortal"
-            >
-              Open billing portal
-            </UButton>
-          </template>
-          <template v-else>
-            <p class="text-muted">
-              This deletes your account and its contents: uploaded files, your notification
-              settings. Feedback you've sent stays, with anything that
-              identifies you removed from it.
-            </p>
-            <p class="text-muted">
-              Billing records are kept as tax law requires — see the
-              <ULink to="/privacy" class="text-primary underline underline-offset-2">
-                Privacy Policy </ULink
-              >. There's no undo after this.
-            </p>
-            <p v-if="billing?.cancelsOnDeletion && billing.cancellable" class="text-muted">
-              Your subscription will be cancelled immediately and won't renew.
-            </p>
-            <UFormField label="Type your email to confirm" name="confirm-email">
-              <UInput
-                v-model="confirmEmailInput"
-                type="email"
-                class="w-full"
-                :placeholder="user?.email"
-                autocomplete="off"
-              />
-            </UFormField>
-          </template>
-        </div>
-      </template>
-
-      <template #footer>
-        <div class="flex flex-wrap gap-3">
-          <template v-if="!deleteBlockedBySubscription">
-            <UButton
-              color="error"
-              :disabled="!canConfirmDelete"
-              :loading="deletePending"
-              @click="confirmDelete"
-            >
-              Delete my account
-            </UButton>
-          </template>
           <UButton color="neutral" variant="ghost" @click="deleteOpen = false">
             Never mind
           </UButton>

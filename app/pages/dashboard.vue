@@ -1,15 +1,11 @@
 <script setup lang="ts">
-// The gated page — the one that proves the whole chain works end to end:
-// sign in → buy → get in. Replace its contents with your actual product.
+// The signed-in page. Replace its contents with your actual product.
 //
-// Both middlewares run in order: `auth` bounces signed-out visitors to /login
-// (carrying `?redirect=/dashboard`), then `subscription` bounces signed-in
-// visitors without an entitlement to /pricing.
-//
-// Neither is the security boundary. The API route this page calls does the real
-// check with `await requireSubscription(event)`, which 402s. Delete the client
-// middleware and this page still can't show paid data; delete the server check
-// and it can.
+// The `auth` middleware bounces signed-out visitors to /login (carrying
+// `?redirect=/dashboard`). It is not the security boundary: the API routes this
+// page calls do the real check with `requireAccess(event)`. Delete the client
+// middleware and this page still can't show data; delete the server check and
+// it can.
 //
 // ── Onboarding ───────────────────────────────────────────────────────────
 // The checklist's fetch, dismissal state, and activation POST live here
@@ -20,7 +16,7 @@
 // disagreeing for a frame, which a child-emits-to-parent-ref design would
 // not.
 
-definePageMeta({ middleware: ['auth', 'subscription'] })
+definePageMeta({ middleware: 'auth' })
 
 const { user } = useUserSession()
 const toast = useToast()
@@ -88,7 +84,7 @@ const checklistVisible = computed(() => !dismissed.value && progress.value?.comp
 
 // The embedded FeedbackWidget on the "send feedback" step is the one way to
 // finish the checklist without navigating anywhere — every other step's
-// action is a real link to /pricing or /account. Without this, completing
+// action is a real link to /account. Without this, completing
 // via that widget would only ever show up after a reload: `progress` isn't
 // otherwise reactive once fetched.
 function handleFeedbackSubmitted(): void {
@@ -177,7 +173,7 @@ useSeo({ title: 'Dashboard', description: 'The gated example page.', noindex: tr
     <div>
       <h1 class="text-3xl text-highlighted">Welcome back, {{ user?.name }}</h1>
       <p class="mt-2 text-muted">
-        You're signed in with an active plan — this page is only reachable in that state.
+        You're signed in.
       </p>
     </div>
 

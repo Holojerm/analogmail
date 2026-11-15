@@ -3,13 +3,12 @@
 //
 // One shell rather than a marketing/app split: at this size a second layout
 // costs more than it saves, and the nav already adapts (public links always,
-// Dashboard only with an active plan, Admin only for admins, avatar menu
+// Dashboard for signed-in users, Admin only for admins, avatar menu
 // instead of a Sign in button).
 // Split it the day the product needs a sidebar.
 
 const config = useRuntimeConfig()
 const { loggedIn, user } = useUserSession()
-const { data: entitlement } = useEntitlement()
 const isAdmin = computed(() => user.value?.role === 'admin')
 
 const appName = config.public.appName
@@ -17,19 +16,12 @@ const supportEmail = config.public.supportEmail
 const year = new Date().getFullYear()
 
 const navLinks = computed(() => [
-  { label: 'Pricing', to: '/pricing' },
   // In the header, not only the footer: the blog is the top of the funnel, and
   // a link a search visitor never sees is a link that never earns a second page
   // view. It is also the internal link that tells a crawler /blog exists
   // without waiting for the sitemap.
   { label: 'Blog', to: '/blog' },
-  // Dashboard and Files are paying-only (middleware: ['auth', 'subscription']),
-  // so they show only while the entitlement is active. Signed in without a
-  // plan, both links bounced to /pricing with "that page needs an active plan"
-  // — a nav that offers things you cannot use. The state arrives a beat after
-  // hydration (useEntitlement); until then a paying customer sees the public
-  // links, which is the honest default for a shell that cannot know yet.
-  ...(loggedIn.value && entitlement.value?.active
+  ...(loggedIn.value
     ? [
         { label: 'Dashboard', to: '/dashboard' },
         { label: 'Files', to: '/files' },
@@ -146,24 +138,16 @@ watch(
          ever focused programmatically by the skip link, and a ring around the whole
          page region reads as a rendering bug. design-check-ignore -->
     <UContainer id="main" as="main" tabindex="-1" class="flex-1 py-8 focus:outline-none">
-      <!-- Dunning notice. Inside `main` rather than between the landmarks, so
-           it sits in a landmark (axe's `region` rule) and lines up with the
-           page content instead of floating over it. Renders nothing unless a
-           signed-in user's subscription is actually past_due — and costs a
-           signed-out visitor nothing at all, because it never mounts. -->
-      <BillingPastDueBanner v-if="loggedIn" />
       <slot />
     </UContainer>
 
-    <!-- Footer. The legal links are not optional decoration: Paddle's onboarding
-         review checks for reachable terms and privacy pages before approving an
-         account, and so do most payment processors. -->
+    <!-- Footer. The legal links are not optional decoration: terms and privacy
+         pages have to be reachable from every page. -->
     <footer class="mt-16 border-t border-default">
       <UContainer>
         <div class="flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <p class="text-sm text-muted">© {{ year }} {{ appName }}</p>
           <nav aria-label="Footer" class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <ULink to="/pricing" class="text-muted hover:text-default">Pricing</ULink>
             <ULink to="/blog" class="text-muted hover:text-default">Blog</ULink>
             <ULink to="/changelog" class="text-muted hover:text-default">Changelog</ULink>
             <ULink to="/terms" class="text-muted hover:text-default">Terms</ULink>

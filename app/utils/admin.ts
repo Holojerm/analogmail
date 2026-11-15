@@ -67,30 +67,6 @@ export function auditActionIcon(action: string): string {
 }
 
 /**
- * The plan badge, for BOTH /account and the admin console.
- *
- * One function because the two had already drifted: different icons for
- * `trialing` and for the no-plan state, on screens whose entire purpose is that
- * a support person and a customer are looking at the same thing. A support
- * person reading "no access" while the customer reads "no active plan" spends
- * the first minute of the call establishing they are talking about one account.
- *
- * The label is deliberately the customer's wording on both. The console is a
- * mirror of what the customer sees; where it needs operator detail it has the
- * billing table underneath.
- */
-const BILLING_STATE_META: Record<string, BadgeMeta> = {
-  past_due: { label: 'payment failed', icon: 'i-lucide-credit-card', color: 'warning' },
-  trialing: { label: 'trialing', icon: 'i-lucide-clock', color: 'info' },
-  active: { label: 'active', icon: 'i-lucide-circle-check', color: 'success' },
-  inactive: { label: 'no active plan', icon: 'i-lucide-circle-x', color: 'neutral' },
-}
-
-export function billingStateMeta(state: string | null | undefined): BadgeMeta {
-  return (state && BILLING_STATE_META[state]) || BILLING_STATE_META.inactive!
-}
-
-/**
  * Did this request come back 403?
  *
  * Every admin page asks, and each had its own copy of

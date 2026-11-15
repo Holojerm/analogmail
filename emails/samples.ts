@@ -11,7 +11,6 @@ export type EmailSample = Record<string, unknown>
 const brand = { appName: 'My App', appUrl: 'https://my-app.example' }
 
 export const SAMPLES: Record<string, EmailSample> = {
-  'access-ended': { ...brand, name: 'Ada', canceled: true },
   'account-deleted': { ...brand, name: 'Ada' },
   'activation-nudge': { ...brand, name: 'Ada' },
   'feedback-reply': {
@@ -24,8 +23,5 @@ export const SAMPLES: Record<string, EmailSample> = {
     url: `${brand.appUrl}/auth/confirm?token=2f9c1d`,
     expiresMinutes: 15,
   },
-  'pass-expiring': { ...brand, name: 'Ada', date: 'October 7' },
-  'payment-failed': { ...brand, name: 'Ada' },
-  purchase: { ...brand, name: 'Ada', isPass: false, ends: 'November 4, 2026' },
   welcome: { ...brand, name: 'Ada' },
 }

@@ -13,13 +13,11 @@ import {
 import type { ActivationAttemptState, OnboardingInputs } from '../shared/utils/onboarding'
 
 const NONE_DONE: OnboardingInputs = {
-  entitlementActive: false,
   hasNotificationPreference: false,
   hasSentFeedback: false,
 }
 
 const ALL_DONE: OnboardingInputs = {
-  entitlementActive: true,
   hasNotificationPreference: true,
   hasSentFeedback: true,
 }
@@ -51,7 +49,7 @@ describe('deriveOnboardingSteps — nothing done', () => {
   })
 
   it('points `next` at the first step', () => {
-    expect(progress.next?.id).toBe('plan')
+    expect(progress.next?.id).toBe('notifications')
   })
 })
 
@@ -71,7 +69,6 @@ describe('deriveOnboardingSteps — everything done', () => {
 
 describe('deriveOnboardingSteps — one signal at a time', () => {
   it.each([
-    ['entitlementActive', 'plan'],
     ['hasNotificationPreference', 'notifications'],
     ['hasSentFeedback', 'feedback'],
   ] as const)('turning on %s completes only the %s step', (key, stepId) => {
@@ -84,19 +81,17 @@ describe('deriveOnboardingSteps — one signal at a time', () => {
 })
 
 describe('deriveOnboardingSteps — next follows step order, not completion order', () => {
-  it('finishing feedback first still points next at plan', () => {
+  it('finishing feedback first still points next at notifications', () => {
     const progress = deriveOnboardingSteps({
-      entitlementActive: false,
       hasNotificationPreference: false,
       hasSentFeedback: true,
     })
     expect(progress.completed).toBe(1)
-    expect(progress.next?.id).toBe('plan')
+    expect(progress.next?.id).toBe('notifications')
   })
 
   it('with only the last step left, next is feedback', () => {
     const progress = deriveOnboardingSteps({
-      entitlementActive: true,
       hasNotificationPreference: true,
       hasSentFeedback: false,
     })
@@ -108,24 +103,11 @@ describe('deriveOnboardingSteps — next follows step order, not completion orde
 describe('deriveOnboardingSteps — omitted optional input', () => {
   it('treats a missing hasSentFeedback as not done, not as an error', () => {
     const progress = deriveOnboardingSteps({
-      entitlementActive: true,
       hasNotificationPreference: true,
     })
     expect(progress.steps.find((step) => step.id === 'feedback')?.done).toBe(false)
     expect(progress.complete).toBe(false)
     expect(progress.next?.id).toBe('feedback')
-  })
-})
-
-describe('deriveOnboardingSteps — the plan step on /dashboard', () => {
-  // /dashboard's own subscription middleware already refuses entry to
-  // anyone without an active entitlement (layers/billing/app/middleware/subscription.ts),
-  // so entitlementActive is structurally true for every real visitor to
-  // this checklist. This function doesn't assume that — it just reports
-  // whatever it's given — which this test pins down explicitly.
-  it('reads the plan step as done whenever entitlementActive is true, independent of everything else', () => {
-    const progress = deriveOnboardingSteps({ ...NONE_DONE, entitlementActive: true })
-    expect(progress.steps[0]).toMatchObject({ id: 'plan', done: true })
   })
 })
 

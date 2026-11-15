@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // ── A STARTING POINT, NOT LEGAL ADVICE ───────────────────────────────────────
 // Same caveat as /terms. What makes this one worth keeping rather than pasting
-// from a generator is that it's accurate about THIS codebase: it names the three
-// processors the template actually ships with (Cloudflare, Paddle, PostHog),
-// and it describes the data those pieces really collect — the OAuth profile
-// fields in server/utils/users.ts, the session cookie, the entitlement rows.
+// from a generator is that it's accurate about THIS codebase: it names the
+// processors the app actually ships with (Cloudflare, PostHog, Resend), and it
+// describes the data those pieces really collect — the OAuth profile fields in
+// server/utils/users.ts and the session cookie.
 //
-// If you remove PostHog or swap Paddle, fix the table below. A privacy policy
+// If you remove PostHog or add a processor, fix the table below. A privacy policy
 // that lists a processor you don't use is as wrong as one that omits one.
 
 definePageMeta({
@@ -32,11 +32,6 @@ const processors = [
     name: 'Cloudflare',
     purpose: 'Hosting, database, file storage, CDN, and cookieless page-load analytics',
     data: 'Everything the app stores, plus request logs and page-load timings',
-  },
-  {
-    name: 'Paddle',
-    purpose: 'Payments, tax, and invoicing as merchant of record',
-    data: 'Your email, billing address, and payment details',
   },
   {
     name: 'PostHog',
@@ -90,11 +85,6 @@ useSeo({
           never receive your password for that provider.
         </p>
         <p>
-          <strong class="text-highlighted">Billing data.</strong> Paddle holds your payment details;
-          we never see a card number. We store a customer reference, which plan you have, its
-          status, and when the period ends.
-        </p>
-        <p>
           <strong class="text-highlighted">Usage data.</strong> Pages visited, features used, and
           errors encountered, tied to your account ID so we can debug a problem you report.
         </p>
@@ -104,10 +94,10 @@ useSeo({
       <section class="flex flex-col gap-3">
         <h2 class="text-2xl text-highlighted">Why we're allowed to</h2>
         <p>
-          We process account and billing data to perform the contract you entered when you signed
-          up. We process usage data on the basis of legitimate interest in keeping the product
-          working and understanding how it's used — a balance we've weighed against your privacy,
-          which is why analytics are pseudonymous and never shared with advertisers.
+          We process account data to perform the contract you entered when you signed up. We process
+          usage data on the basis of legitimate interest in keeping the product working and
+          understanding how it's used — a balance we've weighed against your privacy, which is why
+          analytics are pseudonymous and never shared with advertisers.
         </p>
       </section>
 
@@ -154,9 +144,8 @@ useSeo({
       <section class="flex flex-col gap-3">
         <h2 class="text-2xl text-highlighted">How long we keep it</h2>
         <p>
-          Account and content data lives until you delete your account. Billing records are kept for
-          as long as tax law requires — usually seven years — because we don't get to delete those
-          on request. Analytics events age out on the provider's retention schedule.
+          Account and content data lives until you delete your account. Analytics events age out on
+          the provider's retention schedule.
         </p>
       </section>
 

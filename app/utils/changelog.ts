@@ -56,20 +56,12 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       { kind: 'added', text: 'Accessibility and mobile guardrails, enforced in CI.' },
       { kind: 'added', text: 'Canonical URLs, structured data, and llms.txt.' },
-      { kind: 'improved', text: 'Billing emails now fire on status transitions, not every event.' },
     ],
   },
   {
     date: '2026-08-07',
     version: 'v0.2',
-    changes: [
-      { kind: 'added', text: 'GitHub and Google sign-in, wired end to end.' },
-      {
-        kind: 'added',
-        text: 'Paddle billing: checkout, entitlements, and self-serve cancellation.',
-      },
-      { kind: 'fixed', text: 'Refunds and chargebacks now revoke access immediately.' },
-    ],
+    changes: [{ kind: 'added', text: 'GitHub and Google sign-in, wired end to end.' }],
   },
 ]
 

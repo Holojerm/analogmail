@@ -16,14 +16,10 @@ const NAMES = Object.keys(EMAILS) as EmailName[]
 
 /** The link each email exists to put in front of someone, as the sample builds it. */
 const ACTION_URL: Record<EmailName, (data: Record<string, unknown>) => string> = {
-  'access-ended': (d) => `${d.appUrl}/pricing`,
   'account-deleted': (d) => `${d.appUrl}`,
   'activation-nudge': (d) => `${d.appUrl}/dashboard`,
   'feedback-reply': (d) => `${d.appUrl}`,
   'magic-link': (d) => String(d.url),
-  'pass-expiring': (d) => `${d.appUrl}/account`,
-  'payment-failed': (d) => `${d.appUrl}/account`,
-  purchase: (d) => `${d.appUrl}/account`,
   welcome: (d) => `${d.appUrl}`,
 }
 
@@ -93,13 +89,5 @@ describe('renderEmail', () => {
     })
     expect(html).toContain('Ada &amp; &quot;Grace&quot; &lt;3')
     expect(text).toContain('Hi Ada & "Grace" <3')
-  })
-
-  it('drops a section whose value is missing, rather than printing around it', () => {
-    const base = { ...SAMPLES.purchase, isPass: true }
-    expect(renderEmail('purchase', { ...base, ends: 'May 1' }).text).toContain('good through May 1')
-    const none = renderEmail('purchase', { ...base, ends: null }).text
-    expect(none).toContain('one-time pass. It')
-    expect(none).not.toContain('null')
   })
 })

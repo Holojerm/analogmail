@@ -45,15 +45,11 @@ export function isMandatoryNotification(eventType: string): boolean {
  * collide with a mandatory prefix above (none of these start with `billing.`,
  * `security.`, or `account.`).
  *
- * `product_updates` is reserved for a later wave — no email sends for it yet,
- * but the preference exists so someone who opts out today isn't surprised the
- * day that email ships.
+ * `product_updates` is reserved for later — no email sends for it yet, but the
+ * preference exists so someone who opts out today isn't surprised the day that
+ * email ships.
  */
-export const OPTIONAL_NOTIFICATION_EVENT_TYPES = [
-  'welcome',
-  'tips',
-  'product_updates',
-] as const
+export const OPTIONAL_NOTIFICATION_EVENT_TYPES = ['welcome', 'tips', 'product_updates'] as const
 
 export type OptionalNotificationEventType = (typeof OPTIONAL_NOTIFICATION_EVENT_TYPES)[number]
 

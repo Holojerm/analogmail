@@ -504,7 +504,7 @@ export default defineNuxtConfig({
       // description — so an answer engine reads the same claim everywhere
       // rather than three paraphrases it has to reconcile.
       appDescription:
-        'A full-stack SaaS template on Nuxt 4 and Cloudflare Workers: auth, billing, email, and analytics already wired together.',
+        'A full-stack SaaS template on Nuxt 4 and Cloudflare Workers: auth, email, and analytics already wired together.',
       // PostHog — paste your project's phc_… key here (or set
       // NUXT_PUBLIC_POSTHOG_KEY in env). Public-by-design; ships in the
       // client bundle. Empty key = plugin no-ops, nothing tracked.

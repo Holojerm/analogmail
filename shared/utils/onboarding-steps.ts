@@ -9,7 +9,7 @@
 
 import type { OnboardingInputs } from './onboarding'
 
-export const ONBOARDING_STEP_IDS = ['plan', 'notifications', 'feedback'] as const
+export const ONBOARDING_STEP_IDS = ['notifications', 'feedback'] as const
 export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number]
 
 export interface OnboardingStepDefinition {
@@ -24,12 +24,6 @@ export interface OnboardingStepDefinition {
 }
 
 export const ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
-  {
-    id: 'plan',
-    label: 'Pick a plan',
-    action: { label: 'View plans', to: '/pricing' },
-    done: (inputs) => Boolean(inputs.entitlementActive),
-  },
   {
     id: 'notifications',
     label: 'Set your email preferences',

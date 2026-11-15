@@ -42,52 +42,9 @@ export function composeEmail(
   }
 }
 
-const longDate = (date: Date) =>
-  date.toLocaleDateString('en-US', { dateStyle: 'long', timeZone: 'UTC' })
-
 /** First sign-in. Short on purpose — nobody reads a welcome tour. */
 export function welcomeEmail(brand: Branding, opts: { name: string }): EmailContent {
   return composeEmail('welcome', `Welcome to ${brand.appName}`, brand, { name: opts.name })
-}
-
-/** Money changed hands. Paddle sends the tax receipt; this confirms access. */
-export function purchaseEmail(
-  brand: Branding,
-  opts: { name: string; kind: 'subscription' | 'pass'; endsAt: Date | null },
-): EmailContent {
-  const isPass = opts.kind === 'pass'
-  return composeEmail(
-    'purchase',
-    isPass
-      ? `Your ${brand.appName} pass is active`
-      : `Your ${brand.appName} subscription is active`,
-    brand,
-    { name: opts.name, isPass, ends: opts.endsAt ? longDate(opts.endsAt) : null },
-  )
-}
-
-/** A card failed. The only email here with real urgency, so it says the deadline. */
-export function paymentFailedEmail(brand: Branding, opts: { name: string }): EmailContent {
-  return composeEmail(
-    'payment-failed',
-    `Action needed: payment failed for ${brand.appName}`,
-    brand,
-    { name: opts.name },
-  )
-}
-
-/** Access ended — cancellation, refund, or chargeback. Never argumentative. */
-export function accessEndedEmail(
-  brand: Branding,
-  opts: { name: string; reason: 'canceled' | 'refunded' | 'chargeback' | 'comp_revoked' },
-): EmailContent {
-  return composeEmail('access-ended', `Your ${brand.appName} access has ended`, brand, {
-    name: opts.name,
-    canceled: opts.reason === 'canceled',
-    refunded: opts.reason === 'refunded',
-    chargeback: opts.reason === 'chargeback',
-    compRevoked: opts.reason === 'comp_revoked',
-  })
 }
 
 /**

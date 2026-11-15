@@ -28,45 +28,7 @@ export interface EventDefinition {
   description: string
 }
 
-// The webhook records every `subscription.*` notification as
-// `paddle_subscription_<suffix>`. Paddle's documented set, so the names are
-// registered rather than built from whatever string arrives.
-const PADDLE_SUBSCRIPTION_SUFFIXES = [
-  'activated',
-  'canceled',
-  'created',
-  'imported',
-  'past_due',
-  'paused',
-  'resumed',
-  'trialing',
-  'updated',
-] as const
-
-type PaddleSubscriptionEvent =
-  `paddle_subscription_${(typeof PADDLE_SUBSCRIPTION_SUFFIXES)[number]}`
-
-const PADDLE_SUBSCRIPTION_EVENTS = Object.fromEntries(
-  PADDLE_SUBSCRIPTION_SUFFIXES.map((suffix) => [
-    `paddle_subscription_${suffix}`,
-    { origin: 'server', description: `Paddle sent subscription.${suffix}.` },
-  ]),
-) as Record<PaddleSubscriptionEvent, EventDefinition>
-
-/**
- * The event name for a Paddle `subscription.*` notification. An event type
- * Paddle adds later is recorded as `paddle_subscription_updated` (the webhook
- * logs the raw type) instead of minting an unregistered name.
- */
-export function paddleSubscriptionEvent(eventType: string): PaddleSubscriptionEvent {
-  const suffix = eventType.replace(/^subscription\./, '')
-  return (PADDLE_SUBSCRIPTION_SUFFIXES as readonly string[]).includes(suffix)
-    ? (`paddle_subscription_${suffix}` as PaddleSubscriptionEvent)
-    : 'paddle_subscription_updated'
-}
-
 export const TEMPLATE_EVENTS = {
-  ...PADDLE_SUBSCRIPTION_EVENTS,
   $pageview: { origin: 'client', description: 'A page was viewed (SPA navigations included).' },
   $exception: { origin: 'server', description: 'An unhandled server error.' },
 
@@ -81,44 +43,15 @@ export const TEMPLATE_EVENTS = {
     description: 'The user finished onboarding — the template’s activation moment.',
   },
 
-  checkout_started: { origin: 'client', description: 'A checkout was opened.' },
-  checkout_unavailable: {
-    origin: 'client',
-    description: 'A checkout was requested while Paddle was not configured.',
-  },
-  checkout_loaded: { origin: 'client', description: 'Paddle’s overlay finished loading.' },
-  checkout_customer_created: { origin: 'client', description: 'Paddle created a customer.' },
-  checkout_payment_initiated: { origin: 'client', description: 'The buyer submitted payment.' },
-  checkout_payment_failed: { origin: 'client', description: 'A payment attempt failed.' },
-  checkout_completed: {
-    origin: 'client',
-    description: 'The overlay reported success. A UX signal — the webhook decides money.',
-  },
-  checkout_error: { origin: 'client', description: 'Paddle’s overlay reported an error.' },
-  checkout_abandoned: {
-    origin: 'client',
-    description: 'The overlay closed without a completed payment.',
-  },
-
-  paddle_transaction_completed: {
-    origin: 'server',
-    description: 'Paddle confirmed a payment and access was granted.',
-  },
-  paddle_access_revoked: {
-    origin: 'server',
-    description: 'Access was withdrawn (refund, chargeback, or cancellation taking effect).',
-  },
-
   feedback_submitted: {
     origin: 'server',
-    description: 'In-app feedback arrived. `kind: churn` marks a cancellation reason.',
+    description: 'In-app feedback arrived.',
   },
   feedback_replied: { origin: 'server', description: 'The owner replied to a feedback item.' },
 
   lifecycle_email_sent: {
     origin: 'server',
-    description:
-      'A lifecycle email went out. `step` names which (activation_nudge, pass_expiring, …).',
+    description: 'A lifecycle email went out. `step` names which (e.g. activation_nudge).',
   },
 } as const satisfies Record<string, EventDefinition>
 
