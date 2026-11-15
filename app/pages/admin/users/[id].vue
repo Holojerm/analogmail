@@ -82,9 +82,6 @@ useSeo({
         >
           admin
         </UBadge>
-        <UBadge :color="accessBadge.color" variant="subtle" :icon="accessBadge.icon">
-          {{ accessBadge.label }}
-        </UBadge>
       </div>
     </div>
 
