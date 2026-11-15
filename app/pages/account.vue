@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Everything a customer needs to do to themselves, in one page: see what they're
-// paying for, change or cancel it, connect the MCP worker, sign out.
+// paying for, change or cancel it, sign out.
 //
 // The cancellation path is deliberately prominent. Making people email support
 // to stop paying is a dark pattern, it generates the support load you least want,
@@ -115,18 +115,6 @@ async function openBillingPortal(): Promise<void> {
     portalPending.value = false
   }
 }
-
-// ── MCP connect code ────────────────────────────────────────────────────────
-// Single-use, 10-minute code that bridges this session to the MCP worker's
-// OAuth flow. Shown once — only its hash is stored (server/api/mcp/connect-code).
-const connectCode = ref<string | null>(null)
-const { pending: connectPending, run: mintConnectCode } = useAsyncAction(
-  async () => {
-    const result = await $fetch('/api/mcp/connect-code', { method: 'POST' })
-    connectCode.value = result.code
-  },
-  { errorTitle: 'Could not create a connect code' },
-)
 
 // Every other device's cookie dies on its next request; this one is re-issued
 // by the route, so nothing here has to change client state.
@@ -455,45 +443,6 @@ useSeo({
       </template>
     </UCard>
 
-    <!-- MCP -->
-    <UCard>
-      <template #header>
-        <h2 class="text-xl text-highlighted">Connect an AI client</h2>
-      </template>
-
-      <div class="flex flex-col gap-4">
-        <p class="text-muted">
-          Generate a single-use code to link this account to the MCP server from Claude, Cursor, or
-          any MCP-capable client. Codes expire after 10 minutes.
-        </p>
-
-        <UAlert
-          v-if="connectCode"
-          color="success"
-          variant="subtle"
-          icon="i-lucide-key-round"
-          title="Your connect code"
-        >
-          <template #description>
-            <span class="font-mono text-lg tracking-widest text-highlighted">{{
-              connectCode
-            }}</span>
-            <p class="mt-2 text-sm">Paste it into the client's authorization page. Shown once.</p>
-          </template>
-        </UAlert>
-
-        <UButton
-          class="self-start"
-          color="neutral"
-          variant="outline"
-          :loading="connectPending"
-          @click="mintConnectCode()"
-        >
-          {{ connectCode ? 'Generate another' : 'Generate code' }}
-        </UButton>
-      </div>
-    </UCard>
-
     <!-- Email preferences -->
     <UCard>
       <template #header>
@@ -641,7 +590,7 @@ useSeo({
           <template v-else>
             <p class="text-muted">
               This deletes your account and its contents: uploaded files, your notification
-              settings, and the AI client connection. Feedback you've sent stays, with anything that
+              settings. Feedback you've sent stays, with anything that
               identifies you removed from it.
             </p>
             <p class="text-muted">

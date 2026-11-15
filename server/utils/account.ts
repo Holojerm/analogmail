@@ -117,27 +117,21 @@ export async function deleteAccount(
   }
 
   const contributors = getAccountContributors()
-  const [[connectCodeTotal], [magicLinkTotal], [notificationTotal], contributorCounts] =
-    await Promise.all([
-      db
-        .select({ total: count() })
-        .from(tables.mcpConnectCodes)
-        .where(eq(tables.mcpConnectCodes.userId, userId)),
-      // Keyed by address, not user id — a magic link is minted for an address
-      // before we know whether it has an account (server/db/schema.ts).
-      db
-        .select({ total: count() })
-        .from(tables.magicLinkTokens)
-        .where(eq(tables.magicLinkTokens.email, user.email)),
-      db
-        .select({ total: count() })
-        .from(tables.notificationPreferences)
-        .where(eq(tables.notificationPreferences.userId, userId)),
-      Promise.all(contributors.map((c) => c.countForDeletion?.(db, userId))),
-    ])
+  const [[magicLinkTotal], [notificationTotal], contributorCounts] = await Promise.all([
+    // Keyed by address, not user id — a magic link is minted for an address
+    // before we know whether it has an account (server/db/schema.ts).
+    db
+      .select({ total: count() })
+      .from(tables.magicLinkTokens)
+      .where(eq(tables.magicLinkTokens.email, user.email)),
+    db
+      .select({ total: count() })
+      .from(tables.notificationPreferences)
+      .where(eq(tables.notificationPreferences.userId, userId)),
+    Promise.all(contributors.map((c) => c.countForDeletion?.(db, userId))),
+  ])
 
   const metadata: AuditMetadata = {
-    connectCodesCount: connectCodeTotal?.total ?? 0,
     magicLinkTokensCount: magicLinkTotal?.total ?? 0,
     notificationPreferencesCount: notificationTotal?.total ?? 0,
   }
@@ -171,11 +165,8 @@ export async function deleteAccount(
       // The order inside the batch is still meaningful for reading: credentials
       // first, then owned rows, then the identity itself.
       await db.batch([
-        db.delete(tables.mcpConnectCodes).where(eq(tables.mcpConnectCodes.userId, userId)),
-
-        // Outstanding sign-in links are live credentials for this address, the
-        // same class of thing as the connect codes above, and deleting an
-        // account has to revoke the credentials that reach it. Without this a
+        // Outstanding sign-in links are live credentials for this address, and
+        // deleting an account has to revoke the credentials that reach it. Without this a
         // link minted minutes earlier stays redeemable — it would create a
         // fresh empty account rather than resurrect this one (the tombstone
         // address no longer matches), but "I deleted my account and a stale
@@ -311,7 +302,7 @@ export type AccountExport = AccountExportCore & Partial<AccountExportSections>
 /**
  * Everything /privacy promises a "copy of your data" means, as one document.
  *
- * `auditEntries` omits `actor_user_id` on purpose too:
+ * `auditEntries` omits `actor_user_id` on purpose:
  * these are the privileged actions taken ON this account (an admin viewing it,
  * this deletion itself), and naming which admin looked is a fact about that
  * admin, not about the export's owner — the console has its own view for that.

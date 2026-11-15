@@ -1,9 +1,9 @@
-// Retention for the two single-use credential tables.
+// Retention for the single-use credential table.
 //
-// `mcp_connect_codes` and `magic_link_tokens` are both mint-once, spend-once,
-// expire-in-minutes rows. Nothing in the request path ever deletes them: a
+// `magic_link_tokens` rows are mint-once, spend-once, expire-in-minutes.
+// Nothing in the request path ever deletes them: a
 // redemption stamps `used_at` and leaves the row, and an unredeemed row just
-// sits past its `expires_at` forever. So both tables grow monotonically with
+// sits past its `expires_at` forever. So the table grows monotonically with
 // sign-ins, and on a busy fork the magic-link table is the single fastest
 // growing thing in the database while holding nothing of value.
 //
@@ -28,12 +28,12 @@
 // next tick, and fails again — a purge that never once succeeds, which is the
 // worst possible shape for a cleanup job because nothing looks broken.
 //
-// So each table deletes at most PURGE_BATCH_LIMIT rows per run and reports how
+// So the sweep deletes at most PURGE_BATCH_LIMIT rows per run and reports how
 // many it took. The cron just runs again; a backlog drains over a few days
 // instead of never. `deleted === limit` in the log line is the signal that a
 // backlog exists.
 //
-// Both credential tables carry indexes on `expires_at` and `used_at` for this
+// The credential table carries indexes on `expires_at` and `used_at` for this
 // sweep (migration 0012). They are not optional: the LIMIT bounds rows
 // DELETED, not rows EXAMINED, so without them this scanned the whole of the
 // fastest-growing table every night and got slower as the product succeeded.
@@ -70,7 +70,6 @@ export interface PurgeOptions {
 }
 
 export interface PurgeCounts {
-  mcpConnectCodes: number
   magicLinkTokens: number
 }
 
@@ -78,15 +77,14 @@ export interface PurgeResult extends PurgeCounts {
   /** Everything older than this was eligible. Unix milliseconds. */
   cutoff: number
   /**
-   * True when either table deleted a full batch, meaning more rows remain and
-   * the next run has work to do. The one field worth alerting on. Features'
-   * own sweeps (PurgeContributor) report theirs separately; the task ORs them in.
+   * True when the sweep deleted a full batch, meaning more rows remain and
+   * the next run has work to do. The one field worth alerting on.
    */
   truncated: boolean
 }
 
 /**
- * Delete spent and expired rows from both credential tables.
+ * Delete spent and expired magic-link rows.
  *
  * A row is eligible when it went dead — expired, or was redeemed — more than
  * `graceSeconds` ago. Both conditions are checked because they are genuinely
@@ -114,22 +112,6 @@ export async function purgeExpiredTokens(
   // supports when compiled with SQLITE_ENABLE_UPDATE_DELETE_LIMIT — not a
   // guarantee D1 makes. `.returning({ id })` gives an exact count instead of
   // D1's driver-shaped `meta.changes`, and only pulls back the one column.
-  const deadConnectCodes = db
-    .select({ id: tables.mcpConnectCodes.id })
-    .from(tables.mcpConnectCodes)
-    .where(
-      or(
-        lt(tables.mcpConnectCodes.expiresAt, cutoff),
-        and(isNotNull(tables.mcpConnectCodes.usedAt), lt(tables.mcpConnectCodes.usedAt, cutoff)),
-      ),
-    )
-    .limit(limit)
-
-  const connectCodes = await db
-    .delete(tables.mcpConnectCodes)
-    .where(inArray(tables.mcpConnectCodes.id, deadConnectCodes))
-    .returning({ id: tables.mcpConnectCodes.id })
-
   const deadMagicLinks = db
     .select({ id: tables.magicLinkTokens.id })
     .from(tables.magicLinkTokens)
@@ -147,9 +129,8 @@ export async function purgeExpiredTokens(
     .returning({ id: tables.magicLinkTokens.id })
 
   return {
-    mcpConnectCodes: connectCodes.length,
     magicLinkTokens: magicLinks.length,
     cutoff: cutoff.getTime(),
-    truncated: connectCodes.length >= limit || magicLinks.length >= limit,
+    truncated: magicLinks.length >= limit,
   }
 }

@@ -117,8 +117,7 @@ export const FleetManifestSchema = z.strictObject({
   }),
 
   /**
-   * Every Worker this repository deploys, the app first. The MCP worker in
-   * mcp/ is the usual second entry. Each one is looked up in the Cloudflare
+   * Every Worker this repository deploys, the app first. Each one is looked up in the Cloudflare
    * account by this exact name.
    */
   workers: z.array(resourceName).min(1),

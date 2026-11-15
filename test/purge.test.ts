@@ -32,23 +32,10 @@ const RECENTLY = new Date(NOW - 1 * HOUR)
 const SOON = new Date(NOW + 1 * HOUR)
 
 beforeEach(async () => {
-  await env.DB.exec('DELETE FROM mcp_connect_codes')
   await env.DB.exec('DELETE FROM magic_link_tokens')
   await env.DB.exec('DELETE FROM users')
-  await db
-    .insert(schema.users)
-    .values({ id: USER, email: 'ada@example.com', name: 'Ada' })
+  await db.insert(schema.users).values({ id: USER, email: 'ada@example.com', name: 'Ada' })
 })
-
-async function addConnectCode(
-  id: string,
-  expiresAt: Date,
-  usedAt: Date | null = null,
-): Promise<void> {
-  await db
-    .insert(schema.mcpConnectCodes)
-    .values({ id, userId: USER, codeHash: `hash-${id}`, expiresAt, usedAt })
-}
 
 async function addMagicLink(
   id: string,
@@ -60,68 +47,57 @@ async function addMagicLink(
     .values({ id, email: 'ada@example.com', tokenHash: `hash-${id}`, expiresAt, usedAt })
 }
 
-async function remainingIds(table: 'mcp_connect_codes' | 'magic_link_tokens'): Promise<string[]> {
-  const rows =
-    table === 'mcp_connect_codes'
-      ? await db.select({ id: schema.mcpConnectCodes.id }).from(schema.mcpConnectCodes)
-      : await db.select({ id: schema.magicLinkTokens.id }).from(schema.magicLinkTokens)
+async function remainingIds(): Promise<string[]> {
+  const rows = await db.select({ id: schema.magicLinkTokens.id }).from(schema.magicLinkTokens)
   return rows.map((row) => row.id).sort()
 }
 
 describe('purgeExpiredTokens — what it deletes', () => {
   it('deletes rows that expired longer ago than the grace window', async () => {
-    await addConnectCode('cc-old', LONG_AGO)
     await addMagicLink('ml-old', LONG_AGO)
 
     const result = await purgeExpiredTokens(db, { now: NOW })
 
-    expect(result.mcpConnectCodes).toBe(1)
     expect(result.magicLinkTokens).toBe(1)
-    expect(await remainingIds('mcp_connect_codes')).toEqual([])
-    expect(await remainingIds('magic_link_tokens')).toEqual([])
+    expect(await remainingIds()).toEqual([])
   })
 
   it('deletes a spent row even when its expiry is still in the future', async () => {
     // The common case by volume: a link redeemed a minute after it was minted
     // is dead for fourteen more minutes of nominal validity.
-    await addConnectCode('cc-used', SOON, LONG_AGO)
     await addMagicLink('ml-used', SOON, LONG_AGO)
 
     const result = await purgeExpiredTokens(db, { now: NOW })
 
-    expect(result.mcpConnectCodes).toBe(1)
     expect(result.magicLinkTokens).toBe(1)
   })
 })
 
 describe('purgeExpiredTokens — what it must not delete', () => {
   it('keeps live, unspent rows', async () => {
-    await addConnectCode('cc-live', SOON)
     await addMagicLink('ml-live', SOON)
 
     const result = await purgeExpiredTokens(db, { now: NOW })
 
-    expect(result).toMatchObject({ mcpConnectCodes: 0, magicLinkTokens: 0 })
-    expect(await remainingIds('mcp_connect_codes')).toEqual(['cc-live'])
-    expect(await remainingIds('magic_link_tokens')).toEqual(['ml-live'])
+    expect(result).toMatchObject({ magicLinkTokens: 0 })
+    expect(await remainingIds()).toEqual(['ml-live'])
   })
 
   it('keeps rows that died inside the grace window', async () => {
     // This is the property the grace window exists for: an hour-old expired
     // token still lets the verify page say "expired" rather than "invalid",
     // and a spent one is still evidence of a replay.
-    await addConnectCode('cc-recent', RECENTLY)
     await addMagicLink('ml-recent-expired', RECENTLY)
     await addMagicLink('ml-recent-used', SOON, RECENTLY)
 
     const result = await purgeExpiredTokens(db, { now: NOW })
 
-    expect(result).toMatchObject({ mcpConnectCodes: 0, magicLinkTokens: 0 })
-    expect(await remainingIds('magic_link_tokens')).toEqual(['ml-recent-expired', 'ml-recent-used'])
+    expect(result).toMatchObject({ magicLinkTokens: 0 })
+    expect(await remainingIds()).toEqual(['ml-recent-expired', 'ml-recent-used'])
   })
 
-  it('sweeps only the two credential tables, never the account they point at', async () => {
-    await addConnectCode('cc-old', LONG_AGO)
+  it('sweeps only the credential table, never the account it points at', async () => {
+    await addMagicLink('ml-old', LONG_AGO)
     await purgeExpiredTokens(db, { now: NOW })
 
     const users = await db.select({ id: schema.users.id }).from(schema.users)
@@ -135,7 +111,7 @@ describe('purgeExpiredTokens — what it must not delete', () => {
 })
 
 describe('purgeExpiredTokens — bounded work', () => {
-  it('deletes at most `limit` rows per table and flags that more remain', async () => {
+  it('deletes at most `limit` rows and flags that more remain', async () => {
     for (let i = 0; i < 5; i++) await addMagicLink(`ml-${i}`, LONG_AGO)
 
     const first = await purgeExpiredTokens(db, { now: NOW, limit: 2 })
@@ -143,12 +119,12 @@ describe('purgeExpiredTokens — bounded work', () => {
     // The signal a backlog exists — the reason the cron can run again and make
     // progress instead of timing out forever on one enormous DELETE.
     expect(first.truncated).toBe(true)
-    expect(await remainingIds('magic_link_tokens')).toHaveLength(3)
+    expect(await remainingIds()).toHaveLength(3)
 
     const second = await purgeExpiredTokens(db, { now: NOW, limit: 10 })
     expect(second.magicLinkTokens).toBe(3)
     expect(second.truncated).toBe(false)
-    expect(await remainingIds('magic_link_tokens')).toEqual([])
+    expect(await remainingIds()).toEqual([])
   })
 
   it('a grace window of zero makes just-dead rows eligible', async () => {

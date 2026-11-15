@@ -3,8 +3,8 @@
 // The property under test is the one a sealed-cookie session could not have
 // before `users.sessions_invalid_before` existed: that deleting an account on
 // one device ends it on every device. Browser A deletes; browser B is still
-// holding a perfectly valid, correctly signed cookie for an account with
-// retained entitlements. Every one of these cases is that cookie.
+// holding a perfectly valid, correctly signed cookie. Every one of these cases
+// is that cookie.
 
 import { env } from 'cloudflare:test'
 import { drizzle } from 'drizzle-orm/d1'
@@ -27,11 +27,8 @@ const OLD_SESSION = {
 beforeEach(async () => {
   await env.DB.exec('DELETE FROM audit_log')
   await env.DB.exec('DELETE FROM magic_link_tokens')
-  await env.DB.exec('DELETE FROM entitlements')
   await env.DB.exec('DELETE FROM users')
-  await db
-    .insert(schema.users)
-    .values({ id: USER, email: 'ada@example.com', name: 'Ada' })
+  await db.insert(schema.users).values({ id: USER, email: 'ada@example.com', name: 'Ada' })
 })
 
 describe('checkSession', () => {
@@ -161,12 +158,10 @@ describe('isSessionClearOnlyPath', () => {
 
   it('still aborts everything that acts on the account', () => {
     for (const path of [
-      '/api/billing/entitlement',
       '/api/account/export',
       '/api/account',
       '/api/admin/users',
       '/api/feedback',
-      '/api/mcp/connect-code',
     ]) {
       expect(isSessionClearOnlyPath(path, 'GET'), path).toBe(false)
     }

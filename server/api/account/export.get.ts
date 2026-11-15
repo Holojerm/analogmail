@@ -7,7 +7,7 @@
 export default defineEventHandler(async (event) => {
   const { user } = await requireUserSession(event)
 
-  // Keyed by user, not IP, matching the mcp-connect-code limiter — the
+  // Keyed by user, not IP, matching the other per-user limiters — the
   // realistic abuse here is a signed-in account hammering a moderately
   // expensive multi-table read, not a shared corporate NAT.
   await rateLimit(event, {

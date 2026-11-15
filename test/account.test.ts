@@ -1,16 +1,10 @@
 // Self-serve account deletion and export, run against a real D1 inside
-// workerd. Three things have to hold, and each has a way of failing silently:
+// workerd. Two things have to hold, and each has a way of failing silently:
 //
 //   1. Deletion anonymizes the `users` row rather than erasing it — the id has
-//      to survive so rows that reference it (billing's entitlements, a real
-//      foreign key) don't orphan or block.
-//   2. A registered DeletionGuard refuses the whole thing, before anything is
-//      touched. Billing's guard is tested in the billing layer
-//      (layers/billing/test/billing-account.test.ts); core's own seam is
-//      tested with nothing registered in test/extensions.test.ts.
-//   3. The export never leaks more than it says it does: no admin identity on
-//      an audit entry, no other person's referral attribution on the user
-//      object, nothing from a different account's audit trail.
+//      to survive so the audit trail still points at something.
+//   2. The export never leaks more than it says it does: no admin identity on
+//      an audit entry, nothing from a different account's audit trail.
 
 import { env } from 'cloudflare:test'
 import { and, eq } from 'drizzle-orm'
@@ -30,7 +24,6 @@ beforeEach(async () => {
   await db.delete(schema.lifecycleSends)
   await db.delete(schema.auditLog)
   await db.delete(schema.notificationPreferences)
-  await db.delete(schema.mcpConnectCodes)
   await db.delete(schema.magicLinkTokens)
   await db.delete(schema.users)
 
@@ -52,7 +45,7 @@ describe('deleteAccount', () => {
     expect(await deleteAccount(db, 'ghost')).toEqual({ outcome: 'not_found' })
   })
 
-  it('anonymizes every PII column on the users row every PII column on the users row', async () => {
+  it('anonymizes every PII column on the users row', async () => {
     const outcome = await deleteAccount(db, USER)
     expect(outcome.outcome).toBe('deleted')
 
@@ -67,13 +60,7 @@ describe('deleteAccount', () => {
     expect(row?.signupReferrer).toBeNull()
   })
 
-  it('hard-deletes mcp connect codes and notification preferences', async () => {
-    await db.insert(schema.mcpConnectCodes).values({
-      id: 'code-1',
-      userId: USER,
-      codeHash: 'hash-value',
-      expiresAt: new Date(Date.now() + 60_000),
-    })
+  it('hard-deletes notification preferences', async () => {
     await db.insert(schema.notificationPreferences).values({
       id: 'pref-1',
       userId: USER,
@@ -91,14 +78,8 @@ describe('deleteAccount', () => {
     const audit = await db.query.auditLog.findFirst({
       where: eq(schema.auditLog.action, 'account.deleted'),
     })
-    expect(audit?.metadata).toMatchObject({
-      connectCodesCount: 1,
-      notificationPreferencesCount: 1,
-    })
+    expect(audit?.metadata).toMatchObject({ notificationPreferencesCount: 1 })
 
-    expect(
-      await db.query.mcpConnectCodes.findMany({ where: eq(schema.mcpConnectCodes.userId, USER) }),
-    ).toHaveLength(0)
     expect(
       await db.query.notificationPreferences.findMany({
         where: eq(schema.notificationPreferences.userId, USER),
@@ -107,9 +88,8 @@ describe('deleteAccount', () => {
   })
 
   it('revokes outstanding magic-link tokens for the address', async () => {
-    // A sign-in link is a live credential for this mailbox, the same class of
-    // thing as the connect codes above — deleting an account has to revoke the
-    // credentials that reach it. Keyed by address, not user id: a link is minted
+    // A sign-in link is a live credential for this mailbox, and deleting an
+    // account has to revoke the credentials that reach it. Keyed by address, not user id: a link is minted
     // before we know whether the address has an account at all.
     await db.insert(schema.magicLinkTokens).values([
       {
@@ -159,10 +139,7 @@ describe('deleteAccount', () => {
     expect(row.targetType).toBe('user')
     expect(row.targetId).toBe(USER)
     // Counts only — never PII (see server/utils/audit.ts policy note).
-    expect(row.metadata).toMatchObject({
-      connectCodesCount: 0,
-      notificationPreferencesCount: 0,
-    })
+    expect(row.metadata).toMatchObject({ notificationPreferencesCount: 0 })
   })
 })
 
@@ -267,6 +244,7 @@ describe('exportAccount', () => {
       email: `${USER}@example.com`,
       name: 'Ada Lovelace',
     })
+
     // Every optional type appears — welcome/tips default-on since neither
     // was ever toggled, product_updates reflects the row above.
     expect(result.notificationPreferences).toEqual([

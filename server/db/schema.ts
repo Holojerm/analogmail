@@ -54,34 +54,8 @@ export const users = sqliteTable(
   },
 )
 
-// MCP connect codes — short-lived, single-use codes bridging the app's session
-// auth to the MCP worker's OAuth flow (device-code style). Minted for the
-// signed-in user by POST /api/mcp/connect-code; redeemed (by hash) on the MCP
-// worker's /authorize page. Only the SHA-256 hash is stored.
-export const mcpConnectCodes = sqliteTable(
-  'mcp_connect_codes',
-  {
-    id: text('id')
-      .primaryKey()
-      .$defaultFn(() => crypto.randomUUID()),
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id),
-    codeHash: text('code_hash').notNull().unique(),
-    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-    usedAt: integer('used_at', { mode: 'timestamp' }),
-    ...timestamps,
-  },
-  (table) => [
-    // Redemption uses the unique `code_hash` index; these two serve only the
-    // nightly sweep in server/utils/purge.ts, whose OR needs an index per branch.
-    index('mcp_connect_codes_expires_at_idx').on(table.expiresAt),
-    index('mcp_connect_codes_used_at_idx').on(table.usedAt),
-  ],
-)
-
 // Magic-link tokens — the primary consumer sign-in path (POST /api/auth/magic-link,
-// redeemed from /auth/verify). Built like mcp_connect_codes: SHA-256 hash only,
+// redeemed from /auth/verify). SHA-256 hash only,
 // single-use, minutes to live.
 //
 // Deliberately NOT joined to `users`: a link is minted for an *address*, which
@@ -290,7 +264,6 @@ export const opsEvents = sqliteTable('ops_events', {
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type LifecycleSend = typeof lifecycleSends.$inferSelect
-export type McpConnectCode = typeof mcpConnectCodes.$inferSelect
 export type MagicLinkToken = typeof magicLinkTokens.$inferSelect
 export type NewMagicLinkToken = typeof magicLinkTokens.$inferInsert
 export type AuditLogEntry = typeof auditLog.$inferSelect
