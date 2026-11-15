@@ -9,6 +9,7 @@ import {
   pendingFrom,
   planRelease,
   returnEarliestDate,
+  settle,
   type ReleaseState,
 } from '../shared/utils/release'
 
@@ -137,6 +138,25 @@ describe('time zone changes', () => {
     expect(deliverable('2026-11-18', release.date)).toBe(true)
     // Wednesday morning in Tokyo is still Tuesday evening in New York.
     expect(localParts(release.at, NY).date).toBe('2026-11-17')
+  })
+})
+
+describe('a pending change', () => {
+  const state: ReleaseState = {
+    ...everyDayAtTen,
+    pending: { mailDays: SATURDAYS_ONLY, hour: 8, from: '2026-11-17' },
+  }
+
+  it('stays pending before its date', () => {
+    expect(settle(state, '2026-11-16')).toBe(state)
+  })
+
+  it('becomes the current settings on its date', () => {
+    expect(settle(state, '2026-11-17')).toEqual({
+      ...everyDayAtTen,
+      current: { mailDays: SATURDAYS_ONLY, hour: 8 },
+      pending: null,
+    })
   })
 })
 

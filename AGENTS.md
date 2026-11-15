@@ -43,6 +43,12 @@ every product decision and the build order, before any product work. It lives ou
 Scheduling functions are pure, live in `layers/post/shared/`, and take `now` as an argument;
 nothing in scheduling reads the system clock. Keep modules near 150–200 lines.
 
+Server code that needs the current time for a postal decision calls `postNow()`
+(`layers/post/server/utils/clock.ts`), never `new Date()`, so the dev clock can move it. The
+dev clock is local only: a bar on every page and `/dev/post` (people, next deliveries, the
+notice outbox, a button that seeds three people). Its routes end in `.dev.ts` and its page is
+added in `$development`, so a production build contains none of it. Keep it that way.
+
 ---
 
 ## Where things are documented

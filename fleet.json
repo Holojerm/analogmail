@@ -10,7 +10,7 @@
     "kv": ["d3c08c2747884a2b8d0b85697c02c41a"],
     "r2": ["dearmantel-blob"]
   },
-  "crons": ["0 4 * * *"],
+  "crons": ["0 4 * * *", "*/15 * * * *"],
   "deploy": "workers-builds",
   "template": { "repo": "Holojerm/nuxt-cf-template", "syncedSha": "a5f887897288acfc4928409d1a2e863e767058c0" },
   "features": { "auth": true, "billing": false, "posthog": null, "opsEvents": true },
