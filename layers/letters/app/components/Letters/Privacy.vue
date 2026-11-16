@@ -11,12 +11,14 @@
       browser before it is saved, under a key made for that letter. That key is wrapped to your
       public key and to your correspondent's, and to no one else's. Our servers store the result and
       hold nothing that opens it: not the text, not the paper and ink you chose, not the name you
-      signed.
+      signed. A photo is made smaller in your browser, which also removes where and when it was
+      taken, and is encrypted under the same key with your description of it.
     </p>
     <p>
       <strong class="text-highlighted">What we do see.</strong> Who writes to whom, when a letter
-      was sealed, and when it is due to arrive, because the post cannot run without them. We also
-      keep the city you chose, your mail days and your delivery hour. We store the city, never your
+      was sealed, and when it is due to arrive, because the post cannot run without them. We can see
+      roughly how long a letter is, whether it has a photo, and the size of that file. We also keep
+      the city you chose, your mail days and your delivery hour. We store the city, never your
       location.
     </p>
     <p>

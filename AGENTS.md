@@ -91,6 +91,15 @@ before pickup undoes exactly that. What a sender sees afterwards comes only from
 `senderView`: never read `deliveries.state`, `deliveredAt` or `openedAt` on the sender's side.
 Times are shown in the sender's profile time zone, not the device's.
 
+Photos (`layers/letters`): a letter carries at most one. The browser redraws it at 2560 px on
+the long edge as a JPEG (which drops the camera's metadata), encrypts it under the letter's
+content key (`photo-crypto.ts`, bound to the letter id and to a photo id kept inside the
+`LetterDoc`), and uploads the sealed file to R2 at `letters/<letter>/<photo>`. `photos.ts`
+holds the rules: only the author changes it, only on a draft, and `readPhoto` serves the
+recipient nothing before delivery and never touches `openedAt`. Code that deletes a draft
+must delete its file too (`discardDraft`, `removeDraftPhotos`). Photos are shown from
+`data:` addresses: the content policy has no `blob:` in `img-src`, on purpose.
+
 Reading (`layers/letters`): `/mantel` is home (a signed-in visit to `/dashboard` goes there) and
 lists what has been delivered; `/letter/<id>` opens one. `listMantel` and `openLetter` return
 only deliveries in state `delivered` to the caller, so nothing shows before its release, and
