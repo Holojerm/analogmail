@@ -57,7 +57,11 @@ export function registerLettersExtensions(photos: PhotoStore = photoStore): void
   } = tables
 
   // The invite page works signed out: the link is what its holder has.
-  registerPublicApiRoutes([{ path: '/api/letters/invites/view', methods: ['POST'] }])
+  registerPublicApiRoutes([
+    { path: '/api/letters/invites/view', methods: ['POST'] },
+    // A guest writes to an anniversary mantel from a printed link, signed out.
+    { path: '/api/letters/guest/', match: 'prefix', methods: ['POST'] },
+  ])
 
   registerPurgeContributor({
     key: 'invites',
