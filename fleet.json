@@ -1,14 +1,14 @@
 {
   "schema": 1,
-  "slug": "analogmail",
-  "name": "Analog Mail",
+  "slug": "dearmantel",
+  "name": "Dear Mantel",
   "stage": "unreleased",
-  "urls": { "prod": "https://analogmail.jeremy-ettlinger.workers.dev" },
-  "workers": ["analogmail"],
+  "urls": { "prod": "https://dearmantel.jeremy-ettlinger.workers.dev" },
+  "workers": ["dearmantel"],
   "bindings": {
-    "d1": [{ "name": "analogmail-db", "id": "79e082b2-e7e3-40f4-8b39-9fe1ad064c6a" }],
-    "kv": ["38ddbba5b8cf4066acf10f07422af525"],
-    "r2": ["analogmail-blob"]
+    "d1": [{ "name": "dearmantel-db", "id": "2849245e-64da-46a3-b2cd-659db234d10f" }],
+    "kv": ["d3c08c2747884a2b8d0b85697c02c41a"],
+    "r2": ["dearmantel-blob"]
   },
   "crons": ["0 4 * * *"],
   "deploy": "workers-builds",
