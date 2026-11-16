@@ -81,7 +81,10 @@ useSeo({
 <template>
   <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
     <div>
-      <h1 class="text-3xl text-highlighted">People you write with</h1>
+      <div class="flex items-baseline justify-between gap-4">
+        <h1 class="text-3xl text-highlighted">People you write with</h1>
+        <UButton to="/desk" variant="link" color="neutral" class="p-0">Your desk</UButton>
+      </div>
       <p class="mt-2 text-muted">
         Letters go between people who have agreed to write this way. Invite someone, and once they
         accept you can write to each other.
@@ -104,10 +107,19 @@ useSeo({
         <li
           v-for="person in people"
           :key="person.correspondenceId"
-          class="flex items-baseline justify-between gap-4 py-3"
+          class="flex items-center justify-between gap-4 py-3"
         >
-          <span class="text-highlighted">{{ person.name }}</span>
-          <span class="text-sm text-muted">since {{ day(person.since) }}</span>
+          <div class="min-w-0">
+            <p class="text-highlighted">{{ person.name }}</p>
+            <p class="text-sm text-muted">since {{ day(person.since) }}</p>
+          </div>
+          <UButton
+            size="sm"
+            :to="{ path: '/write', query: { to: person.correspondenceId } }"
+            :aria-label="`Write to ${person.name}`"
+          >
+            Write
+          </UButton>
         </li>
       </ul>
     </section>
