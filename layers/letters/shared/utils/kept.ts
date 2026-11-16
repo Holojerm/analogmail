@@ -12,6 +12,8 @@ export interface KeptItem {
   opensOn: string | null
   /** Whether that day has not come yet on the mantel's calendar. */
   sealed: boolean
+  /** Written from a write link by someone without an account. */
+  guest: boolean
 }
 
 export type KeptLetter =
