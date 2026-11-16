@@ -1,11 +1,17 @@
 // What keys registers with core and with the credentials layer. Called once
 // per isolate by layers/keys/server/plugins/keys.ts; tests call it directly.
 
-import { and, count, eq } from 'drizzle-orm'
+import { and, count, eq, isNull, lt, ne } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { onCredentialsPasswordReset } from '#layers/credentials/server/utils/credentials-hooks'
-import { registerAccountContributor } from '#server/utils/extensions'
+import {
+  registerAccountContributor,
+  registerDeletionGuard,
+  registerPurgeContributor,
+} from '#server/utils/extensions'
+
+import type { KeysDb } from './keys'
 
 export interface AccountExportKeys {
   /** The public half of the account's key pair, which letters are sealed to. */
@@ -23,8 +29,73 @@ declare module '#server/utils/extensions' {
   }
 }
 
+/**
+ * Offers of a keeper's seat that nobody took up in time are closed, and the
+ * address they were made to is forgotten.
+ */
+export async function expireMantelProposals(
+  db: KeysDb,
+  now: Date,
+): Promise<{ count: number; truncated: boolean }> {
+  const { mantelProposals } = tables
+  const expired = await db
+    .update(mantelProposals)
+    .set({ outcome: 'expired', settledAt: now, subjectEmail: null, updatedAt: now })
+    .where(and(isNull(mantelProposals.outcome), lt(mantelProposals.expiresAt, now)))
+    .returning({ id: mantelProposals.id })
+  return { count: expired.length, truncated: false }
+}
+
+/** Open mantels this person is the only keeper of. */
+export async function soleKeeperOf(db: KeysDb, userId: string): Promise<string[]> {
+  const { mantels, mantelKeepers } = tables
+  const mine = await db
+    .select({ id: mantels.id, name: mantels.name })
+    .from(mantelKeepers)
+    .innerJoin(mantels, eq(mantels.id, mantelKeepers.mantelId))
+    .where(
+      and(eq(mantelKeepers.userId, userId), isNull(mantelKeepers.leftAt), isNull(mantels.closedAt)),
+    )
+  const alone: string[] = []
+  for (const mantel of mine) {
+    const [others] = await db
+      .select({ total: count() })
+      .from(mantelKeepers)
+      .where(
+        and(
+          eq(mantelKeepers.mantelId, mantel.id),
+          ne(mantelKeepers.userId, userId),
+          isNull(mantelKeepers.leftAt),
+        ),
+      )
+    if ((others?.total ?? 0) === 0) alone.push(mantel.name)
+  }
+  return alone
+}
+
 export function registerKeysExtensions(): void {
-  const { userKeys, keyWraps } = tables
+  const { userKeys, keyWraps, mantelKeepers, mantelKeyWraps, mantelProposals } = tables
+
+  registerPurgeContributor({
+    key: 'mantelProposals',
+    run: (db, options) => expireMantelProposals(db, new Date(options.now ?? Date.now())),
+  })
+
+  // A mantel belongs to the child or the couple it is for, not to its keeper.
+  // Its last keeper leaving would strand the letters behind a printed code,
+  // so they hand it on first.
+  registerDeletionGuard({
+    key: 'mantel-keeper',
+    async check(db, userId) {
+      const alone = await soleKeeperOf(db, userId)
+      if (alone.length === 0) return null
+      return {
+        code: 'sole_mantel_keeper',
+        message: `You are the only keeper of ${alone.join(', ')}. Add another keeper before deleting your account, so its letters are not lost.`,
+        data: { mantels: alone },
+      }
+    },
+  })
 
   // A reset proves the mailbox, not the old password, so the old password's
   // wrap can never be opened again. It goes in the same batch as the new
@@ -67,6 +138,18 @@ export function registerKeysExtensions(): void {
       }
     },
     deletionStatements: (db, userId) => [
+      // Their copy of each mantel's key goes with them. The mantel stays.
+      db
+        .delete(mantelKeyWraps)
+        .where(and(eq(mantelKeyWraps.kind, 'keeper'), eq(mantelKeyWraps.keeperId, userId))),
+      db
+        .update(mantelKeepers)
+        .set({ leftAt: new Date() })
+        .where(and(eq(mantelKeepers.userId, userId), isNull(mantelKeepers.leftAt))),
+      db
+        .update(mantelProposals)
+        .set({ outcome: 'withdrawn', settledAt: new Date(), subjectEmail: null })
+        .where(and(eq(mantelProposals.proposedBy, userId), isNull(mantelProposals.outcome))),
       db.delete(keyWraps).where(eq(keyWraps.userId, userId)),
       db.delete(userKeys).where(eq(userKeys.userId, userId)),
     ],
