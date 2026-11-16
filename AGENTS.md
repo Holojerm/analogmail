@@ -57,8 +57,7 @@ that name until the plan's rename step; do not rename piecemeal.
 - Not gamified: no streaks, couriers, tracking maps or nudges to write.
 
 These hold for every kind of mantel. The planned kinds add more, in force from the first line
-of code for each. The rules on opening, the screen and the map depend on answers the owner has
-not given yet (the plan's open questions 1 to 3); build none of those three before they are:
+of code for each:
 
 - Family room data is never mixed into letter data. The room has its own layer, tables and
   storage prefix; no room table refers to a letter, and no letter code reads the room. The room
@@ -77,8 +76,11 @@ not given yet (the plan's open questions 1 to 3); build none of those three befo
   after a consent step that names the print partner. The server never writes it to storage,
   logs or a queue in readable form. Print providers sit behind the `PrintProvider` interface.
 - A screen or any other integration reads at most one boolean per person ("something on your
-  mantel"), never content, senders, counts or which mantel.
-- The family map shows people's cities. It never shows a letter or anything in transit.
+  mantel"), never content, senders, counts or which mantel. It is off until that person turns
+  it on for themself. It goes up at their release and down at their local midnight, and it
+  never reacts to opening: the code behind it does not read `opened_at`.
+- The family map shows people's cities. It never shows a letter or anything in transit. The
+  room sends no check-in reminders and has no way for one member to remind another.
 
 **Where product code goes.** Fork-owned layers, never template-owned paths:
 
