@@ -219,6 +219,18 @@ test('a kept mantel takes letters, and a sealed one stays sealed', async ({ brow
     await ann.getByRole('link', { name: 'Read the letter from Ann Tester' }).click()
     await expect(ann.getByText(NOW_LETTER)).toBeVisible()
 
+    // ── She keeps a copy: the opened letter is in it, the sealed one is not ──
+    await open(ann, `/mantels/${mantelId}`)
+    const saving = ann.waitForEvent('download')
+    await ann.getByRole('button', { name: "Keep a copy of Leo's letters" }).click()
+    const download = await saving
+    expect(download.suggestedFilename()).toMatch(/^Dear Mantel Leo \d{4}-\d{2}-\d{2}\.zip$/)
+    const copy = (await readFile(await download.path())).toString('latin1')
+    expect(copy).toContain('Letters to Leo')
+    expect(copy).toContain(NOW_LETTER)
+    expect(copy).not.toContain(LATER_LETTER)
+    await expect(ann.getByText('Saved 1 letter. Left out: 1 letter still sealed.')).toBeVisible()
+
     // ── The server gives up nothing of the sealed one, even to its keeper ────
     const listed = (await (
       await ann.request.post('/api/letters/kept/list', { data: { mantelId } })

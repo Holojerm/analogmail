@@ -8,16 +8,28 @@ export interface ArchiveEntry {
   from: string | null
   /** 'YYYY-MM-DD', the sender's calendar. */
   postmark: string | null
+  /** Written from a write link, by someone with no account. */
+  guest?: boolean
 }
 
 export interface ArchiveShelf {
   correspondenceId: string
   /** The other person, the kept mantel, or the family. Empty when they have gone. */
   name: string
-  kind: 'person' | 'mantel' | 'family'
+  /** 'kept' is a mantel as its keeper sees it: everything opened on it, not only their own. */
+  kind: 'person' | 'mantel' | 'family' | 'kept'
   entries: ArchiveEntry[]
   /** Letters that have arrived and not been opened. Making a copy opens nothing. */
   unopened: number
+}
+
+/** What a keeper may copy from a kept mantel, and how many letters were left out. */
+export interface KeptArchive {
+  entries: ArchiveEntry[]
+  /** Arrived, not sealed, and not opened by any keeper yet. */
+  unopened: number
+  /** Still sealed until their day. */
+  sealed: number
 }
 
 /** The encrypted parts of one letter, for its author or a reader who has opened it. */

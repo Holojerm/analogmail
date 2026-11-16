@@ -18,6 +18,7 @@ import { listPeople, openMantelCorrespondence } from '../server/utils/correspond
 import { ownLetter, saveDraft } from '../server/utils/drafts'
 import { inviteEmail } from '../server/utils/invite-email'
 import { createInvite, viewInvite } from '../server/utils/invites'
+import { listKeptArchive, readKeptForArchive } from '../server/utils/kept-archive'
 import {
   changeMantelPost,
   listKeptMantel,
@@ -251,6 +252,32 @@ describe('what arrives', () => {
       sealed: false,
       wrappedKey: 'key-for-leo',
     })
+  })
+
+  it('lets a keeper copy what has been opened, and opens nothing by doing so', async () => {
+    await deliver()
+    expect(await listKeptArchive(db, 'eve', LEO, FRIDAY)).toBeNull()
+    expect(await listKeptArchive(db, 'bob', LEO, FRIDAY)).toEqual({
+      entries: [],
+      unopened: 1,
+      sealed: 1,
+    })
+    expect(await readKeptForArchive(db, 'bob', LEO, OPEN, FRIDAY)).toBeNull()
+    const [unread] = await db.select().from(deliveries).where(eq(deliveries.letterId, OPEN))
+    expect(unread?.openedAt).toBeNull()
+
+    // Ann opens it; from then on any keeper may copy it.
+    await openKeptLetter(db, 'ann', LEO, OPEN, FRIDAY)
+    expect((await listKeptArchive(db, 'bob', LEO, FRIDAY))!.entries).toEqual([
+      { id: OPEN, direction: 'received', from: 'Ann Lee', postmark: '2026-11-16', guest: false },
+    ])
+    expect(await readKeptForArchive(db, 'bob', LEO, OPEN, FRIDAY)).toEqual({
+      ciphertext: CIPHERTEXT,
+      wrappedKey: 'key-for-leo',
+      hasPhoto: false,
+    })
+    expect(await readKeptForArchive(db, 'eve', LEO, OPEN, FRIDAY)).toBeNull()
+    expect(await readKeptForArchive(db, 'bob', LEO, SEALED, FRIDAY)).toBeNull()
   })
 
   it("leaves the writer their own copy, and puts nothing on any person's mantel", async () => {
