@@ -80,9 +80,9 @@ useSeo({
       <section class="flex flex-col gap-3">
         <h2 class="text-2xl text-highlighted">What we collect</h2>
         <p>
-          <strong class="text-highlighted">Account data.</strong> When you sign in with GitHub or
-          Google, we receive and store your verified email address, display name, and avatar URL. We
-          never receive your password for that provider.
+          <strong class="text-highlighted">Account data.</strong> We store your verified email
+          address and your name. We never receive your password: your browser turns it into a
+          sign-in value and sends only that.
         </p>
         <p>
           <strong class="text-highlighted">Usage data.</strong> Pages visited, features used, and

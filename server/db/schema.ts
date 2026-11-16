@@ -273,6 +273,7 @@ export type NewNotificationPreference = typeof notificationPreferences.$inferIns
 // Composition root: re-exports each layer's schema so the typed `db` and
 // drizzle-kit see its tables (NuxtHub merges them on its own). Removing a layer
 // means deleting its line and running `bun run db:generate`.
+export * from '../../layers/credentials/server/db/schema'
 export * from '../../layers/feedback/server/db/schema'
 export * from '../../layers/letters/server/db/schema'
 export * from '../../layers/post/server/db/schema'
