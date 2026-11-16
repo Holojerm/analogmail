@@ -38,14 +38,16 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
     <p v-if="loading" class="text-muted" role="status">Opening…</p>
 
     <template v-else>
       <div>
         <h1 class="text-3xl text-highlighted">{{ heading }}</h1>
-        <p v-if="letter?.postmark" class="mt-1 text-sm text-muted">
+        <p
+          v-if="letter?.postmark"
+          class="mt-2 font-mono text-xs tracking-wide text-muted uppercase"
+        >
           Postmarked {{ longDay(letter.postmark) }}
         </p>
       </div>
@@ -86,6 +88,8 @@ useSeo({
         >
           Reply
         </UButton>
+
+        <WhoReads encrypted>This letter was opened on your device. We cannot read it.</WhoReads>
       </template>
     </template>
   </div>

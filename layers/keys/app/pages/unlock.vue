@@ -59,10 +59,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">Open your letters</h1>
-      <p class="mt-2 text-muted">
+      <p class="mt-2 font-serif text-lg text-toned">
         You are signed in. Your letters are locked with a key that this device does not hold yet.
       </p>
     </div>

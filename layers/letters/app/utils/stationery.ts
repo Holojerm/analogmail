@@ -1,12 +1,12 @@
-// Stationery as the design system's own tokens, so a letter reads correctly
-// in both colour modes. The choice is stored inside the encrypted letter.
+// Stationery as the design system's own tokens (DESIGN.md › Color › Letter
+// paper and ink), so a letter reads correctly in both colour modes. The choice is stored inside the encrypted letter.
 
 import type { Stationery } from '../../shared/utils/letter-doc'
 
 export const PAPER_CLASS: Record<Stationery['paper'], string> = {
-  plain: 'bg-default',
-  soft: 'bg-muted',
-  card: 'bg-elevated',
+  plain: 'bg-elevated',
+  soft: 'bg-paper-cream',
+  card: 'bg-paper-kraft',
 }
 // Faces and their sizes live in letter.css, with the rest of the paper.
 export const FONT_CLASS: Record<Stationery['font'], string> = {
@@ -18,15 +18,15 @@ export const FONT_CLASS: Record<Stationery['font'], string> = {
   cursive: 'letter-face-cursive',
 }
 export const INK_CLASS: Record<Stationery['ink'], string> = {
-  black: 'text-default',
-  accent: 'text-primary',
-  faded: 'text-toned',
+  black: 'text-highlighted',
+  accent: 'text-ink-colour',
+  faded: 'text-muted',
 }
 
 export const PAPER_LABEL: Record<Stationery['paper'], string> = {
   plain: 'Plain',
-  soft: 'Soft',
-  card: 'Card',
+  soft: 'Cream',
+  card: 'Brown',
 }
 export const FONT_LABEL: Record<Stationery['font'], string> = {
   serif: 'Serif',
@@ -84,6 +84,21 @@ export function yearDay(date: string): string {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+/**
+ * A calendar day as it is stamped on a postmark: "Mon 16 Nov", with its year
+ * once that is not this one.
+ */
+export function postmarkDay(date: string, today = new Date()): string {
+  const year = date.slice(0, 4) === String(today.getFullYear()) ? undefined : 'numeric'
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+    weekday: year ? undefined : 'short',
+    day: 'numeric',
+    month: 'short',
+    year,
     timeZone: 'UTC',
   })
 }

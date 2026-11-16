@@ -7,13 +7,15 @@ definePageMeta({ middleware: 'auth' })
 
 const { data } = await useFetch<{ rooms: RoomFamily[] }>('/api/room')
 const rooms = computed(() => data.value?.rooms ?? [])
+// Someone in one family has one room, and "Room" in the navigation opens it.
+const only = rooms.value.length === 1 ? rooms.value[0] : undefined
+if (only) await navigateTo(`/room/${only.id}`, { replace: true })
 
 useSeo({ title: 'Family rooms', description: 'The family rooms you are in.', noindex: true })
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-xl flex-col gap-8 py-8 sm:py-12">
     <h1 class="text-3xl text-highlighted">Family rooms</h1>
     <RoomNotice />
     <p v-if="rooms.length === 0" class="text-muted">

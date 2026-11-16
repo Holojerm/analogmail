@@ -92,7 +92,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <p v-if="loading" class="text-muted" role="status">Opening the invitation…</p>
 
     <template v-else>

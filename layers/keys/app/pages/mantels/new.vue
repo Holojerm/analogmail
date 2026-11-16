@@ -44,9 +44,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
-    <LetterNav />
-
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">
         {{ made ? "The mantel's recovery code" : 'Open a mantel' }}

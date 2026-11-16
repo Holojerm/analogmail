@@ -21,13 +21,14 @@ import type { PublicPage } from './shared/utils/site'
 // triggers Cloudflare says it registered.
 //
 //   04:00 UTC  — retention sweep, server/tasks/purge-expired-tokens.ts, which also
-//                prunes the ops_events spool (7 days); then
-//                lifecycle email, server/tasks/lifecycle-email.ts; (forkless:lifecycle)
-//                then the IndexNow ping, server/tasks/seo/indexnow.ts.
+//                prunes the ops_events spool (7 days); then the IndexNow ping,
+//                server/tasks/seo/indexnow.ts. The template's lifecycle email
+//                is left out on purpose: it nudges people who have not
+//                "finished setting up", and this product sends no nudges.
 //   every 15 m — mail release, layers/post/server/tasks/release-mail.ts: each
 //                mailbox takes delivery at its own local hour.
 const SCHEDULED_TASKS: Record<string, string[]> = {
-  '0 4 * * *': ['purge-expired-tokens', 'lifecycle-email', 'seo:indexnow'],
+  '0 4 * * *': ['purge-expired-tokens', 'seo:indexnow'],
   '*/15 * * * *': ['release-mail'],
 }
 

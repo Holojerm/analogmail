@@ -54,9 +54,12 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <LetterNav />
-    <h1 class="text-3xl text-highlighted">Your desk</h1>
+  <div class="mx-auto flex max-w-xl flex-col gap-8 py-8 sm:py-12">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <h1 class="text-3xl text-highlighted">Your desk</h1>
+      <!-- A letter starts from the person it is for. -->
+      <UButton to="/people">Write a letter</UButton>
+    </div>
 
     <UAlert
       v-if="failure"
@@ -80,9 +83,14 @@ useSeo({
             <p class="text-sm text-muted">{{ describe(letter) }}</p>
           </div>
           <div class="flex shrink-0 gap-2">
-            <UButton size="sm" :to="{ path: '/write', query: { letter: letter.id } }"
-              >Continue</UButton
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="outline"
+              :to="{ path: '/write', query: { letter: letter.id } }"
             >
+              Continue
+            </UButton>
             <UButton
               size="sm"
               variant="ghost"

@@ -76,7 +76,14 @@ async function start() {
       >
         <UInput v-model="name" maxlength="40" size="lg" class="w-full" autocomplete="off" />
       </UFormField>
-      <UButton type="submit" class="self-start" :loading="pending" :disabled="!name.trim()">
+      <UButton
+        type="submit"
+        color="neutral"
+        variant="outline"
+        class="self-start"
+        :loading="pending"
+        :disabled="!name.trim()"
+      >
         Start the family
       </UButton>
     </form>

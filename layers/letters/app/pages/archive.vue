@@ -70,11 +70,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-xl flex-col gap-8 py-8 sm:py-12">
     <div class="flex flex-col gap-3">
       <h1 class="text-3xl text-highlighted">Keep a copy</h1>
-      <p class="text-muted">
+      <p class="font-serif text-lg text-toned">
         Save your letters to this device: one page with every letter, each letter as a text file,
         and the photos. The copy is made here, from the letters you sent and the ones you have
         opened.

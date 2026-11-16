@@ -155,7 +155,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-12">
+  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
     <h1 class="text-3xl text-highlighted">{{ heading }}</h1>
 
     <p v-if="state === 'loading'" class="text-muted" role="status">Opening…</p>
