@@ -28,6 +28,11 @@ const backend: KeyBackend = {
   saveDevice: saveDeviceKey,
 }
 
+// A password that signed in but found the key locked (after a reset by
+// email). Held in memory only, until the recovery code opens the key or the
+// page goes away.
+let heldUnlock: CredentialsUnlock | null = null
+
 function storedCode(): string | null {
   try {
     return import.meta.client ? sessionStorage.getItem(PENDING_CODE) : null
@@ -40,7 +45,7 @@ export function useKeys() {
   const { user } = useUserSession()
   const status = useState<KeysStatus>('keys-status', () => 'unknown')
   /** A recovery code made and not yet confirmed as written down. */
-  const recoveryCode = useState<string | null>('keys-recovery-code', storedCode)
+  const recoveryCode = useState<string | null>('keys-recovery-code', () => null)
 
   function showRecoveryCode(code: string) {
     recoveryCode.value = code
@@ -81,6 +86,7 @@ export function useKeys() {
       )
       status.value = outcome.status
       if (outcome.status === 'ready' && outcome.recoveryCode) showRecoveryCode(outcome.recoveryCode)
+      heldUnlock = outcome.status === 'locked' && unlock.unlockKey ? unlock : null
     } catch {
       status.value = 'unknown'
     }
@@ -91,6 +97,14 @@ export function useKeys() {
     recoveryCode: readonly(recoveryCode),
     refresh,
     onUnlock,
+    /**
+     * Picks an unconfirmed code back up after a reload. Called by the client
+     * plugin: the server renders this state as null, and the hydrated value
+     * would otherwise win over the stored one.
+     */
+    restoreRecoveryCode() {
+      recoveryCode.value ??= storedCode()
+    },
     /** This device's private key, for opening letters. Null unless `ready`. */
     async privateKey(): Promise<CryptoKey | null> {
       const userId = user.value?.id
@@ -99,8 +113,14 @@ export function useKeys() {
     async openWithRecoveryCode(code: string): Promise<boolean> {
       const userId = user.value?.id
       const opened = Boolean(userId) && (await openWithRecoveryCode(code, userId!, backend))
-      if (opened) status.value = 'ready'
-      return opened
+      if (!opened) return false
+      status.value = 'ready'
+      // The password typed a moment ago could not open the key. Now that the
+      // key is here, give that password its wrap, so the next device opens.
+      const held = heldUnlock
+      heldUnlock = null
+      if (held && held.userId === userId) await onUnlock({ ...held, reason: 'unlock' })
+      return true
     },
     /** Makes a new code and shows it; the old one stops working. */
     async replaceRecoveryCode(): Promise<boolean> {
@@ -120,6 +140,7 @@ export function useKeys() {
     /** Sign-out: this device stops holding the key. */
     async forget(): Promise<void> {
       await clearDeviceKey()
+      heldUnlock = null
       status.value = 'unknown'
       recoveryCode.value = null
       try {

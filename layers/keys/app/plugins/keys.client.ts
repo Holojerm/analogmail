@@ -5,6 +5,7 @@ export default defineNuxtPlugin((nuxtApp) => {
   const keys = useKeys()
   const { loggedIn } = useUserSession()
 
+  keys.restoreRecoveryCode()
   nuxtApp.hook('credentials:unlock', (unlock) => keys.onUnlock(unlock))
   watch(loggedIn, (now, before) => {
     if (before && !now) void keys.forget()

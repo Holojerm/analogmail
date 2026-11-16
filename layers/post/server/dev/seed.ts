@@ -9,6 +9,7 @@ import * as tables from '@nuxthub/db/schema'
 
 import { planPosting } from '../../shared/utils/postmark'
 import { nextRelease } from '../../shared/utils/release'
+import { searchKey } from '../../shared/utils/search-key'
 import { releaseStateOf, type PostDb } from '../utils/release-run'
 
 const PEOPLE = [
@@ -85,6 +86,20 @@ export async function seedThreePeople(db: PostDb, now: Date): Promise<{ people: 
   }
   await db.delete(notices).where(inArray(notices.userId, ids))
   await db.delete(postalProfiles).where(inArray(postalProfiles.userId, ids))
+
+  // The same three places in the city list (their GeoNames ids), so /welcome
+  // has something to offer before `bun run cities:import` has been run.
+  await db
+    .insert(tables.cities)
+    .values(
+      PEOPLE.map(({ email: _email, name: _name, cityName, ...place }, index) => ({
+        id: [5128581, 4887398, 1850147][index]!,
+        name: cityName,
+        searchName: searchKey(cityName),
+        ...place,
+      })),
+    )
+    .onConflictDoNothing()
 
   const profiles = await db
     .insert(postalProfiles)
