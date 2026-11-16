@@ -1,4 +1,4 @@
-// A channel that can tell someone the flag is up.
+// A channel that can tell someone that something arrived on their mantel.
 //
 // The notice has no content to pass: it says that mail has arrived and
 // nothing else, so each channel owns its fixed wording and `notify` takes

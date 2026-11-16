@@ -90,7 +90,7 @@ export async function handleNoticeBounce(
     )
   let returned = 0
   for (const delivery of unseen) {
-    if (await returnToSender(db, delivery.id, delivery.authorId, now, { fromMailbox: true })) {
+    if (await returnToSender(db, delivery.id, delivery.authorId, now, { fromMantel: true })) {
       returned += 1
     }
   }

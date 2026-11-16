@@ -1,5 +1,5 @@
 // POST /api/webhooks/resend — Resend's delivery events. The only ones acted
-// on are hard bounces of the flag email (../../notify/bounce.ts); everything
+// on are hard bounces of the notice email (../../notify/bounce.ts); everything
 // else is acknowledged and dropped.
 //
 // 404s until NUXT_POST_RESEND_WEBHOOK_SECRET is set, so a deployment that has
@@ -9,7 +9,7 @@ import { db } from '@nuxthub/db'
 import { z } from 'zod'
 
 import { handleNoticeBounce, isHardBounce } from '../../notify/bounce'
-import { FLAG_SUBJECT } from '../../notify/email'
+import { NOTICE_SUBJECT } from '../../notify/email'
 import { verifySvixSignature } from '../../notify/svix'
 import { postNow } from '../../utils/clock'
 
@@ -48,7 +48,11 @@ export default defineEventHandler(async (event) => {
   }
   const parsed = eventSchema.safeParse(json)
   // Other mail (a reset, an invite) bounces too. Only a notice returns letters.
-  if (!parsed.success || !isHardBounce(parsed.data) || parsed.data.data.subject !== FLAG_SUBJECT) {
+  if (
+    !parsed.success ||
+    !isHardBounce(parsed.data) ||
+    parsed.data.data.subject !== NOTICE_SUBJECT
+  ) {
     return { handled: false }
   }
 

@@ -85,7 +85,7 @@ try {
     }
     const file = join(work, 'cities.sql')
     writeFileSync(file, statements.join('\n'))
-    const database = envName === 'preview' ? 'analogmail-db-preview' : 'analogmail-db'
+    const database = envName === 'preview' ? 'dearmantel-db-preview' : 'dearmantel-db'
     run([
       'bunx',
       'wrangler',

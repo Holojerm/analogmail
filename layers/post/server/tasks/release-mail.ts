@@ -4,7 +4,7 @@
 // Wired like every scheduled task, in two places that must agree:
 // `SCHEDULED_TASKS` in nuxt.config.ts and `[triggers] crons` in wrangler.toml.
 //
-// Hand-run in dev: curl https://analogmail.localhost/_nitro/tasks/release-mail
+// Hand-run in dev: curl https://dearmantel.localhost/_nitro/tasks/release-mail
 
 import { db } from '@nuxthub/db'
 
@@ -32,7 +32,7 @@ async function step<T>(kind: string, run: () => Promise<T>): Promise<T | 'failed
 export default defineTask({
   meta: {
     name: 'release-mail',
-    description: 'Deliver due letters to each mailbox at its delivery hour, then send notices',
+    description: 'Deliver due letters to each mantel at its delivery hour, then send notices',
   },
   async run() {
     const started = Date.now()

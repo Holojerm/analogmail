@@ -18,7 +18,7 @@ import { applyUnlock, type KeyBackend, type StoredKeys } from '../utils/key-unlo
 export type KeysStatus = 'unknown' | 'none' | 'locked' | 'ready'
 
 // Kept across a reload until the person confirms they wrote it down.
-const PENDING_CODE = 'analogmail:recovery-code'
+const PENDING_CODE = 'dearmantel:recovery-code'
 
 const backend: KeyBackend = {
   fetchKeys: async () => (await $fetch<{ keys: StoredKeys | null }>('/api/keys')).keys,

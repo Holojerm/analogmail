@@ -1,4 +1,4 @@
-// Notices: the flag email, sending, and bounces, against a real D1.
+// Notices: the notice email, sending, and bounces, against a real D1.
 
 import { env } from 'cloudflare:test'
 import { asc, eq } from 'drizzle-orm'
@@ -10,7 +10,7 @@ import type { SendEmailOptions, SendEmailResult } from '#server/utils/email'
 
 import { handleNoticeBounce, isHardBounce } from '../server/notify/bounce'
 import { dispatchNotices, NOTICE_EXPIRY_MS } from '../server/notify/dispatch'
-import { createEmailNotifier, FLAG_SUBJECT, flagEmail } from '../server/notify/email'
+import { createEmailNotifier, NOTICE_SUBJECT, noticeEmail } from '../server/notify/email'
 import type { Notifier, NotifyResult } from '../server/notify/notifier'
 import { verifySvixSignature } from '../server/notify/svix'
 import { runRelease } from '../server/utils/release-run'
@@ -18,7 +18,7 @@ import { runRelease } from '../server/utils/release-run'
 const db = drizzle(env.DB, { schema })
 const { users, postalProfiles, deliveries, notices, letters, opsEvents } = schema
 const utc = (iso: string) => new Date(`${iso}Z`)
-const brand = { appName: 'Analog Mail', appUrl: 'https://analogmail.example' }
+const brand = { appName: 'Dear Mantel', appUrl: 'https://dearmantel.example' }
 const MONDAY_TEN = utc('2026-11-16T16:00:00')
 
 function recorder(results: NotifyResult[] = []) {
@@ -77,15 +77,15 @@ beforeEach(async () => {
   }
 })
 
-describe('the flag email', () => {
-  it('says mail has arrived and links to the mailbox with no token', () => {
-    const email = flagEmail(brand)
+describe('the notice email', () => {
+  it('says something arrived and links to the mantel with no token', () => {
+    const email = noticeEmail(brand)
 
-    expect(email.subject).toBe(FLAG_SUBJECT)
-    expect(email.text).toContain('There is mail in your mailbox.')
-    expect(email.text).toContain('https://analogmail.example/mailbox\n')
-    expect(email.html).toContain('href="https://analogmail.example/mailbox"')
-    expect(email.text + email.html).not.toMatch(/mailbox\?|token=/)
+    expect(email.subject).toBe(NOTICE_SUBJECT)
+    expect(email.text).toContain('Sign in to open your mantel.')
+    expect(email.text).toContain('https://dearmantel.example/mantel\n')
+    expect(email.html).toContain('href="https://dearmantel.example/mantel"')
+    expect(email.text + email.html).not.toMatch(/mantel\?|token=/)
   })
 
   it('reports a refused address as not worth retrying', async () => {
@@ -101,7 +101,7 @@ describe('the flag email', () => {
     expect(await using({ sent: true, id: null, queued: true })).toEqual({ ok: true })
     expect(await using({ sent: false, reason: 'rejected' })).toMatchObject({ retry: false })
     expect(await using({ sent: false, reason: 'error' })).toMatchObject({ retry: true })
-    expect(sent[0]).toMatchObject({ to: 'ann@example.com', subject: FLAG_SUBJECT })
+    expect(sent[0]).toMatchObject({ to: 'ann@example.com', subject: NOTICE_SUBJECT })
     expect(Object.keys(sent[0]!).sort()).toEqual(['html', 'subject', 'text', 'to'])
   })
 })
