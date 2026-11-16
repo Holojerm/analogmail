@@ -240,6 +240,9 @@ useSeo({ title: 'Family room', description: "A family's shared photos.", noindex
         {{ size(room.usage.bytes) }} of {{ size(room.usage.limit) }}. Photos are made smaller on
         your device before they are sent, which also removes where they were taken. A photo you add
         stays with the family if you leave it; delete it first if you want it gone.
+        <ULink :to="`/room/${familyId}/keep`" class="underline underline-offset-4">
+          Keep a copy of the room
+        </ULink>
       </p>
 
       <RoomPhotoViewer

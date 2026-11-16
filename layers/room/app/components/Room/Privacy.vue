@@ -31,5 +31,10 @@
       it unless you delete them first. If you delete your account, every photo you added is deleted
       with it.
     </p>
+    <p>
+      <strong class="text-highlighted">Keeping a copy.</strong> Anyone in a family can save every
+      photo in its room to their own device, with the captions and the list of where everyone says
+      they are. The copy is made in your browser and is never gated by payment.
+    </p>
   </section>
 </template>

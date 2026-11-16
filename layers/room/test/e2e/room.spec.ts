@@ -2,6 +2,8 @@
 // the browser first; everyone in the family sees it; only whoever added it
 // can change it; and someone who leaves the family is shut out at once.
 
+import { readFile } from 'node:fs/promises'
+
 import { expect, test } from '../../../../test/e2e/fixtures'
 
 import { makePair, open } from '../../../letters/test/e2e/helpers'
@@ -81,8 +83,25 @@ test('a family room: photos added, shared, and closed to those who leave', async
   await expect(bob.getByLabel('Caption')).toHaveCount(0)
   await expect(bob.getByRole('button', { name: 'Delete photo' })).toHaveCount(0)
 
-  // ── He says where he is: a city from the list, shown to the family ─────────
+  // ── He keeps a copy of the room: the photo, a page that shows it, the list ──
   await bob.keyboard.press('Escape')
+  await bob.getByRole('link', { name: 'Keep a copy of the room' }).click()
+  await expect(bob.getByText('1 photo, under 1 MB')).toBeVisible()
+  const saving = bob.waitForEvent('download')
+  await bob.getByRole('button', { name: 'Save the copy' }).click()
+  const download = await saving
+  expect(download.suggestedFilename()).toMatch(
+    /^Dear Mantel room The Roomers \d{4}-\d{2}-\d{2}\.zip$/,
+  )
+  const copy = (await readFile(await download.path())).toString('latin1')
+  expect(copy).toContain('The Roomers/photos/Summer/')
+  expect(copy).toContain('The Roomers/photos.html')
+  expect(copy).toContain('<p>The plum tree</p>')
+  expect(copy).toContain('where-everyone-is.txt')
+  await expect(bob.getByText('Saved 1 photo.')).toBeVisible()
+  await bob.getByRole('link', { name: 'Photos', exact: true }).click()
+
+  // ── He says where he is: a city from the list, shown to the family ─────────
   await bob.getByRole('link', { name: 'Where everyone is' }).click()
   await expect(bob.getByText('Has not said')).toHaveCount(2)
   await expect(bob.getByTestId('map')).toHaveCount(0)
