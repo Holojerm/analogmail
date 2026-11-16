@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { postNow } from '#layers/post/server/utils/clock'
 import { getProfile } from '#layers/post/server/utils/profile'
 
+import { guestLinkFor } from '../../../utils/guest-letters'
 import { listKeptMantel, listWriters } from '../../../utils/kept-mantel'
 
 const bodySchema = z.object({ mantelId: z.string().uuid() })
@@ -25,5 +26,6 @@ export default defineEventHandler(async (event) => {
     post: profile ? { city: profile.cityName, country: profile.country } : null,
     letters,
     ...writing,
+    guestLink: await guestLinkFor(db, user.id, mantelId),
   }
 })

@@ -146,3 +146,16 @@ export async function keyFingerprint(publicKey: string): Promise<string | null> 
   const hex = Array.from(digest.slice(0, 12), (byte) => byte.toString(16).padStart(2, '0')).join('')
   return hex.match(/.{4}/g)!.join(' ')
 }
+
+/**
+ * A public key's fingerprint for a link: 16 bytes of its hash, base64url. It
+ * rides in the fragment of a write link, which a browser never sends to a
+ * server, so the page can tell whether the key it was handed is the one the
+ * card was printed for.
+ */
+export async function keyFingerprintToken(publicKey: string): Promise<string | null> {
+  const spki = fromBase64Url(publicKey)
+  if (!spki) return null
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', spki))
+  return toBase64Url(digest.slice(0, 16))
+}
