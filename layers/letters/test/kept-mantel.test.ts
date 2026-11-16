@@ -23,6 +23,8 @@ import {
   listWriters,
   openKeptLetter,
   readKeptPhoto,
+  stopWriter,
+  withdrawWriterInvite,
 } from '../server/utils/kept-mantel'
 import { openLetter, listMantel } from '../server/utils/mantel'
 import { attachPhoto, type PhotoStore } from '../server/utils/photos'
@@ -395,5 +397,56 @@ describe('inviting a writer', () => {
     })
     expect(odd.subject).toBe('Ann Lee asks you to write to someone dear to them')
     expect(odd.html).not.toContain('evil.example')
+  })
+
+  it('lets any keeper stop a writer: letters on the way go back, arrived ones stay', async () => {
+    const invite = await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)
+    if (invite.status !== 'created') throw new Error(invite.status)
+    const accepted = await acceptInvite(db, invite.token, 'eve', MONDAY)
+    if (accepted.status !== 'accepted') throw new Error(accepted.status)
+    const fromEve = async (id: string) => {
+      await saveDraft(
+        db,
+        'eve',
+        {
+          id,
+          correspondenceId: accepted.correspondenceId,
+          ciphertext: CIPHERTEXT,
+          wrappedKey: 'key-for-eve',
+        },
+        MONDAY,
+      )
+      await sealLetter(db, 'eve', id, 'key-for-leo', MONDAY)
+    }
+    await fromEve(OPEN)
+    await deliver()
+    await fromEve(SEALED)
+
+    expect(await stopWriter(db, 'eve', LEO, 'eve', FRIDAY)).toBe('not-keeper')
+    expect(await stopWriter(db, 'bob', LEO, 'ann', FRIDAY)).toBe('is-keeper')
+    expect(await stopWriter(db, 'bob', LEO, 'eve', FRIDAY)).toBe('stopped')
+    expect(await stopWriter(db, 'bob', LEO, 'eve', FRIDAY)).toBe('not-a-writer')
+
+    const rows = await db.select().from(deliveries)
+    const state = (letterId: string, kind: string) =>
+      rows.find((row) => row.letterId === letterId && row.kind === kind)?.state
+    expect(state(OPEN, 'letter')).toBe('delivered')
+    expect(state(SEALED, 'letter')).toBe('returned')
+    expect(rows.find((row) => row.letterId === SEALED && row.kind === 'return')).toMatchObject({
+      recipientId: 'eve',
+    })
+    expect(await planSeal(db, 'eve', accepted.correspondenceId, FRIDAY)).toBe('closed')
+    expect((await listWriters(db, 'bob', LEO, FRIDAY))!.writers.map((w) => w.name)).toEqual([
+      'Ann Lee',
+    ])
+  })
+
+  it('lets any keeper take back an invitation nobody accepted', async () => {
+    const invite = await createInvite(db, ann, 'new@example.com', MONDAY, LEO)
+    if (invite.status !== 'created') throw new Error(invite.status)
+
+    expect(await withdrawWriterInvite(db, 'eve', LEO, invite.id)).toBe(false)
+    expect(await withdrawWriterInvite(db, 'bob', LEO, invite.id)).toBe(true)
+    expect(await viewInvite(db, invite.token, MONDAY)).toMatchObject({ status: 'unknown' })
   })
 })
