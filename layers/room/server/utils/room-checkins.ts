@@ -7,6 +7,7 @@ import * as tables from '@nuxthub/db/schema'
 
 import type { RoomFamily, RoomWhereabouts } from '../../shared/utils/room-types'
 import { roomMembers, type RoomDb } from './room-families'
+import type { RoomPlace } from './room-map'
 
 export type CheckInResult = 'done' | 'closed' | 'unknown-city'
 
@@ -38,6 +39,17 @@ export async function checkIn(
  * who has left is not listed, whatever they said while they were in it.
  */
 export async function whereabouts(db: RoomDb, familyId: string): Promise<RoomWhereabouts[]> {
+  return (await whereaboutsWithPlaces(db, familyId)).people
+}
+
+/**
+ * The same list, with the cities to draw on the family's map: one place per
+ * city, however many people are in it.
+ */
+export async function whereaboutsWithPlaces(
+  db: RoomDb,
+  familyId: string,
+): Promise<{ people: RoomWhereabouts[]; places: RoomPlace[] }> {
   const { roomCheckins } = tables
   const members = await roomMembers(db, familyId)
   const rows = await db
@@ -47,9 +59,17 @@ export async function whereabouts(db: RoomDb, familyId: string): Promise<RoomWhe
     .orderBy(desc(roomCheckins.createdAt), desc(roomCheckins.id))
   const latest = new Map<string, (typeof rows)[number]>()
   for (const row of rows) if (!latest.has(row.userId)) latest.set(row.userId, row)
-  return members
+
+  const places = new Map<string, RoomPlace>()
+  const people = members
     .map((member) => {
       const last = latest.get(member.id)
+      if (last) {
+        const id = `${last.lat},${last.lng}`
+        const place = places.get(id) ?? { id, lat: last.lat, lng: last.lng, people: 0 }
+        place.people += 1
+        places.set(id, place)
+      }
       return {
         userId: member.id,
         name: member.name,
@@ -59,6 +79,7 @@ export async function whereabouts(db: RoomDb, familyId: string): Promise<RoomWhe
       }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
+  return { people, places: [...places.values()] }
 }
 
 /** Takes back everything a person said to one family about where they were. */

@@ -22,6 +22,8 @@
       <strong class="text-highlighted">Where you are.</strong> A room can show which city each
       person says they are in. It is a city you pick from a list, shown to that family only, and you
       can take it back. We never read your device's location, and nobody is reminded to update it.
+      The map of those cities is drawn on our own servers, so no outside map service learns where a
+      family lives.
     </p>
     <p>
       <strong class="text-highlighted">Removing photos.</strong> Whoever added a photo can delete

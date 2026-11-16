@@ -85,6 +85,7 @@ test('a family room: photos added, shared, and closed to those who leave', async
   await bob.keyboard.press('Escape')
   await bob.getByRole('link', { name: 'Where everyone is' }).click()
   await expect(bob.getByText('Has not said')).toHaveCount(2)
+  await expect(bob.getByTestId('map')).toHaveCount(0)
   await bob.getByLabel('Your city now').fill('Chic')
   await bob
     .getByRole('button', { name: /^Chicago/ })
@@ -94,6 +95,11 @@ test('a family room: photos added, shared, and closed to those who leave', async
   await open(ann, `/room/${familyId}/where`)
   await expect(ann.getByText(/^Chicago, US/)).toBeVisible()
   await expect(ann.getByText('Has not said')).toHaveCount(1)
+  // The map shows one city, drawn by the server with coastlines around it.
+  await expect(ann.getByTestId('map-place')).toHaveCount(1)
+  expect(
+    (await ann.getByTestId('map').locator('path').nth(1).getAttribute('d'))!.length,
+  ).toBeGreaterThan(1000)
   await open(ann, `/room/${familyId}`)
 
   // ── He leaves the family: the room and its pictures close to him ───────────
