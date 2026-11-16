@@ -31,11 +31,18 @@ export async function rescheduleAll(db: PostDb, now: Date): Promise<void> {
   }
 }
 
-export async function advanceTo(db: PostDb, from: Date, to: Date): Promise<ReleaseReport> {
+export async function advanceTo(
+  db: PostDb,
+  from: Date,
+  to: Date,
+  /** What the cron does after each release: send the notices it queued. */
+  afterRelease: (at: Date) => Promise<unknown> = async () => {},
+): Promise<ReleaseReport> {
   const { postalProfiles } = tables
   const total: ReleaseReport = { due: 0, delivered: 0, notices: 0, failed: 0, truncated: false }
   const run = async (at: Date) => {
     const report = await runRelease(db, at)
+    await afterRelease(at)
     total.due += report.due
     total.delivered += report.delivered
     total.notices += report.notices

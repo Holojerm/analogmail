@@ -15,6 +15,13 @@
       "when": 1794762916958,
       "tag": "0001_gigantic_whizzer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794788285944,
+      "tag": "0002_purple_peter_quill",
+      "breakpoints": true
     }
   ]
 }

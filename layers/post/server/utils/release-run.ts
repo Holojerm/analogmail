@@ -193,14 +193,16 @@ export async function runRelease(
     const group: Statement[] = chunk(plan.deliver, IN_LIST).map((ids) =>
       db
         .update(deliveries)
-        .set({ state: 'delivered', deliveredAt: now })
+        .set({ state: 'delivered', deliveredAt: now, mailDate: turn.release.date })
         .where(and(inArray(deliveries.id, ids), eq(deliveries.state, 'in_transit'))),
     )
     if (plan.notify) {
       group.push(
         db
           .insert(notices)
-          .values({ userId: turn.userId, mailDate: turn.release.date })
+          // Queued on the post office clock, which is what the notice's
+          // expiry is measured against.
+          .values({ userId: turn.userId, mailDate: turn.release.date, createdAt: now })
           .onConflictDoNothing(),
       )
     }

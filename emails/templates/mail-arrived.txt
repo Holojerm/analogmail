@@ -1,0 +1,10 @@
+The flag is up
+
+There is mail in your mailbox.
+
+Open your mailbox: {{appUrl}}/mailbox
+
+—
+{{appName}} tells you when mail arrives and nothing more: not who it is from, and not how much there is. Sign in to read it.
+
+{{appUrl}}
