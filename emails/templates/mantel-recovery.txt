@@ -1,0 +1,12 @@
+The recovery code for {{mantelName}} was used
+
+Someone used the printed recovery code of the mantel you keep for {{mantelName}} and has asked to become one of its keepers.
+
+If nothing is done, they become a keeper on {{readyDate}}. If you expected this, there is nothing to do. If you did not, cancel it before then: any keeper can.
+
+Open the mantel: {{url}}
+
+—
+The code is the one shown when the mantel was opened. If it may have been copied by someone it was not meant for, cancel this and tell the other keepers.
+
+{{appUrl}}

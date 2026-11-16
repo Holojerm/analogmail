@@ -21,6 +21,7 @@ const ACTION_URL: Record<EmailName, (data: Record<string, unknown>) => string> =
   'feedback-reply': (d) => `${d.appUrl}`,
   invite: (d) => String(d.url),
   'mantel-invite': (d) => String(d.url),
+  'mantel-recovery': (d) => String(d.url),
   'mail-arrived': (d) => `${d.appUrl}/mantel`,
   'magic-link': (d) => String(d.url),
   'password-reset': (d) => String(d.url),

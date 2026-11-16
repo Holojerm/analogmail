@@ -53,7 +53,11 @@
       <strong class="text-highlighted">Mantels kept for someone else.</strong> A child's mantel, or
       a couple's, has a key of its own. Its keepers each hold a copy, locked to their own key, and
       one more copy is locked under a printed recovery code. We hold none that we can open. When
-      mail arrives there, its keepers are told, the same way you are told about your own.
+      mail arrives there, its keepers are told, the same way you are told about your own. The code
+      opens the key in the browser of whoever types it and is never sent to us; what we receive is a
+      value derived from it that proves they hold it. A keeper who uses it gets their own access
+      back. Anyone else is asking to become a keeper: every keeper is emailed, and it takes effect
+      after 30 days unless one of them cancels.
     </p>
     <p>
       <strong class="text-highlighted">Sealed letters.</strong> A letter to a kept mantel can be
