@@ -3,6 +3,7 @@
 // (shared/utils/rich-text.ts): no links, images, code or mentions, so what it
 // saves is what the reader's page can draw.
 import type { EditorToolbarItem } from '@nuxt/ui'
+import { TextAlign } from '@tiptap/extension-text-align'
 
 import { richDocSchema, type RichDoc } from '../../../shared/utils/rich-text'
 
@@ -15,6 +16,10 @@ const STARTER_KIT = {
   link: false,
   codeBlock: false,
 } as const
+
+const EXTENSIONS = [
+  TextAlign.configure({ types: ['heading', 'paragraph'], alignments: ['left', 'center', 'right'] }),
+]
 
 const EDITOR_PROPS = {
   attributes: {
@@ -45,6 +50,11 @@ const ITEMS: EditorToolbarItem[][] = [
     { kind: 'horizontalRule', icon: 'i-lucide-minus', 'aria-label': 'Line across the page' },
   ],
   [
+    { kind: 'textAlign', align: 'left', icon: 'i-lucide-align-left', 'aria-label': 'Left' },
+    { kind: 'textAlign', align: 'center', icon: 'i-lucide-align-center', 'aria-label': 'Centre' },
+    { kind: 'textAlign', align: 'right', icon: 'i-lucide-align-right', 'aria-label': 'Right' },
+  ],
+  [
     { kind: 'undo', icon: 'i-lucide-undo-2', 'aria-label': 'Undo' },
     { kind: 'redo', icon: 'i-lucide-redo-2', 'aria-label': 'Redo' },
   ],
@@ -67,6 +77,7 @@ watch(draft, (value) => {
     v-model="draft"
     content-type="json"
     :starter-kit="STARTER_KIT"
+    :extensions="EXTENSIONS"
     :image="false"
     :mention="false"
     :editor-props="EDITOR_PROPS"
