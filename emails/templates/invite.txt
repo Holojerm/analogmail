@@ -1,0 +1,10 @@
+{{inviterName}} would like to write to you
+
+{{inviterName}} has invited you to exchange letters on {{appName}}. Letters there take days to arrive, the way post does, so nobody has to answer quickly.
+
+See the invitation: {{url}}
+
+—
+The invitation is good for {{expiresDays}} days. If you don't know {{inviterName}}, ignore this email: nothing more will be sent, and your address is deleted when the invitation expires.
+
+{{appUrl}}
