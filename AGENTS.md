@@ -25,10 +25,9 @@ A fork of `Holojerm/nuxt-cf-template`. Licence is FSL-1.1-MIT (see `NOTICE.md`);
 outside contributions. Read the full plan, with every product decision, the designs for the
 planned kinds and the build order, before any product work. It lives outside the repo:
 
-- `~/code/analogmail-plan.md` <!-- refs-check-ignore -->
+- `~/code/dearmantel-plan.md` <!-- refs-check-ignore -->
 
-The product was first called Analog Mail. The repo, Worker, database and key labels still carry
-that name until the plan's rename step; do not rename piecemeal.
+The product was first called Analog Mail; nothing carries that name any more.
 
 **Brand and naming.**
 
