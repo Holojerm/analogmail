@@ -2,7 +2,7 @@
 // key with the device's private key, and decrypt it and its photo here.
 
 import type { OpenedLetter } from '../../shared/utils/mantel'
-import { letterDocSchema, type LetterDoc } from '../../shared/utils/letter-doc'
+import { parseLetterDoc, type LetterDoc } from '../../shared/utils/letter-doc'
 import { decryptLetter } from '../utils/letter-crypto'
 
 export interface ReadLetter extends Omit<OpenedLetter, 'ciphertext' | 'wrappedKey'> {
@@ -23,13 +23,13 @@ export function useOpenLetter() {
     const key = await letterKeys.open(opened.wrappedKey, opened.letterId)
     const text = key ? await decryptLetter(key, opened.letterId, opened.ciphertext) : null
     if (!key || !text) return null
-    const parsed = letterDocSchema.safeParse(JSON.parse(text))
-    if (!parsed.success) return null
+    const doc = parseLetterDoc(text)
+    if (!doc) return null
     const { ciphertext: _ciphertext, wrappedKey: _wrappedKey, ...meta } = opened
-    const photo = parsed.data.photo
+    const photo = doc.photo
     return {
       ...meta,
-      doc: parsed.data,
+      doc,
       photoUrl: photo ? await loadLetterPhoto(key, opened.letterId, photo) : null,
     }
   }

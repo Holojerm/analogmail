@@ -5,12 +5,14 @@
 import { z } from 'zod'
 
 import { letterPhotoSchema } from './letter-photo'
+import { richDocSchema, richTextLength } from './rich-text'
 
-/** Characters of body text. Long enough for a very long letter. */
+/** Characters of text. Long enough for a very long letter. */
 export const LETTER_BODY_MAX = 50_000
 
 export const PAPERS = ['plain', 'soft', 'card'] as const
-export const FONTS = ['serif', 'sans', 'typewriter'] as const
+// The three after `typewriter` are handwriting faces.
+export const FONTS = ['serif', 'sans', 'typewriter', 'hand', 'print', 'cursive'] as const
 export const INKS = ['black', 'accent', 'faded'] as const
 
 export const stationerySchema = z.object({
@@ -29,20 +31,35 @@ export const DEFAULT_STATIONERY: Stationery = {
 /**
  * The plaintext of a letter. `from` is the writer's name as they signed it,
  * kept inside the letter so it still says who wrote it after their account
- * is gone.
+ * is gone. Version 2 holds rich text; version 1 held a plain string and was
+ * replaced before anyone outside development had written a letter.
  */
 export const letterDocSchema = z.object({
-  v: z.literal(1),
-  body: z.string().max(LETTER_BODY_MAX),
+  v: z.literal(2),
+  content: richDocSchema.refine((doc) => richTextLength(doc) <= LETTER_BODY_MAX),
   stationery: stationerySchema,
   from: z.string().max(60),
   photo: letterPhotoSchema.optional(),
 })
 export type LetterDoc = z.infer<typeof letterDocSchema>
 
-// `v1.<iv>.<ciphertext>`, base64url. The cap leaves room for the longest body
-// in four-byte characters.
-export const LETTER_CIPHERTEXT_MAX = 300_000
+/**
+ * A decrypted letter, or null when it is not one. The text came from another
+ * person's browser, so nothing about its shape is trusted, and a document
+ * nested deep enough to exhaust the stack is refused like any other.
+ */
+export function parseLetterDoc(plaintext: string): LetterDoc | null {
+  try {
+    const parsed = letterDocSchema.safeParse(JSON.parse(plaintext))
+    return parsed.success ? parsed.data : null
+  } catch {
+    return null
+  }
+}
+
+// `v1.<iv>.<ciphertext>`, base64url. The cap leaves room for the longest
+// letter in four-byte characters, with its formatting.
+export const LETTER_CIPHERTEXT_MAX = 600_000
 export const letterCiphertextSchema = z
   .string()
   .max(LETTER_CIPHERTEXT_MAX)
