@@ -1,10 +1,16 @@
+// Both tests here move the dev clock, which every browser shares, so they
+// live in one file and run one after the other.
+//
 // A letter, end to end in Chromium: encrypted in the browser, sealed with
 // its arrival day shown, recalled before pickup, delivered days later on the
 // recipient's mail day, read there, and answered.
 
 import { expect, test } from '../../../../test/e2e/fixtures'
 
-import { makePair } from './helpers'
+import { makePair, open } from './helpers'
+
+// The suite runs tests in parallel even inside a file. These two must not.
+test.describe.configure({ mode: 'serial' })
 
 const TEXT = 'Dear Bob, the plums are ripe. Come in August.'
 // A 1 × 1 PNG.
@@ -125,6 +131,87 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
     await expect(ann.getByRole('button', { name: /Recall/ })).toHaveCount(0)
     await ann.goto('/mantel', { waitUntil: 'networkidle' })
     await expect(ann.getByText('Nothing has arrived yet.')).toBeVisible()
+  } finally {
+    await ann.request.post('/api/dev/clock', { data: { action: 'reset' } })
+  }
+
+  await close()
+})
+
+// Letters to a kept mantel: it gets its own post, a keeper writes to it, one
+// letter is sealed until a far-off day, and after delivery the server gives
+// up the open letter and nothing of the sealed one.
+const NOW_LETTER = 'Dear Leo, you laughed for the first time today.'
+const LATER_LETTER = 'Dear Leo, read this when you are eighteen.'
+
+test('a kept mantel takes letters, and a sealed one stays sealed', async ({ browser, baseURL }) => {
+  test.setTimeout(180_000)
+  const { ann, close } = await makePair(browser, baseURL!)
+
+  // ── Ann opens Leo's mantel and gives it its post ───────────────────────────
+  await open(ann, '/mantels/new')
+  await ann.getByLabel('Whose mantel is it?').fill('Leo')
+  await ann.getByRole('button', { name: 'Open the mantel' }).click()
+  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
+  const mantelId = new URL(ann.url()).pathname.split('/').pop()!
+  await ann.getByLabel("The mantel's city").fill('Chicago')
+  await ann
+    .getByRole('button', { name: /^Chicago/ })
+    .first()
+    .click()
+  await expect(ann.getByText(/Its post arrives in Chicago/)).toBeVisible()
+
+  // ── She writes one letter to be read now, and one sealed until 2044 ────────
+  async function write(text: string, sealUntil?: string) {
+    await open(ann, `/mantels/${mantelId}`)
+    await ann.getByRole('button', { name: 'Write to Leo' }).click()
+    await ann.waitForURL('**/write?to=*')
+    await expect(ann.getByRole('heading', { name: 'A letter to Leo' })).toBeVisible()
+    await ann.getByLabel('Your letter').fill(text)
+    await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
+    await ann.getByRole('button', { name: 'Seal the letter' }).click()
+    if (sealUntil) await ann.getByLabel('Keep it sealed until (optional)').fill(sealUntil)
+    await ann.getByRole('button', { name: 'Seal and post' }).click()
+    await ann.waitForURL('**/desk')
+  }
+  await write(NOW_LETTER)
+  await write(LATER_LETTER, '2044-06-14')
+  await expect(ann.getByText(/Sealed until .*2044\.$/)).toBeVisible()
+
+  try {
+    // ── Nothing shows until the mantel's own mail day ────────────────────────
+    await open(ann, `/mantels/${mantelId}`)
+    await expect(ann.getByText('Nothing has arrived yet.')).toBeVisible()
+    for (let day = 0; day < 6; day += 1) {
+      await ann.request.post('/api/dev/clock', { data: { action: 'mail-day', userId: mantelId } })
+      await open(ann, `/mantels/${mantelId}`)
+      if ((await ann.getByText(/^From Ann Tester$/).count()) > 1) break
+    }
+    await expect(ann.getByText(/^From Ann Tester$/)).toHaveCount(2)
+    await expect(ann.getByText(/^Sealed\. Opens .*2044\.$/)).toBeVisible()
+    // One letter can be read; the sealed one offers nothing to open.
+    await expect(ann.getByRole('link', { name: 'Read the letter from Ann Tester' })).toHaveCount(1)
+
+    // ── The open letter is decrypted here with the mantel's key ──────────────
+    await ann.getByRole('link', { name: 'Read the letter from Ann Tester' }).click()
+    await expect(ann.getByText(NOW_LETTER)).toBeVisible()
+
+    // ── The server gives up nothing of the sealed one, even to its keeper ────
+    const listed = (await (
+      await ann.request.post('/api/letters/kept/list', { data: { mantelId } })
+    ).json()) as { letters: { letterId: string; sealed: boolean }[] }
+    const sealed = listed.letters.find((letter) => letter.sealed)!
+    const answer = await ann.request.post('/api/letters/kept/open', {
+      data: { mantelId, letterId: sealed.letterId },
+    })
+    expect(Object.keys((await answer.json()) as object).toSorted()).toEqual(
+      ['letterId', 'opensOn', 'postmark', 'sealed'].toSorted(),
+    )
+    await open(ann, `/kept/${mantelId}/${sealed.letterId}`)
+    await expect(ann.getByText(/Sealed until .*2044/)).toBeVisible()
+    await expect(ann.getByText(LATER_LETTER)).toHaveCount(0)
   } finally {
     await ann.request.post('/api/dev/clock', { data: { action: 'reset' } })
   }

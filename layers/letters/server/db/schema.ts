@@ -29,6 +29,9 @@ export const correspondences = sqliteTable('correspondences', {
   // Either member may close it. Nothing new can be posted afterwards.
   closedAt: integer('closed_at', { mode: 'timestamp' }),
   closedBy: text('closed_by'),
+  // Set when the other side is a kept mantel (a child's, a couple's) rather
+  // than a person. That mantel is then a member too, under its own id.
+  mantelId: text('mantel_id'),
   ...timestamps,
 })
 
@@ -85,6 +88,9 @@ export const letters = sqliteTable(
     pickupAt: integer('pickup_at', { mode: 'timestamp' }),
     // The sender's calendar day, 'YYYY-MM-DD'.
     postmarkDate: text('postmark_date'),
+    // 'YYYY-MM-DD'. A letter to a kept mantel may be sealed until this day:
+    // before it, the server serves its text, photo and key to no reader.
+    opensOn: text('opens_on'),
     ciphertext: text('ciphertext').notNull(),
     // Where the sealed photo is stored, if there is one. Changes only on a draft.
     photoKey: text('photo_key'),
