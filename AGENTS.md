@@ -65,8 +65,9 @@ after hydration, never during it. The city list is GeoNames data loaded by
 `bun run cities:import` (add `--remote` for production); it is not a migration.
 
 Notices: the release queues one `notices` row per person per mail day, and `dispatchNotices`
-sends them through a `Notifier` (`layers/post/server/notify/`; email is the only one). The flag
-email takes no data but the brand, so it cannot name a sender or count letters. A send is at
+sends them through a `Notifier` (`layers/post/server/notify/`; email is the only one). The notice
+email ("Something arrived on your mantel") takes no data but the brand, so it cannot name a
+sender or count letters. A send is at
 most once; a failed one is retried on later runs, never repeated as a reminder. Resend reports
 bounces to `POST /api/webhooks/resend` (404 until `NUXT_POST_RESEND_WEBHOOK_SECRET` is set): a
 hard bounce of a notice returns that day's unopened letters to their senders.

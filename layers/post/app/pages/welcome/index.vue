@@ -124,7 +124,7 @@ useSeo({
         <UFormField
           label="Mail days"
           name="days"
-          help="The days your mailbox takes delivery. There is no post on Sunday."
+          help="The days post arrives on your mantel. There is no post on Sunday."
         >
           <UCheckboxGroup v-model="days" :items="WEEKDAYS" />
         </UFormField>
@@ -141,7 +141,7 @@ useSeo({
           :description="failure"
         />
         <UButton type="submit" size="lg" block :loading="pending" :disabled="!ready">
-          Open my mailbox
+          Open my mantel
         </UButton>
       </form>
     </UCard>

@@ -1,6 +1,6 @@
-// The flag email: emails/templates/mail-arrived.vue. It takes no data beyond
+// The notice email: emails/templates/mail-arrived.vue. It takes no data beyond
 // the brand, so it cannot name a sender, count letters or quote one. Its link
-// is the mailbox, with no token: reading needs a signed-in session.
+// is the mantel, with no token: reading needs a signed-in session.
 
 import type { SendEmailOptions, SendEmailResult } from '#server/utils/email'
 import { composeEmail, type Branding, type EmailContent } from '#server/utils/email-templates'
@@ -8,10 +8,10 @@ import { composeEmail, type Branding, type EmailContent } from '#server/utils/em
 import type { Notifier } from './notifier'
 
 /** Also how a bounce webhook tells a notice from the app's other mail. */
-export const FLAG_SUBJECT = 'The flag is up'
+export const NOTICE_SUBJECT = 'Something arrived on your mantel'
 
-export function flagEmail(brand: Branding): EmailContent {
-  return composeEmail('mail-arrived', FLAG_SUBJECT, brand)
+export function noticeEmail(brand: Branding): EmailContent {
+  return composeEmail('mail-arrived', NOTICE_SUBJECT, brand)
 }
 
 export function createEmailNotifier(deps: {
@@ -24,7 +24,7 @@ export function createEmailNotifier(deps: {
     channel: 'email',
     ready: () => deps.configured,
     async notify(notice) {
-      const result = await deps.send({ to: notice.address, ...flagEmail(deps.brand) })
+      const result = await deps.send({ to: notice.address, ...noticeEmail(deps.brand) })
       if (result.sent) return { ok: true }
       return { ok: false, retry: result.reason !== 'rejected', reason: result.reason }
     },
