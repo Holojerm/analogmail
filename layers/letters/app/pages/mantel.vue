@@ -53,5 +53,9 @@ useSeo({
         </NuxtLink>
       </li>
     </ul>
+
+    <p class="text-sm text-muted">
+      <ULink to="/archive" class="underline">Keep a copy of your letters</ULink> on this device.
+    </p>
   </div>
 </template>
