@@ -119,8 +119,12 @@ mantel's recovery code. It never holds the key itself, and the key is never kept
 Who keeps a mantel changes only through `custody.ts`: a proposal takes effect when more than
 half of the keepers have voted (`carries`), so two keepers must both agree. Seating a keeper
 also needs that person's acceptance and a wrapped copy from a keeper's browser, which the
-server cannot make. A mantel's last keeper cannot delete their account. Do not add a path
-that writes `mantel_keepers` or `mantel_key_wraps` outside these two files. Pages: `/mantels`
+server cannot make. A mantel's last keeper cannot delete their account. The recovery code
+(`recovery.ts`) is the one way around the vote: it never reaches the server, which keeps only
+the hash of a proof the code derives (`recoveryProof`). A keeper who uses it replaces their
+own copy of the key at once. Anyone else waits `RECOVERY_WAIT_DAYS` while every keeper is
+emailed (`mantel-recovery`) and any of them can cancel. Do not add a path that writes
+`mantel_keepers` or `mantel_key_wraps` outside `custody.ts`, `mantels.ts` and `recovery.ts`. Pages: `/mantels`
 (kept mantels and offered seats), `/mantels/new` (keys made here, recovery code shown once)
 and `/mantels/<id>` (keepers, proposals, and the fingerprint check before a keeper's browser
 wraps the key to a new one). The person being seated reads their own key's fingerprint from

@@ -2,12 +2,19 @@
 // and opening this keeper's own copy. The mantel's private key is only ever
 // in memory here; it is not written to the device.
 
-import { formatRecoveryCode, RECOVERY_CODE_BYTES } from '../../shared/utils/key-format'
+import {
+  formatRecoveryCode,
+  parseRecoveryCode,
+  RECOVERY_CODE_BYTES,
+} from '../../shared/utils/key-format'
 import type { MantelKind } from '../../shared/utils/mantel-format'
 import {
   generateMantelKeys,
   keyFingerprint,
+  recoveryProof,
+  recoveryProofHash,
   unwrapMantelKey,
+  unwrapMantelKeyWithCode,
   wrapMantelKeyForKeeper,
   wrapMantelKeyUnderCode,
 } from '../utils/mantel-crypto'
@@ -61,9 +68,42 @@ export function useMantelKeys() {
             keeperId: me(),
           }),
           recoveryWrap: await wrapMantelKeyUnderCode(secret, id, pair.privateKey),
+          recoveryProofHash: await recoveryProofHash(await recoveryProof(secret)),
         },
       })
       return { id, code: formatRecoveryCode(secret) }
+    },
+
+    /**
+     * Uses a mantel's recovery code: finds the mantel, opens the copy of its
+     * key that is locked under the code, and wraps it to this account. A
+     * keeper gets their access back at once; anyone else starts the wait.
+     */
+    async recover(code: string) {
+      const secret = parseRecoveryCode(code)
+      if (!secret) return { status: 'bad-code' as const }
+      const proof = await recoveryProof(secret)
+      const found = await $fetch<
+        | { status: 'unknown' }
+        | { status: 'found'; mantelId: string; name: string; recoveryWrap: string }
+      >('/api/mantels/recover/find', { method: 'POST', body: { proof } })
+      if (found.status !== 'found') return { status: 'unknown' as const }
+      const mantelKey = await unwrapMantelKeyWithCode(secret, found.mantelId, found.recoveryWrap)
+      if (!mantelKey) return { status: 'unknown' as const }
+      const claimed = await $fetch<{ status: 'restored' } | { status: 'waiting'; readyAt: string }>(
+        '/api/mantels/recover/claim',
+        {
+          method: 'POST',
+          body: {
+            proof,
+            wrapped: await wrapMantelKeyForKeeper(await myPublicKey(), mantelKey, {
+              mantelId: found.mantelId,
+              keeperId: me(),
+            }),
+          },
+        },
+      )
+      return { ...claimed, mantelId: found.mantelId, name: found.name }
     },
 
     /** The key of the person waiting for a seat, and its fingerprint to compare. */

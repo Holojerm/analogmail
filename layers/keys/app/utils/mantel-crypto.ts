@@ -159,3 +159,26 @@ export async function keyFingerprintToken(publicKey: string): Promise<string | n
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', spki))
   return toBase64Url(digest.slice(0, 16))
 }
+
+const PROOF_LABEL = 'dearmantel/v1/mantel-recovery-proof'
+
+/**
+ * What a recovery code shows the server to find its mantel and prove that
+ * its holder has it. Derived one way from the code, with its own label, so
+ * it opens nothing: the copy of the key is locked under a different key.
+ */
+export async function recoveryProof(code: Bytes): Promise<string> {
+  const material = await crypto.subtle.importKey('raw', code, 'HKDF', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(32), info: text.encode(PROOF_LABEL) },
+    material,
+    256,
+  )
+  return toBase64Url(new Uint8Array(bits))
+}
+
+/** The hash of a proof, which is what the server keeps. Hex, as the server computes it. */
+export async function recoveryProofHash(proof: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', text.encode(proof)))
+  return Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
