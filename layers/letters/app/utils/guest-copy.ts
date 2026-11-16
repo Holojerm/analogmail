@@ -6,7 +6,7 @@ import { fileSafe } from '../../shared/utils/archive'
 import type { LetterDoc } from '../../shared/utils/letter-doc'
 import { richDocToText } from '../../shared/utils/rich-plain'
 import { yearDay } from './stationery'
-import { zipBlob } from './zip'
+import { zipBlob } from '#layers/post/app/utils/zip'
 
 export function guestCopy(
   mantelName: string,

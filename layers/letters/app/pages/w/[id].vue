@@ -20,7 +20,7 @@ import type { HeldPhoto } from '../../components/Letters/GuestPhoto.vue'
 import { guestCopy } from '../../utils/guest-copy'
 import { encryptLetter, newContentKey, wrapContentKey } from '../../utils/letter-crypto'
 import { encryptPhoto } from '../../utils/photo-crypto'
-import { saveFile } from '../../utils/save-file'
+import { saveFile } from '#layers/post/app/utils/save-file'
 
 const route = useRoute()
 const link = String(route.params.id)

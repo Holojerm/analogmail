@@ -87,11 +87,11 @@ of code for each:
 
 | Layer | Holds |
 | --- | --- |
-| `layers/post` | Calendar, transit, the release task, notices, the `Notifier` interface, the dev clock |
+| `layers/post` | Calendar, transit, the release task, notices, the `Notifier` interface, the dev clock. Also the two browser helpers every layer may use to hand a person a file made on their device: `layers/post/app/utils/zip.ts` and `layers/post/app/utils/save-file.ts` |
 | `layers/letters` | Invites, correspondences, letters, the mantel page, writing desk, stationery, seals |
 | `layers/keys` | Account and mantel keys, wrapping, recovery codes, browser crypto |
 | `layers/print` (planned) | The `PrintProvider` interface, the first provider, the consent step, order records, book layout |
-| `layers/room` | The family room: a family's photo album, and where each person says they are, with a map drawn on the server (`layers/room/server/utils/room-map.ts`; the screen, gazette and almanac are planned). Not end-to-end encrypted, and every room page says so. Never imports from or joins to `layers/letters`: who is in a family reaches it through `layers/room/server/utils/room-families.ts`, which the letters plugin registers with. Every row and file carries a family id, and every route starts with `requireRoom` |
+| `layers/room` | The family room: a family's photo album, and where each person says they are, with a map drawn on the server (`layers/room/server/utils/room-map.ts`), and a copy of the room a member builds in their browser (`/room/<family>/keep`). The gazette and almanac are planned. Not end-to-end encrypted, and every room page says so. Never imports from or joins to `layers/letters`: who is in a family reaches it through `layers/room/server/utils/room-families.ts`, which the letters plugin registers with. Every row and file carries a family id, and every route starts with `requireRoom` |
 | `layers/credentials`, `layers/feedback` | Vendored from the template (`bun run layers:pull`), pinned in `layers.lock.json` |
 
 Scheduling functions are pure, live in `layers/post/shared/`, and take `now` as an argument;

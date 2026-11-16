@@ -15,7 +15,7 @@ import { richDocToText } from '../../shared/utils/rich-plain'
 import { decryptLetter } from './letter-crypto'
 import { decryptPhoto } from './photo-crypto'
 import { yearDay } from './stationery'
-import { ZIP_BYTES_MAX, zipBlob, type ZipFile } from './zip'
+import { ZIP_BYTES_MAX, zipBlob, type ZipFile } from '#layers/post/app/utils/zip'
 
 type Bytes = Uint8Array<ArrayBuffer>
 
