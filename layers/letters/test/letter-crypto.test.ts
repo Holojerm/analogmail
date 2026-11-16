@@ -11,7 +11,13 @@ import {
   unwrapContentKey,
   wrapContentKey,
 } from '../app/utils/letter-crypto'
-import { letterCiphertextSchema, letterKeySchema } from '../shared/utils/letter-doc'
+import { decryptPhoto, encryptPhoto } from '../app/utils/photo-crypto'
+import {
+  DEFAULT_STATIONERY,
+  letterCiphertextSchema,
+  letterDocSchema,
+  letterKeySchema,
+} from '../shared/utils/letter-doc'
 
 const LETTER = '4b0f6c1e-0d3a-4c1f-9e57-1f2f6b6f0a11'
 const OTHER = '9a1d2c3b-4e5f-4a6b-8c7d-0e1f2a3b4c5d'
@@ -103,5 +109,45 @@ describe('a wrapped key', () => {
       })
       expect(await decryptLetter(opened!, LETTER, body)).toBe('See you in June.')
     }
+  })
+})
+
+describe('a photo', () => {
+  const PHOTO = '11111111-1111-4111-8111-111111111111'
+  const image = new Uint8Array([255, 216, 255, 224, 1, 2, 3, 4]).buffer
+
+  it('round-trips under the letter key, with a version byte in front', async () => {
+    const key = newContentKey()
+    const sealed = await encryptPhoto(key, { letterId: LETTER, photoId: PHOTO }, image)
+
+    expect(sealed[0]).toBe(1)
+    expect(sealed.length).toBe(1 + 12 + 8 + 16)
+    const opened = await decryptPhoto(key, { letterId: LETTER, photoId: PHOTO }, sealed.buffer)
+    expect(opened && Array.from(new Uint8Array(opened))).toEqual(Array.from(new Uint8Array(image)))
+  })
+
+  it('does not open with another key, for another letter, or as another photo', async () => {
+    const key = newContentKey()
+    const sealed = (await encryptPhoto(key, { letterId: LETTER, photoId: PHOTO }, image)).buffer
+
+    expect(
+      await decryptPhoto(newContentKey(), { letterId: LETTER, photoId: PHOTO }, sealed),
+    ).toBeNull()
+    expect(await decryptPhoto(key, { letterId: OTHER, photoId: PHOTO }, sealed)).toBeNull()
+    expect(await decryptPhoto(key, { letterId: LETTER, photoId: OTHER }, sealed)).toBeNull()
+    expect(
+      await decryptPhoto(key, { letterId: LETTER, photoId: PHOTO }, new ArrayBuffer(4)),
+    ).toBeNull()
+  })
+
+  it('is described inside the letter, within the size the letter allows', () => {
+    const photo = { id: PHOTO, width: 2560, height: 1920, alt: 'The plum tree' }
+    const doc = { v: 1, body: 'x', stationery: DEFAULT_STATIONERY, from: 'Ann' }
+
+    expect(letterDocSchema.safeParse(doc).success).toBe(true)
+    expect(letterDocSchema.safeParse({ ...doc, photo }).success).toBe(true)
+    expect(letterDocSchema.safeParse({ ...doc, photo: { ...photo, width: 4000 } }).success).toBe(
+      false,
+    )
   })
 })

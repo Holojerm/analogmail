@@ -7,6 +7,11 @@ import { expect, test } from '../../../../test/e2e/fixtures'
 import { makePair } from './helpers'
 
 const TEXT = 'Dear Bob, the plums are ripe. Come in August.'
+// A 1 × 1 PNG.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
 
 test('a letter: written, sealed, recalled, delivered, read and answered', async ({
   browser,
@@ -29,6 +34,19 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
   await ann.waitForURL('**/write?letter=*')
 
+  // ── A photo is redrawn and encrypted here; the server gets a sealed file ───
+  const uploaded = ann.waitForRequest(
+    (request) => request.url().includes('/api/letters/drafts/photo?') && request.method() === 'PUT',
+  )
+  await ann
+    .getByLabel('Add a photo')
+    .setInputFiles({ name: 'plums.png', mimeType: 'image/png', buffer: PNG })
+  const file = (await uploaded).postDataBuffer()
+  expect(file?.[0]).toBe(1)
+  expect(file?.includes('PNG')).toBe(false)
+  expect(file?.includes('JFIF')).toBe(false)
+  await ann.getByLabel('Describe the photo').fill('The plum tree')
+
   // ── Sealing says when it is collected and when it arrives ──────────────────
   await ann.getByRole('button', { name: 'Seal the letter' }).click()
   // Pickup is 5 pm in Chicago, where she lives, whatever zone the browser is in.
@@ -41,6 +59,7 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   await ann.getByRole('link', { name: 'Read your letter to Bob Tester' }).click()
   await expect(ann.getByText('This letter is sealed')).toBeVisible()
   await expect(ann.getByText(TEXT)).toBeVisible()
+  await expect(ann.getByRole('img', { name: 'The plum tree' })).toBeVisible()
   await expect(ann.getByLabel('Your letter')).toHaveCount(0)
 
   // ── Before pickup it can be recalled, changed and sealed again ─────────────
@@ -49,6 +68,7 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   await expect(ann.getByText(/^Draft, edited /)).toBeVisible()
   await ann.getByRole('link', { name: 'Continue' }).click()
   await expect(ann.getByLabel('Your letter')).toHaveValue(TEXT)
+  await expect(ann.getByLabel('Describe the photo')).toHaveValue('The plum tree')
   await ann.getByLabel('Your letter').fill(`${TEXT} Bring the dog.`)
   await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
   await ann.getByRole('button', { name: 'Seal the letter' }).click()
@@ -78,6 +98,7 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
     // ── He opens it on his own device and answers on a sheet below it ────────
     await bob.getByRole('link', { name: /From Ann Tester/ }).click()
     await expect(bob.getByText(`${TEXT} Bring the dog.`)).toBeVisible()
+    await expect(bob.getByRole('img', { name: 'The plum tree' })).toBeVisible()
     await bob.getByRole('link', { name: 'Reply' }).click()
     await expect(bob.getByText('You are replying to')).toBeVisible()
     await expect(bob.getByText(`${TEXT} Bring the dog.`)).toBeVisible()
