@@ -36,14 +36,15 @@ looks.
 
 ## Identity
 
-- **Personality:** plain, warm, unhurried
+- **Personality:** plain, warm, unhurried, with a twinkle
 - **References:** a letter on a kitchen table. reMarkable's light serif headline over a still
   surface; Papier's paper ground and warm ink; Stripe Press's warm dark; Are.na's narrow
   measure; Ente's privacy said once in plain words. See What we looked at.
 - **Audience:** families and close friends, a grandparent and a teenager on the same mantel.
   Mostly read on a phone. Some of it will be read eighteen years after it was written.
 - **Density:** comfortable and single-column. Generous vertical rhythm, a narrow measure.
-- **Motion:** minimal. Motion confirms, it never decorates.
+- **Motion:** alive at the edges, still at the centre. Things on a shelf lean, a clock keeps
+  time, a letter unfolds once. Nothing moves on the words someone wrote. See Play and Motion.
 - **Iconography:** Lucide (`i-lucide-*`), bundled locally via `@iconify-json/lucide`. Icons
   belong to navigation and controls. An icon never stands in front of a claim: no lock beside
   "encrypted", no shield, no badge.
@@ -55,9 +56,12 @@ looks.
 - Counts, unread badges, red dots, streaks, "last seen", read receipts, typing indicators,
   or anything else that reports on a person
 - Urgency: sale banners, countdowns, "don't miss", star ratings, testimonials, award laurels
-- Fake vintage: drawn stamps, wax seals, airmail stripes, torn edges, paper-grain images,
-  aged or sepia effects. Paper is a colour and a rule, not a costume
-- Twee: mascots, animal couriers, rounded "friendly" faces, pastel blobs, confetti, emoji as UI
+- Fake vintage: wax seals, airmail stripes, torn edges, paper-grain images, aged or sepia
+  effects. Paper is a colour and a rule, not a costume
+- Twee: a mascot that talks, waves or carries the post; animal couriers; rounded "friendly"
+  faces; pastel blobs; confetti; emoji as UI. The cat is asleep and stays asleep
+- Borrowed dress: another brand's colour blocks, sticker buttons, starbursts or marquees. Our
+  readers are mostly adults, and the palette is clay, ink and paper
 - Gradients as decoration, glassmorphism, or shadows used for style rather than elevation
 - More than one accent colour in a viewport
 - Faux-bold headings (the display face ships at weight 400 only: never `font-bold` on it)
@@ -169,6 +173,64 @@ same way everywhere: a small uppercase label in the mono face, then plain words.
   first visit. It is a line of text, not an alert box: the fact is permanent, so it should not
   look like a warning that will go away.
 - The two labels are told apart by their words. Colour never carries it.
+
+---
+
+## Play
+
+The product should feel like a house someone lives in, not a form someone fills in. Play is
+how: small drawings, things that move a little, and a few surprises that reward looking.
+
+**Play lives at the edges and never at the centre.** The centre is whatever someone wrote or is
+writing: a letter, a caption, a field. Nothing there moves, decorates or jokes. Around it, the
+house is alive.
+
+### The drawings
+
+Every drawing is printed in **two inks on paper**: clay and black. That is the whole palette,
+and it is what keeps them ours.
+
+| Token | Light | Dark | Used for |
+|---|---|---|---|
+| `--line` | `stone-800` | `stone-300` | The pen line, 1.5 units wide, round joins |
+| `--art-clay` | `clay-500` | `clay-400` | The solid ink: a pot, a postbox, the cat |
+| `--art-blush` | `clay-200` | `clay-900` | The same ink printed light |
+| `--art-paper` | sheet | sheet | Unprinted paper |
+| `--art-kraft`, `--art-cream` | the letter papers | the letter papers | A second paper stock |
+
+- Flat fills and one pen line. No gradients, shading, texture or perspective.
+- Objects of the house only: things that could stand on a mantel or a desk. No people, no
+  faces, no scenery.
+- They are components in `layers/post/app/components/Art/`, drawn as inline SVG so they take
+  the colour mode and cost no request. Each is `aria-hidden`: a drawing never carries meaning
+  that words on the page do not.
+
+| Drawing | Where | What it does |
+|---|---|---|
+| **Clock** | The mantel, the landing page | Tells the real time where the reader is. Its pendulum swings. |
+| **Candle** | The mantel | Lit only in dark mode: the lamps are on. |
+| **Plant** | The mantel | Its leaves move as if a window were open. |
+| **Cat** | The mantel when nothing is unopened; the error page | Asleep. Breathes; its tail flicks every six seconds. It carries nothing, says nothing and never wakes. |
+| **Stamp** | Every envelope | One of eight designs on one of three papers, at a slight tilt, worked out from the letter's id. Nothing is stored, and stamps are never counted or collected. |
+| **Postbox** | The desk, the send-off | Wiggles when a letter goes in. |
+| **Envelope** | The landing page, the send-off | Rides the rail down the page; takes its stamp. |
+| **Squiggle** | Under one word of the landing headline | Draws itself once. |
+
+### The little things
+
+- The clock is right. The candle knows it is dark.
+- An unopened envelope leans on the shelf, each at its own pace, and lifts when reached for.
+- A letter unfolds once when it is opened.
+- Sealing a letter ends with its stamp landing and the letter going into the postbox.
+- The place you are in hops as you arrive.
+- Room photos lie like prints, none quite straight; one straightens when reached for.
+- A pin lands on the map once. It never pulses: it is where someone said they are.
+- The who-can-read label is set like a rubber stamp, not quite straight.
+- Selected text is highlighted in blush.
+- A missing page says "Nothing was ever posted here", beside the postbox and the cat.
+
+A new little thing has to pass three tests: it is true to the house (a clock, not a rocket),
+it never delays or covers what someone came to do, and the page is complete without it.
 
 ---
 
@@ -423,19 +485,50 @@ sizes (`text-[13px]`).
 
 ## Motion
 
-- Duration `150ms` for state changes, `200ms` for entrances. Nothing slower.
-- Easing: `ease-out` entering, `ease-in` leaving.
-- Respect `prefers-reduced-motion`: all non-essential motion drops to zero duration.
-- No entrance animation on page content, and no animation on a letter: no envelope that
-  opens, no paper that unfolds, no confetti on sealing. Opening a letter is a page with the
-  letter on it. Skeletons over spinners for loads above 300ms.
+Two curves and a short list of things that move. Anything not on the list does not move.
+
+| Token | Value | Use |
+|---|---|---|
+| `--ease-spring` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | Something landing or being pressed: a slight overshoot |
+| `--ease-settle` | `cubic-bezier(0.2, 0.8, 0.2, 1)` | Something arriving and coming to rest |
+
+| What | When | How | Reduced motion |
+|---|---|---|---|
+| A control changes state | Hover, focus, toggle | 150ms `ease-out` | Kept |
+| **A button gives** | Pressed | Scale to 0.96, 120ms spring | Kept (it confirms) |
+| **An envelope leans** | Idle on the shelf | Still for four fifths of a 6.4s to 8.5s cycle, then a lean of 1.6° and back. Each keeps its own pace | Off |
+| **An envelope is reached for** | Hover | Lifts 4px and its flap eases open, 200ms spring | Kept |
+| **A letter unfolds** | Opened | The sheet is revealed from its top third, 520ms settle, once | Off |
+| **The send-off** | A letter is sealed | Envelope pops in, stamp lands at 350ms, letter drops into the postbox at 950ms, postbox wiggles. Two seconds, then the desk | Skipped entirely |
+| **The bar hops** | Arriving at a place | 5px up and back, 400ms spring | Off |
+| **Content rises** | Scrolled into view | 16px and a fade, linked to scrolling where the browser can; otherwise it is simply there | Off |
+| **The rail envelope** | Scrolling the landing page | Stuck to the middle of the window inside its rail, so scrolling carries it. No script | Kept (it is scrolling) |
+| **A print straightens** | Hover on a room photo | To 0° and up 4px, 200ms spring | Kept |
+| **A pin lands** | The map appears | Scale from 0.6, 420ms spring, 90ms apart, once | Off |
+| **The squiggle draws** | The landing headline appears | 700ms `ease-out`, once | Off |
+| Pendulum, leaves, flame, cat | Always | Loops of 1s to 7s, a few degrees | Off |
+
+- **Idle motion is slow and small.** A loop is at least a second long and moves a few degrees.
+  If it can be seen from across the room it is too much.
+- **One-shots are short.** Nothing a person waits through lasts longer than 520ms, except the
+  send-off, which is the one ceremony in the product and is still two seconds.
+- **Nothing moves on words.** No animated text, no typing effects, no counters.
+- **Motion never implies watching.** No pulsing dots, no "live" shimmer, no presence.
+- **Pages do not transition.** A page change is instant: a transition keeps the old page on
+  screen after the address has changed, and people (and tests) type into it.
+- **Scrolling belongs to the reader.** No scroll-jacking, no pinned sections, no parallax, no
+  smooth-scroll script. Things may respond to scrolling; they never take it over.
+- **Reduced motion is honoured in one place:** `main.css` zeroes every animation and
+  transition under `prefers-reduced-motion`, the scroll-linked reveal is wrapped in its own
+  query, and the send-off checks before it plays. A component never re-implements this.
+- Skeletons over spinners for loads above 300ms.
 
 ---
 
 ## Imagery
 
-- **Photographs of real things or nothing.** A letter on a table, a real mantel, a real
-  family. Until such photographs exist, pages carry none.
+- **Photographs of real things, or the house's own drawings** (see Play). A letter on a
+  table, a real mantel, a real family. Never stock, and never a drawing of a person.
 - **The product is its own picture.** Where a page needs to show what a letter is, it renders
   a real letter with the product's own paper component, not a mock-up or a screenshot.
 - **The map** is drawn by the server from public coastline data in ink and rule colours. It
@@ -453,11 +546,13 @@ sizes (`text-[13px]`).
 - **Sheet (`<LetterPaper>`):** the letter. Its chosen paper, a 1px rule, `px-6 py-8` growing to
   `px-10 py-12` from `sm`. Nothing else on the page competes with it: controls sit above or
   below, never over it.
-- **Envelope:** an unopened letter on the mantel. A sheet with its sender in the display
-  face, its postmark in mono, and a flap: one line in `primary` drawn from the top corners to
-  a point. The flap is the only "new" marker in the product. An opened letter has no flap.
-- **Shelf:** a 4px `bg-inverted` bar under the envelopes on `/mantel`. It is the mark's shelf
-  made real, and appears nowhere else. With nothing on it, it is still there.
+- **Envelope:** an unopened letter on the mantel. A sheet with a pen-line edge, its sender in
+  the display face, its postmark in mono, its stamp, and a flap: one line in `primary` drawn
+  from the top corners to a point. The flap is the only "new" marker in the product. An
+  opened letter has no flap.
+- **Shelf:** a `bg-inverted` bar on `/mantel` with the clock, the candle and the plant
+  standing on it, the envelopes between them, and the cat when there are none. It is the
+  mark's shelf made real.
 - **Postmark:** `font-mono text-xs uppercase tracking-wide text-muted`.
 - **Who can read this (`<WhoReads>`):** see its own section.
 
@@ -582,6 +677,8 @@ nav items, footer rows, buttons — don't need it.
 | Base type rules | `main.css` → `@layer base` |
 | Radius, container | `main.css` → `:root` → `--ui-radius`, `--ui-container` |
 | Component behavior | `app.config.ts` → per-component `slots` / `defaultVariants` |
+| Play › The drawings | `main.css` → `:root`/`.dark` → `--line`, `--art-*` |
+| Motion | `main.css` → `--ease-*`, `@keyframes`, `@utility play-*`, `.btn-give` |
 | Safe-area utilities | `main.css` → `@utility bottom-safe` / `right-safe` / `pb-safe` |
 | Touch-target floor | `main.css` → `@utility min-touch` |
 
@@ -622,6 +719,19 @@ and desktop width, and every page of our own. What we took, and what we refused:
 | Freewrite, Baron Fig | Texture from photographs of real things, never from CSS | — |
 | The Light Phone | Emptiness as pacing: one thing on the screen | — |
 | Tinybeans, HEY, Day One, Standard Notes | — | Pastel blobs and rounded faces; gradient headlines; award laurels; a 27-partner consent wall on a product about family privacy |
+
+A second pass looked at 22 playful products for what makes a page feel alive (Tin Can, Pok
+Pok, PostHog, Playdate, Toca Boca, Graza, Yoto, Tonies and others), reading their animation
+CSS for real numbers.
+
+| Looked at | Took | Refused |
+|---|---|---|
+| Tin Can | Things at rest that still move: charms that sway, each at its own pace | Its colour blocks, sticker buttons, starbursts and marquee. They are Tin Can's, and a child's |
+| PostHog, Oatly | The overshoot curve `cubic-bezier(0.34, 1.56, 0.64, 1)` for things that land; reduced motion handled everywhere | A mascot that roams the page; full-screen transitions |
+| Pok Pok, PostHog | A pen underline that draws itself; play at the edges of a calm reading surface | Characters, torn-paper section edges |
+| Toca Boca, Sago Mini | Idle motion that is rare: a short wiggle, then a long rest | Constant motion, and no reduced-motion handling at all |
+| Playdate, Graza, Mailchimp | — | Marquees, jelly squash-and-stretch |
+| Poolsuite | A clock on the page that tells the real time | The costume around it |
 
 Slowly and Field Notes blocked an automated browser and were not seen. No product was seen
 behind its sign-in.

@@ -12,7 +12,7 @@ defineProps<{
 
 <template>
   <article
-    class="rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
+    class="rounded-sm border border-default px-6 py-8 sm:px-10 sm:py-12"
     :class="stationeryClass(doc.stationery)"
   >
     <LetterRichText :doc="doc.content" />

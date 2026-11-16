@@ -197,6 +197,8 @@ async function prepareSeal() {
   confirming.value = Boolean(plan.value)
 }
 
+const sendOff = useSendOff()
+
 async function seal() {
   const key = contentKey
   if (!plan.value || !key) return
@@ -220,6 +222,7 @@ async function seal() {
         opensOn: plan.value.toMantel && opensOn.value ? opensOn.value : null,
       },
     })
+    await sendOff.play()
     await navigateTo('/desk')
   } catch (error) {
     failure.value = message(error, 'Could not seal the letter. Try again.')
@@ -241,6 +244,7 @@ useSeo({
 
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
+    <LetterSendOff v-if="sendOff.playing.value" />
     <h1 class="text-3xl text-highlighted">
       {{ plan ? `A letter to ${plan.recipientName}` : 'A letter' }}
     </h1>

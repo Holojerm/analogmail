@@ -22,13 +22,22 @@ defineProps<{ map: RoomMap }>()
         <path :d="map.borders" stroke-width="0.5" stroke-opacity="0.35" />
       </g>
 
-      <g v-for="point in map.points" :key="point.id" class="text-primary" data-testid="map-place">
+      <!-- A pin pushed into the map: it lands once and then stays put. It never
+           pulses, because this is where someone said they are, not where they
+           are being watched. -->
+      <g
+        v-for="(point, index) in map.points"
+        :key="point.id"
+        class="map-pin text-primary"
+        :style="{ animationDelay: `${200 + index * 90}ms` }"
+        data-testid="map-place"
+      >
         <circle
           :cx="point.x"
           :cy="point.y"
           :r="point.people > 1 ? 11 : 6"
           fill="currentColor"
-          stroke="var(--ui-bg)"
+          stroke="var(--line)"
           stroke-width="2"
         />
         <text
@@ -45,3 +54,11 @@ defineProps<{ map: RoomMap }>()
     </svg>
   </div>
 </template>
+
+<style scoped>
+.map-pin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pop 420ms var(--ease-spring) both;
+}
+</style>

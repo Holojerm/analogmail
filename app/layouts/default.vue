@@ -20,7 +20,7 @@ const signingIn = computed(() => route.path.startsWith('/auth/'))
 </script>
 
 <template>
-  <div class="flex min-h-dvh flex-col bg-default">
+  <div class="flex min-h-dvh flex-col overflow-x-clip bg-default">
     <!-- Skip link — WCAG 2.4.1. First focusable element on every page.
          Visually hidden until focused. -->
     <a

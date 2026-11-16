@@ -106,7 +106,10 @@ useSeo({
     </section>
 
     <section aria-labelledby="sent-heading" class="flex flex-col gap-3">
-      <h2 id="sent-heading" class="text-xl text-highlighted">Sent</h2>
+      <div class="flex items-end justify-between gap-4">
+        <h2 id="sent-heading" class="text-xl text-highlighted">Sent</h2>
+        <ArtPostbox class="h-14 play-wiggle-hover" />
+      </div>
       <p v-if="sent.length === 0" class="text-muted">Nothing sent yet.</p>
       <ul v-else class="flex flex-col divide-y divide-default">
         <li

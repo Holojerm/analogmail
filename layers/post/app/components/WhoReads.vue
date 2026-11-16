@@ -9,7 +9,10 @@ defineProps<{
 
 <template>
   <p class="text-sm text-muted">
-    <span class="mr-2 font-mono text-xs tracking-wide text-toned uppercase">
+    <!-- Set like a rubber stamp: boxed, and not quite straight. -->
+    <span
+      class="mr-2 inline-block -rotate-2 rounded-sm border border-current px-1 font-mono text-xs tracking-wide text-toned uppercase"
+    >
       {{ encrypted ? 'Encrypted' : 'Not encrypted' }}
     </span>
     <slot />

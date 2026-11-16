@@ -63,16 +63,19 @@ const promises = [
 const house = [
   {
     title: 'Your mantel',
+    art: resolveComponent('ArtClock'),
     description:
       'Where letters arrive. Unopened ones stand on the shelf until you take them down, and nothing tells the writer when you did.',
   },
   {
     title: "A child's mantel",
+    art: resolveComponent('ArtCandle'),
     description:
       'Letters written now and sealed for years. The people you choose keep its key until the day it opens.',
   },
   {
     title: 'The family room',
+    art: resolveComponent('ArtPlant'),
     description:
       'A place for the family’s photos and where everyone is, with a gazette on the first of each month. It is shared and not encrypted, and it says so.',
   },
@@ -110,89 +113,158 @@ useSeo({
 </script>
 
 <template>
-  <div class="flex flex-col gap-24 py-12 sm:py-16">
-    <section class="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
+  <div class="flex flex-col gap-20 pt-12 sm:gap-28 sm:pt-16">
+    <section class="mx-auto flex w-full max-w-3xl flex-col items-center gap-8 text-center">
       <h1 class="text-4xl text-highlighted sm:text-5xl">
-        Letters for family and friends, <em>slowly</em>
+        Letters for family and friends,
+        <span class="relative inline-block">
+          <em>slowly</em>
+          <ArtSquiggle class="absolute inset-x-0 -bottom-2" />
+        </span>
       </h1>
-      <p class="font-serif text-lg text-toned">
+      <p class="max-w-2xl font-serif text-lg text-toned">
         {{ config.public.appName }} is for writing to the people you already know, at the pace of
         the post. A letter takes days to arrive, so nobody has to answer quickly.
       </p>
       <UButton :to="loggedIn ? '/mantel' : '/auth/sign-up'" size="lg">
         {{ loggedIn ? 'Open your mantel' : 'Start writing' }}
       </UButton>
+
+      <!-- The mantel, with the post in. -->
+      <div class="mt-4 w-full max-w-2xl" aria-hidden="true">
+        <div class="relative flex items-end justify-between gap-2 px-3">
+          <ArtClock class="h-24 sm:h-40" />
+          <div class="flex items-end gap-2 pb-0.5">
+            <ArtEnvelope class="play-sway w-20 -rotate-3 sm:w-36" />
+            <ArtEnvelope class="play-sway -ml-6 w-20 sm:w-36" :style="{ '--pace': '8.5s' }" />
+          </div>
+          <ArtCat class="hidden h-16 sm:block" />
+          <ArtCandle class="h-20 sm:h-32" />
+          <ArtPlant class="h-24 sm:h-40" />
+        </div>
+        <div class="h-2 rounded-full bg-inverted" />
+      </div>
     </section>
 
-    <section aria-label="A letter" class="mx-auto flex w-full max-w-2xl flex-col gap-3">
-      <p class="font-mono text-xs tracking-wide text-muted uppercase">
-        Postmarked Monday · arrived Thursday
-      </p>
-      <LetterPaper :doc="specimen" />
+    <section aria-label="A letter" class="band bg-muted px-4 py-16 sm:py-24">
+      <div class="play-rise mx-auto flex w-full max-w-2xl flex-col gap-3">
+        <div class="flex items-end justify-between gap-4">
+          <p class="font-mono text-xs tracking-wide text-muted uppercase">
+            Postmarked Monday · arrived Thursday
+          </p>
+          <ArtStamp seed="plums" class="h-14 shrink-0" />
+        </div>
+        <LetterPaper :doc="specimen" />
+      </div>
     </section>
 
-    <section class="mx-auto flex w-full max-w-2xl flex-col gap-8">
-      <div>
-        <h2 class="text-3xl text-highlighted">How a letter travels</h2>
+    <section class="mx-auto flex w-full max-w-2xl flex-col gap-10">
+      <div class="play-rise">
+        <h2 class="text-3xl text-highlighted sm:text-4xl">How a letter travels</h2>
         <p class="mt-3 font-serif text-lg text-toned">
           The wait is the point. It is what makes a slow reply polite.
         </p>
       </div>
-      <ol class="flex flex-col divide-y divide-default border-y border-default">
-        <li v-for="(step, index) in steps" :key="step.title" class="flex gap-6 py-6">
-          <span class="w-6 shrink-0 font-display text-3xl text-primary" aria-hidden="true">
-            {{ index + 1 }}
-          </span>
-          <div class="flex flex-col gap-2">
+      <!-- The envelope on the rail is only stuck to the middle of the window,
+           so scrolling carries it from the desk to the mantel. No script. -->
+      <div class="grid grid-cols-[4rem_1fr] gap-x-4 sm:grid-cols-[6rem_1fr] sm:gap-x-8">
+        <div class="relative" aria-hidden="true">
+          <div class="absolute inset-y-4 left-1/2 border-l-2 border-dashed border-accented" />
+          <ArtEnvelope class="sticky top-1/2 z-10 w-full -rotate-6" />
+        </div>
+        <ol class="flex flex-col gap-10 sm:gap-16">
+          <li
+            v-for="(step, index) in steps"
+            :key="step.title"
+            class="play-rise flex flex-col gap-3 rounded-md border border-default bg-elevated p-6"
+          >
+            <div class="flex items-center justify-between gap-4">
+              <span class="font-display text-4xl text-primary" aria-hidden="true">
+                {{ index + 1 }}
+              </span>
+              <ArtPostbox v-if="index === 1" class="h-16" aria-hidden="true" />
+              <ArtClock v-else-if="index === 2" class="h-16" aria-hidden="true" />
+              <ArtStamp v-else seed="invite" class="h-14" />
+            </div>
             <h3 class="text-xl text-highlighted">{{ step.title }}</h3>
             <p class="text-default">{{ step.description }}</p>
-          </div>
-        </li>
-      </ol>
-    </section>
-
-    <section class="mx-auto flex w-full max-w-2xl flex-col gap-8">
-      <div>
-        <h2 class="text-3xl text-highlighted">What it leaves out</h2>
-        <p class="mt-3 font-serif text-lg text-toned">
-          No streaks, no nudges to write, nothing to keep up with.
-        </p>
+            <!-- The days going by between the postbox and the mantel. -->
+            <ul
+              v-if="index === 1"
+              class="mt-2 flex flex-wrap gap-2"
+              aria-label="The days it travels"
+            >
+              <li
+                v-for="(day, n) in ['Mon', 'Tue', 'Wed', 'Thu']"
+                :key="day"
+                class="rounded-sm border px-2 py-1 font-mono text-xs uppercase"
+                :class="
+                  n === 3
+                    ? 'border-(--line) bg-(--art-blush) text-highlighted'
+                    : 'border-default text-muted'
+                "
+              >
+                {{ day }}
+              </li>
+            </ul>
+          </li>
+        </ol>
       </div>
-      <dl class="grid gap-x-12 gap-y-8 sm:grid-cols-2">
-        <div v-for="promise in promises" :key="promise.title" class="flex flex-col gap-2">
-          <dt class="font-display text-xl text-highlighted">{{ promise.title }}</dt>
-          <dd class="text-default">{{ promise.description }}</dd>
-        </div>
-      </dl>
     </section>
 
-    <section class="mx-auto flex w-full max-w-2xl flex-col gap-8">
-      <div>
-        <h2 class="text-3xl text-highlighted">A house, not a feed</h2>
+    <section class="band bg-muted px-4 py-16 sm:py-24">
+      <div class="mx-auto flex w-full max-w-3xl flex-col gap-10">
+        <div class="play-rise">
+          <h2 class="text-3xl text-highlighted sm:text-4xl">What it leaves out</h2>
+          <p class="mt-3 font-serif text-lg text-default">
+            No streaks, no nudges to write, nothing to keep up with.
+          </p>
+        </div>
+        <dl class="grid gap-6 sm:grid-cols-2">
+          <div
+            v-for="promise in promises"
+            :key="promise.title"
+            class="play-rise flex flex-col gap-2 rounded-md border border-default bg-elevated p-6"
+          >
+            <dt class="font-display text-xl text-highlighted">{{ promise.title }}</dt>
+            <dd class="text-default">{{ promise.description }}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="mx-auto flex w-full max-w-3xl flex-col gap-10">
+      <div class="play-rise">
+        <h2 class="text-3xl text-highlighted sm:text-4xl">A house, not a feed</h2>
         <p class="mt-3 font-serif text-lg text-toned">
           Everything has a place, and each place says who can read what is in it.
         </p>
       </div>
-      <dl class="flex flex-col divide-y divide-default border-y border-default">
+      <dl class="grid gap-6 sm:grid-cols-3">
         <div
           v-for="place in house"
           :key="place.title"
-          class="grid gap-2 py-6 sm:grid-cols-3 sm:gap-6"
+          class="play-rise flex flex-col gap-3 rounded-md border border-default bg-elevated p-6"
         >
+          <component :is="place.art" class="h-16 self-start" />
           <dt class="font-display text-xl text-highlighted">{{ place.title }}</dt>
-          <dd class="text-default sm:col-span-2">{{ place.description }}</dd>
+          <dd class="text-default">{{ place.description }}</dd>
         </div>
       </dl>
     </section>
 
-    <section class="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
-      <h2 class="text-3xl text-highlighted">Write to someone</h2>
-      <p class="font-serif text-lg text-toned">
-        Writing to friends is free. The code is public, so what we say about privacy can be checked.
-      </p>
-      <UButton :to="loggedIn ? '/mantel' : '/auth/sign-up'" size="lg">
-        {{ loggedIn ? 'Open your mantel' : 'Start writing' }}
-      </UButton>
+    <section class="band bg-paper-cream px-4 py-16 sm:py-24">
+      <div class="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
+        <ArtPostbox class="play-rise h-28" />
+        <h2 class="text-3xl text-highlighted sm:text-4xl">Write to someone</h2>
+        <p class="font-serif text-lg text-default">
+          Writing to friends is free. The code is public, so what we say about privacy can be
+          checked.
+        </p>
+        <UButton :to="loggedIn ? '/mantel' : '/auth/sign-up'" size="lg">
+          {{ loggedIn ? 'Open your mantel' : 'Start writing' }}
+        </UButton>
+      </div>
     </section>
   </div>
 </template>
