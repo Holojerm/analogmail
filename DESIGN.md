@@ -1,48 +1,174 @@
 # DESIGN.md
 
-The visual design system for this app, in the portable [DESIGN.md](https://designmd.app/)
-format that Claude Code, Codex, Cursor, and friends read directly.
+How Dear Mantel looks, reads and is laid out, in the portable [DESIGN.md](https://designmd.app/)
+format that coding agents read directly.
 
 **This file is the source of truth.** `app/assets/css/main.css` and `app/app.config.ts` are
-*compiled from it* — run `/design-sync` after editing this file, never hand-edit the two
-generated files and expect them to survive. `bun run design:check` enforces that app code uses
-only the tokens declared here.
+*compiled from it*: run `/design-sync` after editing this file, and never hand-edit the two
+generated files. `bun run design:check` fails the build when app code goes around the tokens
+declared here. The brand mark works the same way one level out (see Brand mark).
 
-The brand mark works the same way one level out: `/logo-sync` writes
-`app/components/Brand/Logo.vue` from the Brand mark section below, `bun run brand:generate`
-derives the favicon, app icon, and share image from that component, and `bun run brand:check`
-fails the build when they fall out of sync.
+> **Scope:** visual design, the shape of the product (what lives where), and the words on the
+> screen. Product rules live in `AGENTS.md` and the plan; where this file and a product rule
+> disagree, the rule wins and this file is wrong.
 
-> **Scope note:** this file means *visual* design — color, type, space, motion, component
-> behavior. Architectural rationale and stack decisions live in `AGENTS.md`, not here.
+---
 
-> **Forking?** Replace everything below the Identity heading. The system described here is
-> "Quarry", the template's placeholder identity — it exists to prove the pipeline works, not
-> because your app should look like this. Drop in any DESIGN.md from
-> [designmd.app](https://designmd.app/) or
-> [awesome-claude-design](https://github.com/VoltAgent/awesome-claude-design), then run
-> `/design-sync`.
+## What this is a design for
+
+Dear Mantel is letters for family and friends that arrive on a postal rhythm. A letter takes
+days. A child's letters wait years. The family has a room for its photos and a monthly gazette.
+Letters are end-to-end encrypted; the family room is not, and says so.
+
+Six commitments run through every screen. A change that breaks one is wrong however good it
+looks.
+
+| The product promises | So the design |
+|---|---|
+| **Slowly.** Nobody has to answer quickly. | Shows no counts, badges, dots, streaks or "new" markers. Nothing moves to get attention. One action a screen. |
+| **Paper.** A letter is a thing someone made. | Treats the letter as the only object. Everything else is the table it lies on, and stays quiet. |
+| **Time said out loud.** The wait is the point. | Names days: "arrives Thursday", "opens 14 June 2044". Never "pending", "processing" or a spinner standing in for a date. |
+| **Who can read it.** Private by construction, and honest where it is not. | Says in one plain sentence, on the page, who can read what is on it. Encrypted and not encrypted look different. |
+| **A house, not a feed.** People you already know. | Names places, not features: mantel, desk, room. No discovery, no profile pages, no activity. |
+| **Kept.** A letter should open in twenty years. | Prefers what lasts: text over effects, system fallbacks for every face, copies people can save. |
 
 ---
 
 ## Identity
 
-- **Personality:** quarried, editorial, unhurried
-- **References:** Linear's density with Stripe Press's typography; printed field guides
-- **Audience:** people who read carefully and return daily
-- **Density:** comfortable — generous vertical rhythm, restrained horizontal padding
+- **Personality:** plain, warm, unhurried
+- **References:** a letter on a kitchen table. reMarkable's light serif headline over a still
+  surface; Papier's paper ground and warm ink; Stripe Press's warm dark; Are.na's narrow
+  measure; Ente's privacy said once in plain words. See What we looked at.
+- **Audience:** families and close friends, a grandparent and a teenager on the same mantel.
+  Mostly read on a phone. Some of it will be read eighteen years after it was written.
+- **Density:** comfortable and single-column. Generous vertical rhythm, a narrow measure.
 - **Motion:** minimal. Motion confirms, it never decorates.
-- **Iconography:** Lucide (`i-lucide-*`), bundled locally via `@iconify-json/lucide`. Line
-  icons at default weight — never emoji, never a second icon family.
-- **Color mode:** dual. Light is the primary design target; dark is a first-class equal.
+- **Iconography:** Lucide (`i-lucide-*`), bundled locally via `@iconify-json/lucide`. Icons
+  belong to navigation and controls. An icon never stands in front of a claim: no lock beside
+  "encrypted", no shield, no badge.
+- **Color mode:** dual. Light is paper by day and the primary design target. Dark is the same
+  table under a lamp: warm, never blue-grey, never pure black.
 
 ### Never
 
-- Gradients as decoration, glassmorphism, or drop shadows used for style rather than elevation
-- More than one accent color visible in a single viewport
-- Faux-bold headings (the display face ships at weight 400 only — never `font-bold` on it)
-- Pure black (`#000`) or pure white (`#fff`) as a surface color
-- Emoji as UI iconography
+- Counts, unread badges, red dots, streaks, "last seen", read receipts, typing indicators,
+  or anything else that reports on a person
+- Urgency: sale banners, countdowns, "don't miss", star ratings, testimonials, award laurels
+- Fake vintage: drawn stamps, wax seals, airmail stripes, torn edges, paper-grain images,
+  aged or sepia effects. Paper is a colour and a rule, not a costume
+- Twee: mascots, animal couriers, rounded "friendly" faces, pastel blobs, confetti, emoji as UI
+- Gradients as decoration, glassmorphism, or shadows used for style rather than elevation
+- More than one accent colour in a viewport
+- Faux-bold headings (the display face ships at weight 400 only: never `font-bold` on it)
+- Pure black (`#000`) or pure white (`#fff`) as a surface colour
+- Stock photography, or an illustration where a photograph of a real thing belongs
+
+---
+
+## The house
+
+The product is one house. Every page is in one of four places, and the same four are the
+whole of the navigation.
+
+| Place | Path | What is there |
+|---|---|---|
+| **Mantel** | `/mantel` | What has arrived for you. Unopened letters stand on the shelf; opened ones are filed below it. The mantels you keep for someone else are listed here too. |
+| **Desk** | `/desk`, `/write` | What you are writing and what you have posted. |
+| **People** | `/people`, `/family/<id>` | Who you write with, your families, and invitations. |
+| **Room** | `/rooms`, `/room/<family>/…` | A family's shared room: photos, where everyone is, the gazette. |
+
+Everything else is upkeep and lives in the menu: **Your post** (mail days, hour, city),
+**Mantels you keep**, **Keep a copy**, **Account**, light or dark, **Sign out**.
+
+### Navigation
+
+- **One navigation.** The four places, in that order, with those names. A page never carries
+  a second row of the same links.
+- **From `sm` up** the places sit inline in the header. **Below `sm`** they are a bar pinned
+  to the bottom of the screen, a word under each icon, because that is where a thumb is.
+- **The menu** is one button at the right of the header at every width. Signed out, the
+  header holds the mark and "Sign in", and nothing else.
+- **A place may have parts.** The room has three (Photos, Where everyone is, Gazette). Parts
+  are a row of text links under the page title, never a second bar.
+- **Writing is quiet.** On `/write` and the guest's writing page the phone bar is hidden:
+  the page is the paper, and the keyboard needs the room.
+- **The mark goes home:** to the mantel when signed in, to the landing page when not.
+- **The footer is one quiet line** on every page: legal links, support, feedback. No floating
+  buttons: nothing sits on top of what someone is reading.
+- Never let the header wrap to two lines or scroll sideways.
+
+### Page shape
+
+- One column. `max-w-2xl` where something is read or written (a letter, the gazette, legal
+  pages), `max-w-xl` for lists and forms, `max-w-3xl` for the room's photo grid.
+- The page title is the first thing in `main`: one `h1` in the display face, then at most one
+  sentence saying what the place is for.
+- One primary button per view. Everything else is outline, ghost or a link.
+
+---
+
+## Voice
+
+The words are part of the design. Most of what makes this product feel slow is how it talks.
+
+- **Say what happens, and when.** "It will be collected on Monday at 5:00 PM and arrives
+  Thursday." Not "Your letter is on its way!"
+- **Short declarative sentences.** No exclamation marks. No "we're excited", "oops", "hooray".
+  No second-guessing the reader's feelings.
+- **Name the limit.** "We send one email with your name and a link. It carries no letter and
+  no note." People trust a product that says what it will not do.
+- **Say who sees it** wherever something is shared (see Who can read this).
+- **Buttons are verbs with their object:** "Seal the letter", "Save days and hour", "Leave
+  The Lees". Never "Submit", "OK", "Continue" on its own.
+- **Empty states are one plain sentence** and at most one action: "Nothing has arrived yet."
+  They never coax ("Why not write to someone?").
+- **Errors say what to do next** in the same voice: "That did not work. Try again."
+
+### Words we use
+
+| Say | Never |
+|---|---|
+| mantel ("your mantel", "Leo's mantel") | inbox, mailbox, feed |
+| letter | message, post, note, DM |
+| seal, post, collected, postmarked, arrives | send, deliver instantly, sent ✓ |
+| unopened | unread, new |
+| people you write with | friends list, contacts, followers |
+| family, family room | group, team, workspace, channel |
+| keeper (of a child's mantel) | admin, owner, manager |
+| encrypted / not encrypted | secure, safe, protected, military-grade |
+| keep a copy | export, download your data, backup |
+
+"Sealed" means posted and final, or held until a date. It is never used to mean encrypted.
+
+### Time
+
+- A day is written as the reader's locale writes it, always with its weekday when it is
+  within a week or two: "Thursday 19 November". A date years away always carries its year:
+  "14 June 2044". Never a relative time ("in 3 days", "2h ago") and never a bare timestamp.
+- An hour is only shown where the post has one: pickup at 5 pm, delivery at the hour chosen.
+- A postmark is set in the mono face, small and uppercase. It is the one place a date is
+  styled, because it is the one date that is stamped on something.
+
+---
+
+## Who can read this
+
+Every page that shows something a person made says who can read it, in one sentence, set the
+same way everywhere: a small uppercase label in the mono face, then plain words.
+
+| Label | Used for | Reads like |
+|---|---|---|
+| `Encrypted` | A letter, a draft, a kept mantel | "Encrypted. Only you and Ann can read this letter." |
+| `Not encrypted` | The family room and everything in it | "Not encrypted. Everyone in The Lees sees this room, and we could read it. Your letters stay encrypted." |
+
+- It is the `<WhoReads>` component. Do not restyle it per page, and do not replace it with an
+  icon, a badge or a tooltip.
+- It appears once on a page, near what it describes, at `text-sm`.
+- The not-encrypted line is never softened, shortened to a label alone, or hidden after a
+  first visit. It is a line of text, not an alert box: the fact is permanent, so it should not
+  look like a warning that will go away.
+- The two labels are told apart by their words. Colour never carries it.
 
 ---
 
@@ -128,7 +254,8 @@ the same shades the app does, so a failure reads as `error` in the inbox too.
 
 ### Primary ramp — `clay`
 
-A warm earth red. Confident at 600, quiet at 100.
+A warm brick red, the colour of the mark. It is the only accent: the one primary action on a
+screen, a link, and the flap of an unopened letter.
 
 | Shade | Hex | Shade | Hex |
 |---|---|---|---|
@@ -143,50 +270,83 @@ A warm earth red. Confident at 600, quiet at 100.
 
 | Role | Color | Use |
 |---|---|---|
-| `primary` | `clay` | CTAs, active nav, focus rings, links |
-| `secondary` | `stone` | Secondary actions — deliberately not a second hue |
-| `neutral` | `stone` | Text, borders, surfaces |
+| `primary` | `clay` | The primary action, links, focus rings, an unopened letter |
+| `secondary` | `stone` | Secondary actions. Deliberately not a second hue |
+| `neutral` | `stone` | Ink and rules |
 | `success` | `emerald` | Confirmations |
 | `info` | `sky` | Neutral notices |
 | `warning` | `amber` | Reversible risk |
 | `error` | `rose` | Failure, destructive actions |
 
-Semantic colors resolve one to three steps darker than NuxtUI's 500 default in light mode,
-and to **400** in dark. This is not taste — NuxtUI's defaults fail WCAG AA in light mode in
-both directions that matter, as text on their own 10% tint (`subtle` alerts and badges) and
-as white text on the solid fill (`solid` buttons):
+Status colours are for status. A page with nothing wrong on it shows clay and ink only.
 
-| Role | Light shade | Text on tint | White on solid |
+### Surfaces — paper
+
+The page is not white. It is the colour of the table, and paper lying on it is lighter.
+
+| Name | Light | Dark | Token | What it is |
+|---|---|---|---|---|
+| **ground** | `#f6f2ea` | `stone-900` | `bg-default` | The table. Every page. |
+| **sheet** | `#fdfbf6` | `stone-800` | `bg-elevated` | A piece of paper: a letter, an envelope, a card, a dialog, a menu. |
+| **well** | `#efe9de` | `#23201d` | `bg-muted` | Set into the table: a banded section, a quiet panel. |
+| **pressed** | `#e6dfd2` | `stone-700` | `bg-accented` | Hover and pressed states on a surface. |
+| **rule** | `#ded6c7` | `stone-800` | `border-default` | Hairlines and the edge of a sheet. |
+| **strong rule** | `#cfc6b4` | `stone-700` | `border-accented` | The edge of a field or an outline button. |
+| **shelf** | `stone-900` | `#fff` | `bg-inverted` | The mantel's shelf, and nothing else. |
+
+A sheet is told from the ground by being lighter and by its one-pixel rule. It never has a
+shadow: paper on a table does not float.
+
+### Ink
+
+| Intent | Token | Light | Dark |
 |---|---|---|---|
-| `primary` | 600 | 4.04 ✗ | 4.58 ✓ |
-| `secondary` | 600 | 6.48 ✓ | 7.64 ✓ |
-| `success` | 700 | 4.66 ✓ | 5.36 ✓ |
-| `info` | 700 | 5.08 ✓ | 5.86 ✓ |
-| `warning` | 800 | 6.06 ✓ | 7.09 ✓ |
-| `error` | 700 | 5.19 ✓ | 6.03 ✓ |
+| Headings, a letter's black ink | `text-highlighted` | `stone-900` | `#fff` |
+| Body copy | `text-default` | `stone-800` | `stone-200` |
+| Emphasised secondary | `text-toned` | `stone-700` | `stone-300` |
+| Secondary, captions, hints | `text-muted` | `stone-600` | `stone-400` |
+| Placeholders, disabled | `text-dimmed` | `stone-500` | `stone-500` |
 
-`primary` stays at 600 because it is the brand accent rather than a status color, and 600
-clears AA for its real uses. It is the one exception in the table: **never pair
-`color="primary"` with `variant="subtle"`** — clay-600 on a clay tint is 4.04:1. Use `solid`.
+Ink runs one step darker than NuxtUI's defaults in light mode because the ground is tinted:
+`stone-500` on the ground is 4.30:1, under AA. `stone-600` is 6.83:1 on the ground and 6.31:1
+in a well. Use the semantic utility, never a numbered scale: `text-stone-600` is a build failure.
 
-Warning needs 800 specifically; amber-700 reaches only 4.39:1 on its tint.
+### Semantic shades
 
-### Surface and text rules
+Light mode runs each role dark enough to pass WCAG AA three ways on paper: as text on the
+ground, as text on its own 10% tint (`subtle` alerts and badges), and as white text on the
+solid fill. Dark mode uses **400** throughout.
 
-Use the semantic utility, never a numbered scale. `text-gray-900` is a build failure.
+| Role | Light shade | Text on ground | Text on tint | White on solid |
+|---|---|---|---|---|
+| `primary` | 700 | 5.64 | 4.88 | 6.30 |
+| `secondary` | 600 | 6.83 | 5.91 | 7.63 |
+| `success` | 800 | 6.88 | 5.89 | 7.68 |
+| `info` | 800 | 6.77 | 5.82 | 7.56 |
+| `warning` | 800 | 6.35 | 5.46 | 7.09 |
+| `error` | 800 | 7.18 | 6.04 | 8.02 |
 
-| Intent | Token |
-|---|---|
-| Page background | `bg-default` |
-| Sectioned / subtle background | `bg-muted` |
-| Cards, modals, popovers | `bg-elevated` |
-| Hover state on a surface | `bg-accented` |
-| Body copy | `text-default` |
-| Headings | `text-highlighted` |
-| Secondary / captions | `text-muted` |
-| Placeholders, disabled | `text-dimmed` |
-| Default border | `border-default` |
-| Emphasized border | `border-accented` |
+`clay-600`, the shade of the mark, is 4.10:1 as text on the ground. That is why links and
+buttons use 700 and the mark, which is a shape and not text, keeps 600 in its generated files.
+
+### Letter paper and ink
+
+A letter's paper and ink are chosen by its writer and are part of the encrypted letter. They
+are tokens like everything else, so a letter reads correctly in both colour modes.
+
+| Paper | Stored as | Light | Dark | Utility |
+|---|---|---|---|---|
+| Plain | `plain` | sheet `#fdfbf6` | `stone-800` | `bg-elevated` |
+| Cream | `soft` | `#f7edd8` | `#2f2a21` | `bg-paper-cream` |
+| Brown | `card` | `#e3d5bb` | `#3a3226` | `bg-paper-kraft` |
+
+| Ink | Stored as | Light | Dark | Utility | Lowest contrast (on brown) |
+|---|---|---|---|---|---|
+| Black | `black` | `stone-900` | `#fff` | `text-highlighted` | 12.08 |
+| Coloured | `accent` | `clay-800` | `clay-300` | `text-ink-colour` | 5.58 |
+| Faded | `faded` | `stone-600` | `stone-400` | `text-muted` | 5.00 |
+
+Coloured ink is `clay-800`, not the primary shade: `clay-700` is 4.35:1 on brown.
 
 ---
 
@@ -196,18 +356,22 @@ Use the semantic utility, never a numbered scale. `text-gray-900` is a build fai
 
 | Token | Family | Use |
 |---|---|---|
-| `font-display` | Instrument Serif, 400 only | `h1`–`h3`, pull quotes, numerals in stat tiles |
-| `font-sans` | Inter | Body, UI, labels, everything else |
-| `font-mono` | JetBrains Mono | Code, IDs, keyboard keys, tabular data |
+| `font-display` | Instrument Serif, 400 only | `h1`–`h3`, the wordmark, large numerals |
+| `font-serif` | Lora, 400 and 700 with italics | Anything written to be read: a page's opening sentence, the gazette, captions people wrote, legal pages, a letter's default face |
+| `font-sans` | Inter | Controls, labels, navigation, hints, tables |
+| `font-mono` | JetBrains Mono | Postmarks, the who-can-read label, recovery codes, key fingerprints |
+
+One rule sorts every piece of text: **if a person will read it as prose, it is in a serif; if
+they will press it or fill it in, it is in the sans.**
 
 Headings are set in the display serif at weight 400 with `-0.02em` tracking. The size does the
-work, not the weight.
+work, not the weight. Emphasis inside a heading is italic, one word at most.
 
 ### Letter faces
 
-A letter's paper is the one surface that does not use the three families above. The writer
-picks a face, and it is part of the encrypted letter. These faces appear on the paper of a
-letter (writing, reading, and later print) and nowhere else in the interface.
+A letter's paper is the one surface where the writer picks the face, and it is part of the
+encrypted letter. These faces appear on the paper of a letter (writing, reading, and later
+print) and nowhere else in the interface.
 
 | Choice | Family | Licence |
 |---|---|---|
@@ -222,7 +386,7 @@ They are declared in `layers/letters/app/assets/css/letter.css` and
 `layers/letters/nuxt.config.ts`, and self-hosted like the rest. The paper is also the one
 place faux bold and italic are allowed (`font-synthesis`), because a handwriting face has one
 weight and a writer who marks a word bold must see it. Headings inside a letter are sized in
-`em` so they scale with the chosen face. Ink and paper colours still come from the token layer.
+`em` so they scale with the chosen face.
 
 ### Scale
 
@@ -238,20 +402,22 @@ weight and a writer who marks a word bold must see it. Headings inside a letter 
 | `text-4xl` | 3rem | 1.1 |
 | `text-5xl` | 3.75rem | 1.05 |
 
-Body copy runs at `text-base` with a 1.65 line height — looser than Tailwind's default,
-because this system is for reading. Never set arbitrary sizes (`text-[13px]`).
+Body copy runs at `text-base` with a 1.65 line height, looser than Tailwind's default, because
+this is a product for reading. Prose in `font-serif` runs at `text-lg`. Never set arbitrary
+sizes (`text-[13px]`).
 
 ---
 
 ## Space, shape, elevation
 
-- **Spacing:** standard Tailwind scale only — 1, 2, 3, 4, 6, 8, 12, 16, 24. No invented values.
-- **Container:** `72rem` max width (`--ui-container`), narrower than the 80rem default. Use
-  `<UContainer>` for page shells — it reads this variable; a hardcoded `max-w-*` will not.
-- **Radius:** `0.25rem` base (`--ui-radius`). Tight. Nothing is a pill except avatars and badges.
-- **Borders:** 1px, `border-default`. Structure comes from borders and spacing, not shadows.
-- **Elevation:** dark mode elevates with lighter surfaces (`bg-elevated`), never shadows.
-  Light mode may use at most `shadow-sm` on genuinely floating elements (popover, dropdown).
+- **Spacing:** standard Tailwind scale only: 1, 2, 3, 4, 6, 8, 12, 16, 24. No invented values.
+- **Container:** `72rem` max width (`--ui-container`). Use `<UContainer>` for page shells; the
+  page inside it sets its own column (see The house › Page shape).
+- **Radius:** `0.25rem` base (`--ui-radius`). Paper has square-ish corners. Nothing is a pill
+  except avatars and badges.
+- **Borders:** 1px, `border-default`. Structure comes from rules and spacing.
+- **Elevation:** none on paper. Light mode may use `shadow-sm` only on something that really
+  floats over the page (a menu, a popover). Dark mode elevates with lighter surfaces.
 
 ---
 
@@ -259,34 +425,62 @@ because this system is for reading. Never set arbitrary sizes (`text-[13px]`).
 
 - Duration `150ms` for state changes, `200ms` for entrances. Nothing slower.
 - Easing: `ease-out` entering, `ease-in` leaving.
-- Respect `prefers-reduced-motion` — all non-essential motion drops to zero duration.
-- No entrance animation on page content. Skeletons over spinners for loads above 300ms.
+- Respect `prefers-reduced-motion`: all non-essential motion drops to zero duration.
+- No entrance animation on page content, and no animation on a letter: no envelope that
+  opens, no paper that unfolds, no confetti on sealing. Opening a letter is a page with the
+  letter on it. Skeletons over spinners for loads above 300ms.
+
+---
+
+## Imagery
+
+- **Photographs of real things or nothing.** A letter on a table, a real mantel, a real
+  family. Until such photographs exist, pages carry none.
+- **The product is its own picture.** Where a page needs to show what a letter is, it renders
+  a real letter with the product's own paper component, not a mock-up or a screenshot.
+- **The map** is drawn by the server from public coastline data in ink and rule colours. It
+  shows cities people said. It is not a live map and never looks like one: no pins that
+  bounce, no avatars, no routes.
+- **Family photos** are shown as they are: square-cropped in a grid, whole when opened. No
+  filters, frames, tilts or polaroid borders.
 
 ---
 
 ## Component behavior
 
-- **Buttons:** NuxtUI defaults already carry `font-medium` and derive radius from `--ui-radius`
-  — no override needed. Primary = solid clay, secondary = outline neutral, destructive = solid
-  error. One primary button per view.
-- **Cards:** NuxtUI `subtle` variant — elevated surface, hairline ring, no shadow. Padding
-  stays on the component default (`p-4`, `p-6` from `sm`), which is already mobile-first.
-- **Inputs:** 1px border, `bg-default`. Focus shows a 2px primary ring, never a glow.
+### The objects
+
+- **Sheet (`<LetterPaper>`):** the letter. Its chosen paper, a 1px rule, `px-6 py-8` growing to
+  `px-10 py-12` from `sm`. Nothing else on the page competes with it: controls sit above or
+  below, never over it.
+- **Envelope:** an unopened letter on the mantel. A sheet with its sender in the display
+  face, its postmark in mono, and a flap: one line in `primary` drawn from the top corners to
+  a point. The flap is the only "new" marker in the product. An opened letter has no flap.
+- **Shelf:** a 4px `bg-inverted` bar under the envelopes on `/mantel`. It is the mark's shelf
+  made real, and appears nowhere else. With nothing on it, it is still there.
+- **Postmark:** `font-mono text-xs uppercase tracking-wide text-muted`.
+- **Who can read this (`<WhoReads>`):** see its own section.
+
+### NuxtUI components
+
+- **Buttons:** primary = solid clay, secondary = outline neutral, destructive = solid error.
+  One primary button per view. NuxtUI's defaults carry weight and radius.
+- **Cards:** NuxtUI `subtle` variant: a sheet with a hairline ring and no shadow.
+- **Inputs:** 1px `border-accented`, filled with the ground colour, so a field on a sheet
+  reads as set into it. Focus shows a 2px primary ring, never a glow.
+- **Alerts:** for something that happened or needs doing. Never for a standing fact about the
+  product (that is prose, or `<WhoReads>`).
+- **Badges:** for a state a person must act on ("Invited", "Returned"). Never a count.
+- **Toasts:** only to confirm an action the page cannot show another way. Never for
+  announcements.
 - **Focus:** every interactive element has a visible focus-visible ring. Never `outline: none`
   without a replacement.
-- **Navigation:** inline links from `sm` up; below that they collapse into a right-side
-  `USlideover` behind an `i-lucide-menu` trigger. Drawer rows are `size="lg"` and
-  `block`, left-aligned — full-width rows are the easiest thing on a screen to hit. The
-  drawer closes on route change, not on click, so redirects close it too. Never let the
-  header wrap to two lines or scroll sideways.
 - **Links:** inline prose links are `text-primary` **and** underlined (see Accessibility ›
   Contrast). Standalone links in navigation or footers are colour-only by design.
-- **Long-form content:** markdown (the blog, `content/`) renders through NuxtUI's `Prose*`
-  components, which already read the token layer. Two of their defaults contradict this file
-  and are overridden in `app.config.ts` under `ui.prose`: `h1`–`h3` drop `font-bold`, and
-  inline links get a real `underline` instead of a hover-only bottom border. Measure is
-  `max-w-2xl` — a reading column, not the full container.
-- **Empty states:** one line of `text-muted` explanation plus one action. No illustrations.
+- **Long-form content:** markdown renders through NuxtUI's `Prose*` components. Two of their
+  defaults contradict this file and are overridden in `app.config.ts` under `ui.prose`:
+  `h1`–`h3` drop `font-bold`, and inline links get a real `underline`. Measure is `max-w-2xl`.
+- **Empty states:** one sentence of `text-muted` plus at most one action. No illustrations.
 - **Tables:** `font-mono` for numeric columns, right-aligned. Row separators, not zebra striping.
 
 ---
@@ -380,14 +574,20 @@ nav items, footer rows, buttons — don't need it.
 |---|---|
 | Primary ramp | `main.css` → `@theme static` → `--color-clay-*` (all 11 shades required) |
 | Semantic assignments | `app.config.ts` → `ui.colors` |
-| Primary shade choice | `main.css` → `:root`/`.dark` → `--ui-primary` |
+| Semantic shades | `main.css` → `:root`/`.dark` → `--ui-primary` … `--ui-error` |
+| Surfaces — paper | `main.css` → `:root`/`.dark` → `--paper-*`, then `--ui-bg*` and `--ui-border*` |
+| Ink | `main.css` → `:root`/`.dark` → `--ui-text*` |
+| Letter paper and ink | `main.css` → `@utility bg-paper-cream`, `bg-paper-kraft`, `text-ink-colour` |
 | Families + scale | `main.css` → `@theme static` → `--font-*`, `--text-*` |
 | Base type rules | `main.css` → `@layer base` |
 | Radius, container | `main.css` → `:root` → `--ui-radius`, `--ui-container` |
 | Component behavior | `app.config.ts` → per-component `slots` / `defaultVariants` |
-| Safe-area utilities | `main.css` → `@utility bottom-safe` / `right-safe` |
+| Safe-area utilities | `main.css` → `@utility bottom-safe` / `right-safe` / `pb-safe` |
 | Touch-target floor | `main.css` → `@utility min-touch` |
-| Semantic shade choices | `main.css` → `:root`/`.dark` → `--ui-primary` … `--ui-error` |
+
+NuxtUI declares its surface and ink variables inside `@layer theme`, and `main.css` sets them
+unlayered, so both `:root` and `.dark` must state every one: a value given only for `:root`
+would win over NuxtUI's own dark value and put paper on a dark page.
 
 The Brand mark section compiles through a second, smaller pipeline of its own:
 
@@ -396,10 +596,36 @@ The Brand mark section compiles through a second, smaller pipeline of its own:
 | Brand mark › Construction | `app/components/Brand/Logo.vue` | `/logo-sync` |
 | Brand mark › Color roles | `public/favicon.svg`, `apple-touch-icon.png`, `og.png` | `bun run brand:generate` |
 
-Two Accessibility rules land outside the generated files, because no CSS variable can
-express them: `<html lang>` and `viewport-fit=cover` live in `app.head` in
-`nuxt.config.ts`, and the skip link lives in `app/layouts/default.vue`. `/design-sync`
-does not own those three — leave them alone.
+What no stylesheet can express lives in three places `/design-sync` does not own:
+`<html lang>` and `viewport-fit=cover` in `app.head` in `nuxt.config.ts`; the shell (skip
+link, header, the places, the footer) in `app/layouts/default.vue` with its parts in
+`layers/post/app/components/House/`; and `<WhoReads>` in `layers/post/app/components/`.
 
-Verify the result at `/design-system` in dev — every token and component state on one page,
+Verify the result at `/design-system` in dev: every token and component state on one page,
 in both color modes.
+
+---
+
+## What we looked at
+
+In November 2026 we photographed the marketing pages of 25 analog and slow products at phone
+and desktop width, and every page of our own. What we took, and what we refused:
+
+| Looked at | Took | Refused |
+|---|---|---|
+| reMarkable, Storyworth, Aura | A light serif for headlines; one serif for what is read, sans only for controls | Sale banners, review stars, emoji |
+| Papier, Letterloop | A warm paper ground (`#FAF7F0` to `#F3EEE7`) with warm near-black ink; one accent | Discount tiles, "loved by 300k" social proof |
+| Stripe Press | A warm near-black dark mode; the object as the whole interface | Phone layouts that crop the object |
+| Are.na, iA Writer | A narrow measure, the real product as the hero, a bottom bar on a phone | Soft drop shadows on the specimen |
+| Ente, Signal | Privacy stated once in plain words | Lock icons, shields, "military-grade" |
+| FutureMe, Postcrossing | Time given as plain intervals and honest states ("traveling") | Cobalt-and-gradient SaaS dress, stamp-and-airmail costume |
+| Freewrite, Baron Fig | Texture from photographs of real things, never from CSS | — |
+| The Light Phone | Emptiness as pacing: one thing on the screen | — |
+| Tinybeans, HEY, Day One, Standard Notes | — | Pastel blobs and rounded faces; gradient headlines; award laurels; a 27-partner consent wall on a product about family privacy |
+
+Slowly and Field Notes blocked an automated browser and were not seen. No product was seen
+behind its sign-in.
+
+The same pass over Dear Mantel found it wearing the template's placeholder identity on a white
+page, three separate navigations, a floating button over the text on every phone page, and
+the mantel drawn as a list of grey boxes. This file is the answer to that.

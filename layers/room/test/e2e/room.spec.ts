@@ -39,7 +39,9 @@ test('a family room: photos added, shared, and closed to those who leave', async
   // ── Ann adds a photo: what is sent is a JPEG the browser redrew ────────────
   await ann.getByRole('link', { name: 'The family room' }).click()
   await ann.waitForURL(`**/room/${familyId}`)
-  await expect(ann.getByText('The family room is not encrypted like your letters')).toBeVisible()
+  await expect(
+    ann.getByText('Everyone in the family sees this room, and we could read what is in it.'),
+  ).toBeVisible()
   await expect(ann.getByText('No photos here yet.')).toBeVisible()
   const uploaded = ann.waitForResponse(
     (response) =>
@@ -76,8 +78,9 @@ test('a family room: photos added, shared, and closed to those who leave', async
   await expect(ann.getByRole('button', { name: 'Open photo: The plum tree' })).toBeVisible()
 
   // ── Bob sees it and cannot change it ───────────────────────────────────────
-  await open(bob, '/rooms')
-  await bob.getByRole('link', { name: 'Open the room of The Roomers' }).click()
+  // He is in one family, so "Room" opens its room.
+  await bob.getByRole('link', { name: 'Room', exact: true }).click()
+  await bob.waitForURL(`**/room/${familyId}`)
   await bob.getByRole('button', { name: 'Open photo: The plum tree' }).click()
   await expect(bob.getByRole('img', { name: 'The plum tree' })).toBeVisible()
   await expect(bob.getByLabel('Caption')).toHaveCount(0)

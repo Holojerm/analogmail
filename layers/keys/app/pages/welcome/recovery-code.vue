@@ -22,10 +22,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">Your recovery code</h1>
-      <p class="mt-2 text-muted">
+      <p class="mt-2 font-serif text-lg text-toned">
         Your letters are locked with a key only you hold. If you forget your password, we can let
         you back into your account by email, but only this code can open your letters again.
       </p>

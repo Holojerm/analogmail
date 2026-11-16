@@ -117,8 +117,7 @@ useSeo({ title: 'A family', description: 'A family you write with.', noindex: tr
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-xl flex-col gap-8 py-8 sm:py-12">
     <h1 class="text-3xl text-highlighted">{{ family ? family.name : 'A family' }}</h1>
 
     <p v-if="loading" class="text-muted" role="status">Opening…</p>

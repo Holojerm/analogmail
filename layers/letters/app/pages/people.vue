@@ -93,11 +93,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-xl flex-col gap-8 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">People you write with</h1>
-      <p class="mt-2 text-muted">
+      <p class="mt-2 font-serif text-lg text-toned">
         Letters go between people who have agreed to write this way. Invite someone, and once they
         accept you can write to each other.
       </p>
@@ -193,7 +192,16 @@ useSeo({
             icon="i-lucide-circle-alert"
             :description="failure"
           />
-          <UButton type="submit" :loading="pending" class="self-start">Send invitation</UButton>
+          <!-- The page's one primary action is "Write", once there is someone to write to. -->
+          <UButton
+            type="submit"
+            :color="people.length ? 'neutral' : 'primary'"
+            :variant="people.length ? 'outline' : 'solid'"
+            :loading="pending"
+            class="self-start"
+          >
+            Send invitation
+          </UButton>
         </form>
       </UCard>
 

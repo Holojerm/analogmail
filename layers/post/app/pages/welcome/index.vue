@@ -88,10 +88,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">Where your mail arrives</h1>
-      <p class="mt-2 text-muted">
+      <p class="mt-2 font-serif text-lg text-toned">
         Letters take longer the farther they travel, and arrive in the morning where you are. We
         keep the city, never your location.
       </p>

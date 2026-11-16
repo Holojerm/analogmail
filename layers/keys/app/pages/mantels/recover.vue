@@ -55,11 +55,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">Use a mantel's recovery code</h1>
-      <p class="mt-2 text-muted">
+      <p class="mt-2 font-serif text-lg text-toned">
         The code printed when a mantel was opened. It opens the mantel's key on this device and is
         not sent to us.
       </p>

@@ -154,9 +154,7 @@ useSeo({ title: 'Family room', description: "A family's shared photos.", noindex
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-12">
-    <LetterNav />
-
+  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-8 sm:py-12">
     <UAlert
       v-if="error || !family"
       color="error"

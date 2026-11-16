@@ -69,9 +69,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-12">
-    <LetterNav />
-
+  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-8 sm:py-12">
     <UAlert
       v-if="error || !room"
       color="error"
@@ -86,8 +84,9 @@ useSeo({
         <h1 class="text-3xl text-highlighted">Keep a copy</h1>
       </header>
       <RoomTabs :family-id="familyId" />
+      <RoomNotice />
 
-      <p class="text-muted">
+      <p class="font-serif text-lg text-toned">
         Every photo in the room as it is stored, in folders by album, with a page that shows them
         beside their captions and a list of where everyone says they are. The copy is made on this
         device and saved as a zip file. It is yours whatever happens to Dear Mantel.

@@ -26,11 +26,23 @@ const ramp = [
 ]
 
 const surfaces = [
-  { token: 'bg-default', class: 'bg-default', use: 'Page background' },
-  { token: 'bg-muted', class: 'bg-muted', use: 'Subtle sections' },
-  { token: 'bg-elevated', class: 'bg-elevated', use: 'Cards, modals' },
-  { token: 'bg-accented', class: 'bg-accented', use: 'Hover states' },
-  { token: 'bg-inverted', class: 'bg-inverted', use: 'Inverted sections' },
+  { token: 'bg-default', class: 'bg-default', use: 'Ground: the table, every page' },
+  { token: 'bg-muted', class: 'bg-muted', use: 'Well: set into the table' },
+  { token: 'bg-elevated', class: 'bg-elevated', use: 'Sheet: a piece of paper' },
+  { token: 'bg-accented', class: 'bg-accented', use: 'Pressed: hover states' },
+  { token: 'bg-inverted', class: 'bg-inverted', use: 'Shelf: the mantel, only' },
+]
+
+// DESIGN.md › Color › Letter paper and ink.
+const papers = [
+  { name: 'Plain', class: 'bg-elevated' },
+  { name: 'Cream', class: 'bg-paper-cream' },
+  { name: 'Brown', class: 'bg-paper-kraft' },
+]
+const inks = [
+  { name: 'Black', class: 'text-highlighted' },
+  { name: 'Coloured', class: 'text-ink-colour' },
+  { name: 'Faded', class: 'text-muted' },
 ]
 
 const textTokens = [
@@ -273,6 +285,48 @@ useSeo({
     </section>
 
     <!-- ── Components ────────────────────────────────────────────────── -->
+    <section class="space-y-6">
+      <h2 class="text-2xl text-highlighted">Paper</h2>
+      <div class="grid gap-4 sm:grid-cols-3">
+        <div
+          v-for="paper in papers"
+          :key="paper.name"
+          class="letter-paper letter-face-serif flex flex-col gap-2 rounded-md border border-default p-6"
+          :class="paper.class"
+        >
+          <p class="font-sans text-sm text-muted">{{ paper.name }}</p>
+          <p v-for="ink in inks" :key="ink.name" :class="ink.class">{{ ink.name }} ink</p>
+        </div>
+      </div>
+      <div class="max-w-xs">
+        <div class="px-3">
+          <div
+            class="relative flex aspect-3/2 w-1/2 flex-col justify-end gap-1 rounded-t-sm border border-b-0 border-accented bg-elevated p-3"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 100 40"
+              preserveAspectRatio="none"
+              class="absolute inset-x-0 top-0 h-2/5 w-full text-primary"
+            >
+              <path
+                d="M0 0 L50 40 L100 0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
+            <span class="font-display text-lg/tight text-highlighted">From Ann</span>
+            <span class="font-mono text-xs tracking-wide text-muted uppercase">Mon 16 Nov</span>
+          </div>
+        </div>
+        <div aria-hidden="true" class="h-1 rounded-sm bg-inverted" />
+      </div>
+      <WhoReads encrypted>Only you and Ann can read this letter.</WhoReads>
+      <WhoReads>Everyone in The Lees sees this room, and we could read what is in it.</WhoReads>
+    </section>
+
     <section class="space-y-6">
       <h2 class="text-2xl text-highlighted">Components</h2>
 
