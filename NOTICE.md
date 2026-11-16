@@ -1,6 +1,6 @@
 # Licensing
 
-Analog Mail is licensed under the Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT). See [LICENSE](LICENSE). Each release becomes available under the MIT license two years after it is published.
+Dear Mantel is licensed under the Functional Source License, Version 1.1, MIT Future License (FSL-1.1-MIT). See [LICENSE](LICENSE). Each release becomes available under the MIT license two years after it is published.
 
 ## Portions under the MIT license
 

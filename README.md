@@ -1,11 +1,11 @@
-# Analog Mail
+# Dear Mantel
 
-Digital letters between friends that arrive on a postal rhythm, so people can write less
-often without it feeling rude.
+Letters for family and friends, slowly. They arrive on a postal rhythm, so people can write
+less often without it feeling rude.
 
 - Letters take as long as the post would: two to nine postal days by distance, never on a Sunday.
 - The sender sees "In transit, arrives Thursday" and nothing after. No read receipts, no delivery confirmation.
-- The only notification is the flag going up: you have mail. It never says from whom or how many.
+- The only notification says something arrived on your mantel. It never says from whom or how many.
 - Letters are end-to-end encrypted. The server knows who writes to whom and when, never what.
 - Invite-only pairs of people who already know each other. No discovery, no streaks, no couriers.
 

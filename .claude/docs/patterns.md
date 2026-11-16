@@ -243,7 +243,7 @@ carries no local patch for it. The checks that make that true:
 - **Why not `extends: ['github:…']`**: NuxtHub's merged schema types leave layers under
   `node_modules` untyped, so a remote layer's tables lose their types.
 - **In a fork**, the template's other layers (billing, referral, files, social) are not vendored:
-  analogmail's teardown removed them. Their seams in core (the table above) stay, registering
+  this fork's teardown removed them. Their seams in core (the table above) stay, registering
   nothing, so a layer vendored later plugs in without a core change.
 
 ### Fork-owned layers
