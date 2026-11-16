@@ -77,3 +77,45 @@ test('a kept mantel: opened, its code shown once, a second keeper seated', async
 
   await close()
 })
+
+test('a keeper asks someone to write to the mantel', async ({ browser, baseURL }) => {
+  test.setTimeout(180_000)
+  const { ann, bob, close } = await makePair(browser, baseURL!)
+
+  await open(ann, '/mantels/new')
+  await ann.getByLabel('Whose mantel is it?').fill('Leo')
+  await ann.getByRole('button', { name: 'Open the mantel' }).click()
+  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
+  await ann.getByLabel("The mantel's city").fill('Chicago')
+  await ann
+    .getByRole('button', { name: /^Chicago/ })
+    .first()
+    .click()
+
+  const session = (await (await bob.request.get('/api/_auth/session')).json()) as {
+    user: { email: string }
+  }
+  await ann.getByLabel('Invite a writer by email').fill(session.user.email)
+  await ann.getByRole('button', { name: 'Send invitation' }).click()
+  const link = new URL((await ann.getByTestId('writer-invite-link').innerText()).trim())
+  await expect(ann.getByText(`${session.user.email} · invited`)).toBeVisible()
+
+  // ── Bob is asked to write to Leo, not to Ann, and cannot see the mantel ────
+  await open(bob, link.pathname)
+  await expect(
+    bob.getByRole('heading', { name: 'Ann Tester asks you to write to Leo' }),
+  ).toBeVisible()
+  await bob.getByRole('button', { name: 'Accept the invitation' }).click()
+  await bob.waitForURL('**/people')
+  await bob.getByRole('link', { name: 'Write to Leo' }).click()
+  await expect(bob.getByRole('heading', { name: 'A letter to Leo' })).toBeVisible()
+  await open(bob, '/mantels')
+  await expect(bob.getByText('You keep no mantels.')).toBeVisible()
+
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByText('Bob Tester', { exact: true })).toBeVisible()
+
+  await close()
+})

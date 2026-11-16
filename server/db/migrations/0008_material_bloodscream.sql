@@ -1,0 +1,1 @@
+ALTER TABLE `invites` ADD `mantel_id` text;

@@ -63,6 +63,9 @@ export const invites = sqliteTable(
     acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
     acceptedBy: text('accepted_by'),
     correspondenceId: text('correspondence_id'),
+    // Set when a keeper invites someone to write to a mantel they keep,
+    // rather than to themself.
+    mantelId: text('mantel_id'),
     ...timestamps,
   },
   (table) => [
