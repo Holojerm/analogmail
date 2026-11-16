@@ -79,6 +79,7 @@ watch(draft, (value) => {
       layout="fixed"
       aria-label="Formatting"
       class="-mx-2 mb-6 border-b border-default pb-2"
+      :ui="{ base: 'flex-wrap gap-y-1' }"
     />
   </UEditor>
 </template>
