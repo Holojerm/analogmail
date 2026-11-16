@@ -25,6 +25,7 @@
     "db:migrate:preview": "wrangler d1 migrations apply dearmantel-db-preview --remote --env preview",
     "db:studio": "drizzle-kit studio",
     "seed": "bun run scripts/seed.ts",
+    "cities:import": "bun run layers/post/scripts/import-cities.ts",
     "rename": "bun run scripts/rename.ts",
     "design:check": "bun run scripts/check-design-tokens.ts",
     "brand:generate": "bun run scripts/generate-brand-assets.ts",
@@ -57,6 +58,8 @@
   "dependencies": {
     "@nuxt/ui": "^4.10.0",
     "@nuxtjs/turnstile": "^1.1.3",
+    "@simplewebauthn/browser": "^11",
+    "@simplewebauthn/server": "^11",
     "drizzle-orm": "^0.45.2",
     "mustache": "^4.2.0",
     "nuxt": "^4.5.2",

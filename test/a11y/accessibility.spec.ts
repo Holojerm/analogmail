@@ -15,6 +15,8 @@ import type { Result } from 'axe-core'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
+import { hasLayer, hasPage } from '../lib/layers'
+
 // Public routes only. /dashboard and /account redirect to /login when signed
 // out, so scanning them here would just scan /login a second time; they need a
 // session fixture to be worth anything.
@@ -35,7 +37,19 @@ import type { Page } from '@playwright/test'
 // likely to meet on a bad day, and therefore the one whose error copy has to
 // survive both color modes. Both are public and reachable straight from an
 // email, by people who are not signed in and may never have been.
-const ROUTES = ['/', '/changelog', '/login', '/auth/verify', '/unsubscribe', '/terms', '/privacy']
+const ROUTES = [
+  '/',
+  '/changelog',
+  ...(hasPage('login') ? ['/login'] : []),
+  ...(hasPage('auth/verify') ? ['/auth/verify'] : []),
+  // Off by default; the browser suites turn the layer on (its e2e.config.ts).
+  ...(hasLayer('credentials')
+    ? ['/auth/sign-in', '/auth/sign-up', '/auth/verify-email', '/auth/reset']
+    : []),
+  '/unsubscribe',
+  '/terms',
+  '/privacy',
+]
 
 const WCAG_TAGS = [
   'wcag2a',

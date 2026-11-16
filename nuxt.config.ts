@@ -374,6 +374,9 @@ export default defineNuxtConfig({
     // Public vars (access via useRuntimeConfig().public.myVar)
     // NUXT_PUBLIC_APP_NAME in wrangler.toml [vars] overrides this at runtime
     public: {
+      // Password and passkeys are the only sign-in (layers/credentials). `prf`
+      // asks a passkey for the secret that opens letters without a password.
+      credentials: { enabled: true, primary: true, prf: true },
       appName: 'My App',
       // Stamped at build time; /api/status reports it so a dashboard can tell
       // which commit is live. Public because a sha is not a secret and a
