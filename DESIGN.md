@@ -48,9 +48,9 @@ fails the build when they fall out of sync.
 
 ## Brand mark
 
-Two quarried strata, offset — the lower one shorter and lighter, cut from the same face.
-Abstract rather than a letterform on purpose: `bun run rename` cannot rewrite a picture, so
-an initial would still spell the template's name long after the app stopped being called that.
+An envelope standing on a mantel: the shelf solid, the envelope lighter, its flap solid again.
+Three flat shapes, so it stays legible at the size of a browser tab. Not a letterform: the
+product's place for letters is the mantel, and the mark is that place with something on it.
 
 **The mark lives in `app/components/Brand/Logo.vue`, and nowhere else.** Every standalone
 file is derived from that component by `bun run brand:generate`:
