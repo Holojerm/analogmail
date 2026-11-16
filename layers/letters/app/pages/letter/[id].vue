@@ -30,7 +30,11 @@ const heading = computed(() => {
   return opened.name ? `From ${opened.name}` : 'A letter'
 })
 
-useSeo({ title: 'A letter', description: 'A letter from your mantel.', noindex: true })
+useSeo({
+  title: 'A letter',
+  description: 'A letter from your mantel.',
+  noindex: true,
+})
 </script>
 
 <template>
@@ -70,11 +74,14 @@ useSeo({ title: 'A letter', description: 'A letter from your mantel.', noindex: 
           >.
         </p>
 
-        <LetterPaper :doc="letter.doc" />
+        <LetterPaper :doc="letter.doc" :photo-url="letter.photoUrl" />
 
         <UButton
           v-if="letter.canReply"
-          :to="{ path: '/write', query: { to: letter.correspondenceId, reply: letter.letterId } }"
+          :to="{
+            path: '/write',
+            query: { to: letter.correspondenceId, reply: letter.letterId },
+          }"
           class="self-start"
         >
           Reply

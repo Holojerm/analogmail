@@ -6,6 +6,7 @@ import * as tables from '@nuxthub/db/schema'
 
 import { hasReceived } from './mantel'
 import type { LettersDb } from './people'
+import type { PhotoStore } from './photos'
 
 /** The other person in an open correspondence the user belongs to, or null. */
 export async function correspondentOf(
@@ -116,11 +117,15 @@ export async function ownLetter(db: LettersDb, authorId: string, letterId: strin
   return row ?? null
 }
 
-/** Throws away a draft. A sealed letter is not a draft: recall it first. */
+/**
+ * Throws away a draft, and its photo's file with it. A sealed letter is not a
+ * draft: recall it first.
+ */
 export async function discardDraft(
   db: LettersDb,
   authorId: string,
   letterId: string,
+  photos?: PhotoStore,
 ): Promise<boolean> {
   const { letters, letterKeys } = tables
   const mine = and(
@@ -128,11 +133,16 @@ export async function discardDraft(
     eq(letters.authorId, authorId),
     isNull(letters.sealedAt),
   )
-  const [draft] = await db.select({ id: letters.id }).from(letters).where(mine).limit(1)
+  const [draft] = await db
+    .select({ id: letters.id, photoKey: letters.photoKey })
+    .from(letters)
+    .where(mine)
+    .limit(1)
   if (!draft) return false
   await db.batch([
     db.delete(letterKeys).where(eq(letterKeys.letterId, letterId)),
     db.delete(letters).where(mine),
   ])
+  if (draft.photoKey) await photos?.remove([draft.photoKey])
   return true
 }
