@@ -26,13 +26,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode, message, data: { reason: plan } })
   }
   return {
-    recipientId: plan.recipientId,
-    recipientName: plan.recipientName,
-    recipientPublicKey: plan.recipientPublicKey,
+    recipientName: plan.family ?? plan.recipientName,
+    // Every reader, with the key to wrap the letter's key to and their own arrival.
+    readers: plan.recipients.map((reader) => ({
+      id: reader.id,
+      name: reader.name,
+      publicKey: reader.publicKey,
+      arrives: reader.posting.promisedDate,
+    })),
     toMantel: plan.toMantel,
+    toFamily: Boolean(plan.family),
     zone: plan.senderZone,
     pickupAt: plan.posting.at.toISOString(),
     postmark: plan.posting.postmark,
-    arrives: plan.posting.promisedDate,
+    arrives: plan.lastArrival,
   }
 })

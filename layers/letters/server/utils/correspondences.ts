@@ -61,60 +61,109 @@ export async function openMantelCorrespondence(
   return id
 }
 
-/** The people someone writes with, and the invitations they have waiting. */
-export async function listPeople(
+export interface CorrespondenceLabel {
+  /** The other person, the kept mantel, or the family. */
+  name: string
+  kind: 'person' | 'mantel' | 'family'
+  since: Date
+}
+
+/**
+ * What to call each correspondence from one member's side: the family's name,
+ * the kept mantel's, or the other person's. Only open ones the user is in.
+ */
+export async function correspondenceLabels(
   db: LettersDb,
   userId: string,
-  now: Date,
-): Promise<{ people: PersonView[]; invites: OpenInviteView[] }> {
+  correspondenceIds?: string[],
+): Promise<Map<string, CorrespondenceLabel>> {
   const {
     correspondences,
     correspondenceMembers: members,
     people,
     users,
     mantels,
-    invites,
+    families,
   } = tables
+  const labels = new Map<string, CorrespondenceLabel>()
+  if (correspondenceIds && correspondenceIds.length === 0) return labels
   const mine = db
     .select({ id: members.correspondenceId })
     .from(members)
-    .where(and(eq(members.userId, userId), isNull(members.leftAt)))
+    .where(eq(members.userId, userId))
   const rows = await db
     .select({
       correspondenceId: correspondences.id,
       since: correspondences.createdAt,
+      mantelId: correspondences.mantelId,
+      family: families.name,
       chosen: people.displayName,
       account: users.name,
       mantel: mantels.name,
     })
     .from(members)
     .innerJoin(correspondences, eq(correspondences.id, members.correspondenceId))
+    .leftJoin(families, eq(families.correspondenceId, correspondences.id))
     // The other side is a person, or a kept mantel under its own id.
     .leftJoin(users, eq(users.id, members.userId))
     .leftJoin(people, eq(people.userId, members.userId))
     .leftJoin(mantels, eq(mantels.id, members.userId))
-    .where(
-      and(
-        ne(members.userId, userId),
-        isNull(members.leftAt),
-        isNull(correspondences.closedAt),
-        inArray(members.correspondenceId, mine),
-      ),
-    )
+    .where(and(ne(members.userId, userId), inArray(members.correspondenceId, mine)))
     .orderBy(correspondences.createdAt)
+  for (const row of rows) {
+    if (correspondenceIds && !correspondenceIds.includes(row.correspondenceId)) continue
+    if (labels.has(row.correspondenceId)) continue
+    labels.set(row.correspondenceId, {
+      name: row.family ?? row.chosen ?? row.account ?? row.mantel ?? '',
+      kind: row.family ? 'family' : row.mantelId ? 'mantel' : 'person',
+      since: row.since,
+    })
+  }
+  return labels
+}
+
+/** The people someone writes with, and the invitations they have waiting. */
+export async function listPeople(
+  db: LettersDb,
+  userId: string,
+  now: Date,
+): Promise<{ people: PersonView[]; invites: OpenInviteView[] }> {
+  const { correspondences, correspondenceMembers: members, invites } = tables
+  // Open correspondences the person is still in. A family is listed on its own page.
+  const open = await db
+    .select({ id: correspondences.id })
+    .from(members)
+    .innerJoin(correspondences, eq(correspondences.id, members.correspondenceId))
+    .where(
+      and(eq(members.userId, userId), isNull(members.leftAt), isNull(correspondences.closedAt)),
+    )
+  const labels = await correspondenceLabels(
+    db,
+    userId,
+    open.map((row) => row.id),
+  )
 
   const waiting = await db
     .select()
     .from(invites)
-    .where(and(eq(invites.inviterId, userId), isNull(invites.acceptedAt)))
+    .where(
+      and(
+        eq(invites.inviterId, userId),
+        isNull(invites.acceptedAt),
+        isNull(invites.mantelId),
+        isNull(invites.familyId),
+      ),
+    )
     .orderBy(invites.createdAt)
 
   return {
-    people: rows.map((row) => ({
-      correspondenceId: row.correspondenceId,
-      name: row.chosen ?? row.account ?? row.mantel ?? '',
-      since: row.since.toISOString(),
-    })),
+    people: [...labels.entries()]
+      .filter(([, label]) => label.kind !== 'family')
+      .map(([correspondenceId, label]) => ({
+        correspondenceId,
+        name: label.name,
+        since: label.since.toISOString(),
+      })),
     invites: waiting
       .filter((invite) => invite.expiresAt > now && invite.inviteeEmail)
       .map((invite) => ({
