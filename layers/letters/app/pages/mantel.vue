@@ -45,34 +45,53 @@ useSeo({
       <h2 id="shelf-heading" class="font-sans text-sm tracking-normal text-muted">
         {{ waiting.length ? 'Unopened' : 'On the shelf' }}
       </h2>
+      <!-- The mantel: a clock that tells the real time, whatever has arrived,
+           and the cat when nothing has. DESIGN.md › Play › The mantel. -->
       <div>
-        <ul v-if="waiting.length" class="grid grid-cols-2 items-end gap-3 px-3 sm:grid-cols-3">
-          <li v-for="item in waiting" :key="item.letterId">
-            <!-- The envelope. Its flap is the only "new" marker in the product. -->
-            <NuxtLink
-              :to="`/letter/${item.letterId}`"
-              class="relative flex aspect-3/2 flex-col justify-end gap-1 rounded-t-sm border border-b-0 border-accented bg-elevated p-3 hover:bg-accented focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        <div class="flex items-end gap-3 px-2">
+          <!-- On a phone the letters need the shelf, so only the plant stays. -->
+          <ArtClock class="h-16 shrink-0 sm:h-20" :class="{ 'hidden sm:block': waiting.length }" />
+          <ul v-if="waiting.length" class="grid min-w-0 flex-1 grid-cols-2 items-end gap-3">
+            <li
+              v-for="(item, index) in waiting"
+              :key="item.letterId"
+              class="play-sway"
+              :style="{ '--pace': `${6.4 + (index % 4) * 0.7}s` }"
             >
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 100 40"
-                preserveAspectRatio="none"
-                class="absolute inset-x-0 top-0 h-2/5 w-full text-primary"
+              <!-- The envelope. Its flap is the only "new" marker in the product. -->
+              <NuxtLink
+                :to="`/letter/${item.letterId}`"
+                class="group relative flex aspect-4/3 flex-col justify-end gap-1 rounded-t-sm border border-b-0 border-(--line) bg-elevated p-3 transition-[translate] duration-200 ease-(--ease-spring) hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
-                <path
-                  d="M0 0 L50 40 L100 0"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  vector-effect="non-scaling-stroke"
-                />
-              </svg>
-              <span class="font-display text-lg/tight text-highlighted">{{ title(item) }}</span>
-              <LetterPostmark v-if="item.postmark" :date="item.postmark" />
-            </NuxtLink>
-          </li>
-        </ul>
-        <div aria-hidden="true" class="h-1 rounded-sm bg-inverted" />
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 100 40"
+                  preserveAspectRatio="none"
+                  class="absolute inset-x-0 top-0 h-1/3 w-full origin-top text-primary transition-[scale] duration-200 ease-(--ease-spring) group-hover:scale-y-75"
+                >
+                  <path
+                    d="M0 0 L50 40 L100 0"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    vector-effect="non-scaling-stroke"
+                  />
+                </svg>
+                <ArtStamp :seed="item.letterId" class="absolute right-2 bottom-2 h-8" />
+                <span class="pr-8 font-display text-lg/tight text-highlighted">{{
+                  title(item)
+                }}</span>
+                <LetterPostmark v-if="item.postmark" :date="item.postmark" />
+              </NuxtLink>
+            </li>
+          </ul>
+          <div v-else class="flex min-w-0 flex-1 justify-center">
+            <ArtCat class="h-12 sm:h-14" />
+          </div>
+          <ArtCandle class="h-14 shrink-0 sm:h-16" :class="{ 'hidden sm:block': waiting.length }" />
+          <ArtPlant class="h-14 shrink-0 sm:h-20" />
+        </div>
+        <div aria-hidden="true" class="h-1.5 rounded-full bg-inverted" />
       </div>
 
       <div v-if="items.length === 0" class="flex flex-col gap-3">

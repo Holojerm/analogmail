@@ -76,7 +76,10 @@ useSeo({
           >.
         </p>
 
-        <LetterPaper :doc="letter.doc" :photo-url="letter.photoUrl" />
+        <!-- The sheet unfolds once as the letter is opened. -->
+        <div class="play-unfold">
+          <LetterPaper :doc="letter.doc" :photo-url="letter.photoUrl" />
+        </div>
 
         <UButton
           v-if="letter.canReply"

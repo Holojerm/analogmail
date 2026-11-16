@@ -28,6 +28,7 @@ const challenge = useCredentialsChallenge()
 
 type Open = Extract<GuestLinkView, { status: 'open' }>
 const state = ref<'loading' | 'open' | 'closed' | 'mismatch' | 'sent'>('loading')
+const sendOff = useSendOff()
 const mantel = ref<Open | null>(null)
 const content = ref<RichDoc>(emptyRichDoc())
 const from = ref('')
@@ -119,7 +120,9 @@ async function send() {
       await $fetch('/api/letters/guest/post', { method: 'POST', body: letter })
     }
     sent.value = { doc, photo: held?.image ?? null }
+    await sendOff.play()
     state.value = 'sent'
+    sendOff.playing.value = false
   } catch (error) {
     failure.value =
       (error as { data?: { message?: string } }).data?.message ??
@@ -156,6 +159,7 @@ useSeo({
 
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
+    <LetterSendOff v-if="sendOff.playing.value" />
     <h1 class="text-3xl text-highlighted">{{ heading }}</h1>
 
     <p v-if="state === 'loading'" class="text-muted" role="status">Opening…</p>
