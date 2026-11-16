@@ -275,5 +275,6 @@ export type NewNotificationPreference = typeof notificationPreferences.$inferIns
 // means deleting its line and running `bun run db:generate`.
 export * from '../../layers/credentials/server/db/schema'
 export * from '../../layers/feedback/server/db/schema'
+export * from '../../layers/keys/server/db/schema'
 export * from '../../layers/letters/server/db/schema'
 export * from '../../layers/post/server/db/schema'

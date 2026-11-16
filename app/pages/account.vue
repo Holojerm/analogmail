@@ -202,7 +202,10 @@ useSeo({
         <h2 class="text-xl text-highlighted">Sign-in</h2>
       </template>
       <div class="flex flex-wrap items-center justify-between gap-4">
-        <p class="text-sm text-muted">Change your password or add a passkey.</p>
+        <p class="text-sm text-muted">
+          Change your password, add a passkey, or
+          <ULink to="/settings/recovery-code" class="underline">make a new recovery code</ULink>.
+        </p>
         <UButton to="/settings/security" color="neutral" variant="soft"
           >Password and passkeys</UButton
         >
