@@ -13,7 +13,7 @@
 import { fromBase64Url, toBase64Url, type WrapKind } from '../../shared/utils/key-format'
 
 const CURVE = { name: 'ECDH', namedCurve: 'P-256' } as const
-const WRAP_INFO = new TextEncoder().encode('analogmail/v1/key-wrap')
+const WRAP_INFO = new TextEncoder().encode('dearmantel/v1/key-wrap')
 const IV_BYTES = 12
 
 export interface WrapContext {
@@ -59,7 +59,7 @@ async function wrappingKey(secret: Uint8Array<ArrayBuffer>): Promise<CryptoKey> 
 }
 
 function additionalData(context: WrapContext): Uint8Array<ArrayBuffer> {
-  const parts = ['analogmail/v1', context.userId, context.kind, context.credentialId ?? '']
+  const parts = ['dearmantel/v1', context.userId, context.kind, context.credentialId ?? '']
   return new TextEncoder().encode(parts.join('\n'))
 }
 

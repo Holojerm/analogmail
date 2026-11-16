@@ -1,4 +1,4 @@
-// When a person's mailbox next takes delivery. One release per person per
+// When a person's mantel next takes delivery. One release per person per
 // local day, on their mail days, at their delivery hour, by their wall clock.
 
 import { addDays, localParts, zonedInstant, type LocalDate } from './calendar'
@@ -27,7 +27,7 @@ export interface Release {
 /**
  * The date a settings change made at `now` takes effect: tomorrow, local.
  * Today's release stays where it was whether or not it has happened, so
- * nobody can move their delivery hour to "now" to check the mailbox early.
+ * nobody can move their delivery hour to "now" to check the mantel early.
  */
 export function pendingFrom(now: Date, zone: string): LocalDate {
   return addDays(localParts(now, zone).date, 1)

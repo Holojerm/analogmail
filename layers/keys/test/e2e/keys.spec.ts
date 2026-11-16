@@ -137,7 +137,7 @@ test('keys: sign-up, a second device, and recovery after a reset by email', asyn
   const kept = await fourth.evaluate(
     () =>
       new Promise<boolean>((resolve) => {
-        const opening = indexedDB.open('analogmail-keys')
+        const opening = indexedDB.open('dearmantel-keys')
         opening.onerror = () => resolve(false)
         opening.onsuccess = () => {
           const database = opening.result

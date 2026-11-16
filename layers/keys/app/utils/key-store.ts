@@ -8,7 +8,7 @@
 // read it. That is the same boundary as the rest of the design, which
 // protects what the server stores and does not claim to survive altered code.
 
-const DATABASE = 'analogmail-keys'
+const DATABASE = 'dearmantel-keys'
 const STORE = 'keys'
 const SLOT = 'account'
 

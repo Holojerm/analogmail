@@ -21,8 +21,8 @@ import { releaseStateOf, type PostDb } from './release-run'
  * `authorId` is null once the author has deleted their account; the letter
  * is then withheld from the recipient and goes nowhere.
  *
- * `fromMailbox` also takes a letter that was delivered but never opened. It
- * is for a bounced notice only: the letter reached a mailbox nobody was told
+ * `fromMantel` also takes a letter that was delivered but never opened. It
+ * is for a bounced notice only: the letter reached a mantel nobody was told
  * about. An opened letter is never taken back.
  */
 export async function returnToSender(
@@ -30,7 +30,7 @@ export async function returnToSender(
   deliveryId: string,
   authorId: string | null,
   now: Date,
-  options: { fromMailbox?: boolean } = {},
+  options: { fromMantel?: boolean } = {},
 ): Promise<boolean> {
   const { deliveries, postalProfiles } = tables
   const isLetter = and(eq(deliveries.id, deliveryId), eq(deliveries.kind, 'letter'))
@@ -40,7 +40,7 @@ export async function returnToSender(
   const [claimed] = await db
     .update(deliveries)
     .set({ state: 'returned' })
-    .where(and(isLetter, options.fromMailbox ? or(inTransit, unopened) : inTransit))
+    .where(and(isLetter, options.fromMantel ? or(inTransit, unopened) : inTransit))
     .returning({ letterId: deliveries.letterId })
   const [returned] = claimed
     ? [claimed]

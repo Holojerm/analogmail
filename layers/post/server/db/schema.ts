@@ -68,7 +68,7 @@ export const postalProfiles = sqliteTable(
 // (a letter going back to its author); `state` is 'in_transit', 'delivered'
 // or 'returned'.
 //
-// `deliveredAt`, `mailDate` and `openedAt` exist for the recipient's own mailbox. No
+// `deliveredAt`, `mailDate` and `openedAt` exist for the recipient's own mantel. No
 // query may return them, or anything derived from them, to anyone else.
 export const deliveries = sqliteTable(
   'deliveries',
@@ -99,7 +99,7 @@ export const deliveries = sqliteTable(
   ],
 )
 
-// "The flag is up." The unique index is what makes it one notice per person
+// "Something arrived on your mantel." The unique index is what makes it one notice per person
 // per mail day however often the release task is retried.
 export const notices = sqliteTable(
   'notices',
