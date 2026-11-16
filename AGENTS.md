@@ -116,6 +116,11 @@ rule through the letters and post contributors: received letters, drafts, keys a
 go; sent letters stay with their recipients with `authorId` null. The privacy page's letters
 section is `LettersPrivacy`; keep it true when the encryption or what the server stores changes.
 
+The data export (`/api/account/export`) gets its letters, post and keys sections from each
+layer's `exportSection`. `exportLetters` obeys the same rules as the screens: received letters
+only in state `delivered`, and nothing from `deliveries` on the sender's side. Letter text is
+exported as ciphertext; a readable archive is built in the browser and is a later step.
+
 ---
 
 ## Where things are documented
