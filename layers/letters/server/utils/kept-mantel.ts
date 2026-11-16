@@ -7,10 +7,11 @@
 import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
-import { isKeeper } from '#layers/keys/server/utils/mantels'
+import { isKeeper, keepersOf } from '#layers/keys/server/utils/mantels'
 import { localParts } from '#layers/post/shared/utils/calendar'
 
 import type { KeptItem, KeptLetter } from '../../shared/utils/kept'
+import { returnInTransitTo } from './closing'
 import type { LettersDb } from './people'
 import type { PhotoStore } from './photos'
 
@@ -159,6 +160,7 @@ export async function listWriters(db: LettersDb, keeperId: string, mantelId: str
         ne(members.userId, mantelId),
       ),
     )
+  const keeperIds = (await keepersOf(db, mantelId)).map((keeper) => keeper.userId)
   const waiting = await db
     .select({ id: invites.id, email: invites.inviteeEmail, expiresAt: invites.expiresAt })
     .from(invites)
@@ -166,9 +168,74 @@ export async function listWriters(db: LettersDb, keeperId: string, mantelId: str
       and(eq(invites.mantelId, mantelId), isNull(invites.acceptedAt), gt(invites.expiresAt, now)),
     )
   return {
-    writers: writers.map((row) => ({ userId: row.userId, name: row.chosen ?? row.account })),
+    writers: writers.map((row) => ({
+      userId: row.userId,
+      name: row.chosen ?? row.account,
+      keeper: keeperIds.includes(row.userId),
+    })),
     invited: waiting
       .filter((row) => row.email)
       .map((row) => ({ id: row.id, email: row.email!, expiresAt: row.expiresAt.toISOString() })),
   }
+}
+
+export type StopWriterResult = 'stopped' | 'not-keeper' | 'not-a-writer' | 'is-keeper'
+
+/**
+ * A keeper stops someone writing to the mantel. Their letters still on the
+ * way go back to them; what has already arrived stays, because it belongs to
+ * whoever the mantel is for. A keeper is not stopped this way: who keeps a
+ * mantel changes only by its keepers' agreement.
+ */
+export async function stopWriter(
+  db: LettersDb,
+  keeperId: string,
+  mantelId: string,
+  writerId: string,
+  now: Date,
+): Promise<StopWriterResult> {
+  const { correspondences, correspondenceMembers: members } = tables
+  if (!(await isKeeper(db, keeperId, mantelId))) return 'not-keeper'
+  if (await isKeeper(db, writerId, mantelId)) return 'is-keeper'
+  const [row] = await db
+    .select({ id: correspondences.id })
+    .from(members)
+    .innerJoin(correspondences, eq(correspondences.id, members.correspondenceId))
+    .where(
+      and(
+        eq(correspondences.mantelId, mantelId),
+        isNull(correspondences.closedAt),
+        eq(members.userId, writerId),
+        isNull(members.leftAt),
+      ),
+    )
+    .limit(1)
+  if (!row) return 'not-a-writer'
+  const closed = await db
+    .update(correspondences)
+    .set({ closedAt: now, closedBy: keeperId, updatedAt: now })
+    .where(and(eq(correspondences.id, row.id), isNull(correspondences.closedAt)))
+    .returning({ id: correspondences.id })
+  if (closed.length === 0) return 'not-a-writer'
+  // Everything in this correspondence still on its way was written by them.
+  await returnInTransitTo(db, mantelId, now, row.id)
+  return 'stopped'
+}
+
+/** Any keeper may take back an invitation to write that nobody has accepted. */
+export async function withdrawWriterInvite(
+  db: LettersDb,
+  keeperId: string,
+  mantelId: string,
+  inviteId: string,
+): Promise<boolean> {
+  const { invites } = tables
+  if (!(await isKeeper(db, keeperId, mantelId))) return false
+  const removed = await db
+    .delete(invites)
+    .where(
+      and(eq(invites.id, inviteId), eq(invites.mantelId, mantelId), isNull(invites.acceptedAt)),
+    )
+    .returning({ id: invites.id })
+  return removed.length > 0
 }
