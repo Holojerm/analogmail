@@ -1,11 +1,12 @@
 <script setup lang="ts">
-// The three places of the app: what has arrived, what you are writing, and
-// who you write with.
+// The places of the app: what has arrived, what you are writing, who you
+// write with, and the mantels you keep for someone else.
 const route = useRoute()
 const links = [
   { label: 'Mantel', to: '/mantel' },
   { label: 'Desk', to: '/desk' },
   { label: 'People', to: '/people' },
+  { label: 'Keeping', to: '/mantels' },
   { label: 'Post', to: '/settings/post' },
 ]
 </script>
