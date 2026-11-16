@@ -61,13 +61,13 @@ useSeo({
               <!-- The envelope. Its flap is the only "new" marker in the product. -->
               <NuxtLink
                 :to="`/letter/${item.letterId}`"
-                class="group relative flex aspect-3/2 flex-col justify-end gap-1 rounded-t-sm border border-b-0 border-(--line) bg-elevated p-3 transition-[translate] duration-200 ease-(--ease-spring) hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                class="group relative flex aspect-4/3 flex-col justify-end gap-1 rounded-t-sm border border-b-0 border-(--line) bg-elevated p-3 transition-[translate] duration-200 ease-(--ease-spring) hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 100 40"
                   preserveAspectRatio="none"
-                  class="absolute inset-x-0 top-0 h-2/5 w-full origin-top text-primary transition-[scale] duration-200 ease-(--ease-spring) group-hover:scale-y-75"
+                  class="absolute inset-x-0 top-0 h-1/3 w-full origin-top text-primary transition-[scale] duration-200 ease-(--ease-spring) group-hover:scale-y-75"
                 >
                   <path
                     d="M0 0 L50 40 L100 0"
