@@ -85,4 +85,6 @@ export interface DeskLetter {
   to: string
   updatedAt: string
   status: SentStatus
+  /** The day the writer sealed it until, if they did. Their own choice, so theirs to see. */
+  opensOn: string | null
 }

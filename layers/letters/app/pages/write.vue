@@ -28,6 +28,8 @@ interface SealPlan {
   recipientId: string
   recipientName: string
   recipientPublicKey: string
+  /** A kept mantel: the letter may be sealed until a day. */
+  toMantel: boolean
   zone: string
   pickupAt: string
   arrives: string
@@ -50,6 +52,7 @@ const saveState = ref<'idle' | 'saving' | 'saved' | 'failed'>('idle')
 const plan = ref<SealPlan | null>(null)
 const confirming = ref(false)
 const sealing = ref(false)
+const opensOn = ref('')
 const inReplyTo = ref<string | null>(null)
 const answered = ref<ReadLetter | null>(null)
 const photo = ref<LetterPhoto | undefined>()
@@ -204,6 +207,7 @@ async function seal() {
           letterId: letterId.value,
           readerId: plan.value.recipientId,
         }),
+        opensOn: plan.value.toMantel && opensOn.value ? opensOn.value : null,
       },
     })
     await navigateTo('/desk')
@@ -324,6 +328,14 @@ useSeo({
               It will be collected
               {{ pickupTime(plan.pickupAt, plan.zone) }} and arrives {{ longDay(plan.arrives) }}.
             </p>
+            <UFormField
+              v-if="plan.toMantel"
+              label="Keep it sealed until (optional)"
+              name="opens-on"
+              help="A birthday, say. It still arrives as usual, but nobody can open it before that day, its keepers included. You keep your own copy."
+            >
+              <UInput v-model="opensOn" type="date" :min="plan.arrives" class="w-full" />
+            </UFormField>
             <p class="text-sm text-muted">
               Until it is collected you can recall it and change it. After that it is on its way and
               cannot be changed. You will not be told when it is delivered or read.

@@ -127,6 +127,17 @@ wraps the key to a new one). The person being seated reads their own key's finge
 their screen; the keeper compares it with the one computed from the key the server handed
 over, so a key swapped by the server shows as a mismatch.
 
+Letters to a kept mantel (`layers/letters`): the mantel is a postal recipient under its own id.
+It has a `postal_profiles` row, it is a member of a correspondence whose `mantelId` is set, and
+deliveries and the mantel's `letter_keys` row use that id, so sealing, transit, release and
+returns treat it as a person. `recipientIdentity` is the one place that tells the two apart.
+The release tells a mantel's keepers through `registerNoticeAudience` (never a notice for the
+mantel id). Keepers read through `kept-mantel.ts` only, which holds both gates: nothing before
+delivery, and for a letter with `opensOn` nothing (text, photo, key) before that day on the
+mantel's calendar, to keepers too. Opening is not post: no release, no notice, any weekday. Any
+new way to read a mantel's letters (export, print) must go through the same gate. Today only
+keepers write to a mantel; inviting other writers is not built.
+
 A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
 hour (`/welcome`). Those guards cover the landing page and letter pages only; account and
 security pages must stay reachable without them. Guards that decide in the browser redirect
