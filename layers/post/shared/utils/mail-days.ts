@@ -19,6 +19,11 @@ export function mailDaysFromWeekdays(weekdays: number[]): number {
   return weekdays.reduce((mask, weekday) => mask | bitFor(weekday), 0)
 }
 
+/** The weekdays (1 = Monday … 6 = Saturday) a mask delivers on. */
+export function weekdaysFromMailDays(mask: number): number[] {
+  return [1, 2, 3, 4, 5, 6].filter((weekday) => (mask & (1 << (weekday - 1))) !== 0)
+}
+
 export function isMailDay(mask: number, date: LocalDate): boolean {
   return (mask & bitFor(weekdayOf(date))) !== 0
 }
