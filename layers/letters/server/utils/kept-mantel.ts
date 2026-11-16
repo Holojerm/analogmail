@@ -8,6 +8,7 @@ import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { isKeeper, keepersOf } from '#layers/keys/server/utils/mantels'
+import { changeMailSettings, moveToCity } from '#layers/post/server/utils/profile-settings'
 import { localParts } from '#layers/post/shared/utils/calendar'
 
 import type { KeptItem, KeptLetter } from '../../shared/utils/kept'
@@ -239,4 +240,28 @@ export async function withdrawWriterInvite(
     )
     .returning({ id: invites.id })
   return removed.length > 0
+}
+
+export type MantelPostChange = { cityId: number } | { mailDays: number; deliveryHour: number }
+export type ChangeMantelPostResult = 'changed' | 'not-keeper' | 'no-post' | 'unknown-city'
+
+/**
+ * Any keeper may change where and when a mantel's post arrives, by the rules
+ * a person's own post follows: a new city at once, new days and hour from
+ * tomorrow. Letters already on their way keep the day they were given.
+ */
+export async function changeMantelPost(
+  db: LettersDb,
+  keeperId: string,
+  mantelId: string,
+  change: MantelPostChange,
+  now: Date,
+): Promise<ChangeMantelPostResult> {
+  if (!(await isKeeper(db, keeperId, mantelId))) return 'not-keeper'
+  if ('cityId' in change) {
+    const moved = await moveToCity(db, mantelId, change.cityId, now)
+    return moved === 'moved' ? 'changed' : moved === 'no-profile' ? 'no-post' : moved
+  }
+  const changed = await changeMailSettings(db, mantelId, change, now)
+  return changed === 'changed' ? 'changed' : 'no-post'
 }

@@ -30,3 +30,16 @@ export type KeptLetter =
       /** Written from a write link. A keeper may take such a letter off the mantel. */
       guest: boolean
     }
+
+/** Where and when a kept mantel's post arrives, as its keepers see it. */
+export interface KeptPost {
+  city: string
+  country: string
+  /** A mask of Monday to Saturday (post layer, mail-days.ts). */
+  mailDays: number
+  deliveryHour: number
+  /** A change to days and hour that is waiting, and the day it starts. */
+  pendingMailDays: number | null
+  pendingDeliveryHour: number | null
+  pendingFrom: string | null
+}

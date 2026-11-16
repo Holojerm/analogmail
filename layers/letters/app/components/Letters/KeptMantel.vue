@@ -4,7 +4,7 @@
 // nothing else.
 import { ALL_MAIL_DAYS } from '#layers/post/shared/utils/mail-days'
 
-import type { KeptItem } from '../../../shared/utils/kept'
+import type { KeptItem, KeptPost } from '../../../shared/utils/kept'
 
 const props = defineProps<{ mantelId: string; name: string }>()
 
@@ -15,7 +15,7 @@ interface City {
   country: string
 }
 
-const post = ref<{ city: string; country: string } | null>(null)
+const post = ref<KeptPost | null>(null)
 const letters = ref<KeptItem[]>([])
 const writers = ref<{ userId: string; name: string; keeper: boolean }[]>([])
 const invited = ref<{ id: string; email: string }[]>([])
@@ -177,9 +177,7 @@ function describe(letter: KeptItem): string {
     </template>
 
     <template v-else-if="post">
-      <p class="text-sm text-muted">
-        Its post arrives in {{ post.city }}, {{ post.country }}, Monday to Saturday.
-      </p>
+      <LettersKeptPost :mantel-id="mantelId" :post="post" @changed="load" />
       <UButton class="self-start" :loading="busy" @click="write">Write to {{ name }}</UButton>
 
       <p v-if="letters.length === 0" class="text-muted">Nothing has arrived yet.</p>
