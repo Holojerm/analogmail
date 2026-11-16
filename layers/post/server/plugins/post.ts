@@ -17,7 +17,7 @@ export default defineNitroPlugin(() => {
     },
     release_profile_failed: {
       severity: 'warning',
-      action: 'One mailbox cannot be scheduled. Check its time zone and mail days.',
+      action: 'One mantel cannot be scheduled. Check its time zone and mail days.',
     },
     notice_dispatch_failed: {
       severity: 'warning',

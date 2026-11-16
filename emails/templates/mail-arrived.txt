@@ -1,10 +1,10 @@
-The flag is up
+Something arrived on your mantel
 
-There is mail in your mailbox.
+Sign in to open your mantel.
 
-Open your mailbox: {{appUrl}}/mailbox
+Open your mantel: {{appUrl}}/mantel
 
 —
-{{appName}} tells you when mail arrives and nothing more: not who it is from, and not how much there is. Sign in to read it.
+{{appName}} tells you when something arrives and nothing more: not who it is from, and not how much there is. Sign in to read it.
 
 {{appUrl}}
