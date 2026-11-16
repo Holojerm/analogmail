@@ -264,3 +264,42 @@ export async function closeFamily(
   }
   return 'done'
 }
+
+/**
+ * What the family room is told about families (layers/room asks through its
+ * own seam and never reads these tables). A closed family still has its
+ * members, so its room can be looked at and emptied.
+ */
+export async function familiesForRoom(db: LettersDb, userId: string, familyId?: string) {
+  const { families, correspondences, correspondenceMembers: members } = tables
+  const rows = await db
+    .select({
+      id: families.id,
+      name: families.name,
+      organiserId: families.organiserId,
+      correspondenceId: families.correspondenceId,
+      closedAt: correspondences.closedAt,
+    })
+    .from(members)
+    .innerJoin(families, eq(families.correspondenceId, members.correspondenceId))
+    .innerJoin(correspondences, eq(correspondences.id, families.correspondenceId))
+    .where(
+      and(
+        eq(members.userId, userId),
+        isNull(members.leftAt),
+        familyId ? eq(families.id, familyId) : undefined,
+      ),
+    )
+    .orderBy(asc(families.createdAt))
+  const found = []
+  for (const row of rows) {
+    const current = await activeMembers(db, row.correspondenceId)
+    found.push({
+      id: row.id,
+      name: row.name,
+      closed: Boolean(row.closedAt),
+      organiser: organiserOf(row, current) === userId,
+    })
+  }
+  return found
+}

@@ -39,6 +39,10 @@ async function start() {
       A letter to a family goes to everyone in it at once. Each copy travels to that person's own
       city and arrives on their own mail day.
     </p>
+    <p class="text-sm text-muted">
+      Each family has a room for its photos:
+      <ULink to="/rooms" class="underline">family rooms</ULink>.
+    </p>
     <ul v-if="families.length" class="flex flex-col divide-y divide-default">
       <li
         v-for="family in families"

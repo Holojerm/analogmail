@@ -85,6 +85,13 @@
       "when": 1794808184251,
       "tag": "0011_futuristic_strong_guy",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794836376757,
+      "tag": "0012_absurd_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }

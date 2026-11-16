@@ -79,6 +79,7 @@ useSeo({
       </section>
 
       <LettersPrivacy />
+      <RoomPrivacy />
 
       <section class="flex flex-col gap-3">
         <h2 class="text-2xl text-highlighted">What we collect</h2>
