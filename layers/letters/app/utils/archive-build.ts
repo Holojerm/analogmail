@@ -30,11 +30,20 @@ export type OpenKey = (wrapped: string, letterId: string) => Promise<Bytes | nul
 
 const encoder = new TextEncoder()
 
-async function openEntry(entry: ArchiveEntry, openKey: OpenKey) {
-  const sealed = await $fetch<ArchiveSealed>('/api/letters/archive/letter', {
-    method: 'POST',
-    body: { id: entry.id },
-  })
+/** Where a letter's encrypted parts come from. A keeper's copy of a mantel reads elsewhere. */
+export interface ArchiveSource {
+  sealed: (letterId: string) => Promise<ArchiveSealed>
+  photo: (letterId: string) => Promise<ArrayBuffer>
+}
+
+const OWN_LETTERS: ArchiveSource = {
+  sealed: (id) =>
+    $fetch<ArchiveSealed>('/api/letters/archive/letter', { method: 'POST', body: { id } }),
+  photo: (id) => $fetch<ArrayBuffer>(`/api/letters/photo/${id}`, { responseType: 'arrayBuffer' }),
+}
+
+async function openEntry(entry: ArchiveEntry, openKey: OpenKey, source: ArchiveSource) {
+  const sealed = await source.sealed(entry.id)
   const key = await openKey(sealed.wrappedKey, entry.id)
   const text = key ? await decryptLetter(key, entry.id, sealed.ciphertext) : null
   const doc = text ? parseLetterDoc(text) : null
@@ -42,9 +51,7 @@ async function openEntry(entry: ArchiveEntry, openKey: OpenKey) {
   let photo: ArrayBuffer | null = null
   if (doc.photo && sealed.hasPhoto) {
     try {
-      const file = await $fetch<ArrayBuffer>(`/api/letters/photo/${entry.id}`, {
-        responseType: 'arrayBuffer',
-      })
+      const file = await source.photo(entry.id)
       photo = await decryptPhoto(key, { letterId: entry.id, photoId: doc.photo.id }, file)
     } catch {
       photo = null
@@ -92,9 +99,12 @@ export async function buildArchive(
   openKey: OpenKey,
   today: string,
   onProgress: (done: number, total: number) => void,
+  source: ArchiveSource = OWN_LETTERS,
 ): Promise<ArchiveResult> {
   const who = shelf.name || 'someone who has left'
-  const title = shelf.kind === 'family' ? `Letters in ${who}` : `Letters with ${who}`
+  const title =
+    { family: `Letters in ${who}`, kept: `Letters to ${who}` }[shelf.kind as string] ??
+    `Letters with ${who}`
   const files: ZipFile[] = []
   const page: ArchivePageLetter[] = []
   let skipped = 0
@@ -102,12 +112,12 @@ export async function buildArchive(
 
   for (const [index, entry] of shelf.entries.entries()) {
     onProgress(index, shelf.entries.length)
-    const opened = await openEntry(entry, openKey)
+    const opened = await openEntry(entry, openKey, source)
     if (!opened) {
       skipped += 1
       continue
     }
-    const from = entry.from ?? opened.doc.from ?? 'someone who has left'
+    const from = entry.from ?? opened.doc.from ?? (entry.guest ? 'a guest' : 'someone who has left')
     const heading = entry.direction === 'sent' ? `To ${who}` : `From ${from}`
     const when = entry.postmark ? `Postmarked ${yearDay(entry.postmark)}` : null
     const base = entryFileName(index, entry, entry.direction === 'sent' ? who : from)
