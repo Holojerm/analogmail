@@ -18,6 +18,12 @@ export const SAMPLES: Record<string, EmailSample> = {
     reply: 'Fixed in this morning’s release — thanks for the report.',
     quoted: 'The export button does nothing on Safari',
   },
+  invite: {
+    ...brand,
+    inviterName: 'Ada Lovelace',
+    url: `${brand.appUrl}/invite/3q2-8wZk1fYb7Jm4Xc9RtLpNv6HsQeUa0DgKoIiTyBw`,
+    expiresDays: 30,
+  },
   'mail-arrived': { ...brand },
   'magic-link': {
     ...brand,

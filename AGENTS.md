@@ -72,6 +72,15 @@ most once; a failed one is retried on later runs, never repeated as a reminder. 
 bounces to `POST /api/webhooks/resend` (404 until `NUXT_POST_RESEND_WEBHOOK_SECRET` is set): a
 hard bounce of a notice returns that day's unopened letters to their senders.
 
+Invitations (`layers/letters`): `/people` invites by email and lists correspondents; the link
+lands on `/invite/<token>`. The email has fixed wording, names the sender and carries no letter
+or note. Only a hash of the token is stored, the address is deleted on acceptance or expiry
+(30 days), and the token travels to the API in a request body, never a URL. Whoever holds the
+link may accept it once; accepting needs a chosen display name (`people` table) and a city.
+Display names go into email to strangers, so `displayNameSchema` refuses anything that reads
+as a link or an address: do not loosen it. Sign-up ends on `/people`, which is also where an
+invitation opened before sign-up is picked up again.
+
 ---
 
 ## Where things are documented

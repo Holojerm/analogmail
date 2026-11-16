@@ -15,6 +15,14 @@ const timestamps = {
     .notNull(),
 }
 
+// The name a person's correspondents see, chosen by them. A row means they
+// chose it: the account's own name is a guess made from the email address.
+export const people = sqliteTable('people', {
+  userId: text('user_id').primaryKey(),
+  displayName: text('display_name').notNull(),
+  ...timestamps,
+})
+
 // A pair today; members are their own table so a circle needs no migration.
 export const correspondences = sqliteTable('correspondences', {
   id: id(),
@@ -106,6 +114,7 @@ export const letterKeys = sqliteTable(
   ],
 )
 
+export type Person = typeof people.$inferSelect
 export type Correspondence = typeof correspondences.$inferSelect
 export type Invite = typeof invites.$inferSelect
 export type Letter = typeof letters.$inferSelect
