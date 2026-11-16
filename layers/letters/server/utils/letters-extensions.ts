@@ -7,6 +7,9 @@ import * as tables from '@nuxthub/db/schema'
 import { registerAccountContributor, registerPurgeContributor } from '#server/utils/extensions'
 import { registerPublicApiRoutes } from '#server/utils/public-routes'
 
+import { postNow } from '#layers/post/server/utils/clock'
+
+import { returnInTransitTo } from './closing'
 import type { LettersDb } from './people'
 
 const PURGE_BATCH = 500
@@ -34,7 +37,15 @@ export async function purgeExpiredInvites(
 }
 
 export function registerLettersExtensions(): void {
-  const { invites, people, correspondences, correspondenceMembers: members } = tables
+  const {
+    invites,
+    people,
+    correspondences,
+    correspondenceMembers: members,
+    letters,
+    letterKeys,
+    deliveries,
+  } = tables
 
   // The invite page works signed out: the link is what its holder has.
   registerPublicApiRoutes([{ path: '/api/letters/invites/view', methods: ['POST'] }])
@@ -44,9 +55,10 @@ export function registerLettersExtensions(): void {
     run: (db, options) => purgeExpiredInvites(db, new Date(options.now ?? Date.now())),
   })
 
-  // Deleting an account withdraws its open invitations, forgets its chosen
-  // name and closes its correspondences. Letters it sent stay with their
-  // recipients; returning the ones still in transit is the leaving step's job.
+  // Deleting an account follows the paper rule. What the person received,
+  // their drafts and their settings go. Letters they sent stay with their
+  // recipients, without an author, and the ones already posted still arrive.
+  // Letters on their way to them go back to their senders first.
   registerAccountContributor({
     key: 'letters',
     async countForDeletion(db, userId) {
@@ -56,8 +68,15 @@ export function registerLettersExtensions(): void {
         .where(and(eq(members.userId, userId), isNull(members.leftAt)))
       return row?.total ?? 0
     },
+    async beforeDeletion(db, userId) {
+      await returnInTransitTo(db, userId, await postNow())
+    },
     deletionStatements: (db, userId) => {
       const now = new Date()
+      const myDrafts = db
+        .select({ id: letters.id })
+        .from(letters)
+        .where(and(eq(letters.authorId, userId), isNull(letters.sealedAt)))
       const mine = db
         .select({ id: members.correspondenceId })
         .from(members)
@@ -73,6 +92,14 @@ export function registerLettersExtensions(): void {
           .where(and(eq(members.userId, userId), isNull(members.leftAt))),
         db.delete(invites).where(and(eq(invites.inviterId, userId), isNull(invites.acceptedAt))),
         db.delete(people).where(eq(people.userId, userId)),
+        // Drafts: the keys first, while the letters still name them.
+        db.delete(letterKeys).where(inArray(letterKeys.letterId, myDrafts)),
+        db.delete(letters).where(and(eq(letters.authorId, userId), isNull(letters.sealedAt))),
+        // What they received, and their own copies of every letter's key.
+        db.delete(deliveries).where(eq(deliveries.recipientId, userId)),
+        db.delete(letterKeys).where(eq(letterKeys.userId, userId)),
+        // What they sent stays with its recipients, unsigned by any account.
+        db.update(letters).set({ authorId: null }).where(eq(letters.authorId, userId)),
       ]
     },
   })
