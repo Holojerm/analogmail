@@ -75,7 +75,8 @@ export async function soleKeeperOf(db: KeysDb, userId: string): Promise<string[]
 }
 
 export function registerKeysExtensions(): void {
-  const { userKeys, keyWraps, mantelKeepers, mantelKeyWraps, mantelProposals } = tables
+  const { userKeys, keyWraps, mantelKeepers, mantelKeyWraps, mantelProposals, mantelRecoveries } =
+    tables
 
   // When mail arrives on a kept mantel, its keepers are the ones to tell.
   registerNoticeAudience(async (db, recipientIds) => {
@@ -171,6 +172,16 @@ export function registerKeysExtensions(): void {
         .update(mantelProposals)
         .set({ outcome: 'withdrawn', settledAt: new Date(), subjectEmail: null })
         .where(and(eq(mantelProposals.proposedBy, userId), isNull(mantelProposals.outcome))),
+      db
+        .update(mantelRecoveries)
+        .set({ cancelledAt: new Date(), cancelledBy: userId })
+        .where(
+          and(
+            eq(mantelRecoveries.claimantId, userId),
+            isNull(mantelRecoveries.cancelledAt),
+            isNull(mantelRecoveries.completedAt),
+          ),
+        ),
       db.delete(keyWraps).where(eq(keyWraps.userId, userId)),
       db.delete(userKeys).where(eq(userKeys.userId, userId)),
     ],

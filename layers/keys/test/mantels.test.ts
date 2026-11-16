@@ -46,6 +46,7 @@ const leo = (id = MANTEL) => ({
   publicKey: PUBLIC_KEY,
   keeperWrap: keeperWrap('ann'),
   recoveryWrap: RECOVERY_WRAP,
+  recoveryProofHash: 'a'.repeat(64),
 })
 
 const wrapsOf = async () =>

@@ -42,6 +42,7 @@ export async function createMantel(
       kind: input.kind,
       name: input.name,
       publicKey: input.publicKey,
+      recoveryProofHash: input.recoveryProofHash,
       createdBy: userId,
       createdAt: now,
       updatedAt: now,
