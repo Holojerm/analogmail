@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { crc32, zipParts } from '../app/utils/zip'
+import { crc32, zipParts } from '#layers/post/app/utils/zip'
 import { entryFileName, fileSafe } from '../shared/utils/archive'
 import { archivePage } from '../shared/utils/archive-page'
 import { DEFAULT_STATIONERY, type LetterDoc } from '../shared/utils/letter-doc'
