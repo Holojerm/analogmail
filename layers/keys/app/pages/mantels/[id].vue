@@ -161,6 +161,8 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         description="If you lose your own key, only the printed recovery code can open its letters. Ask someone to keep it with you."
       />
 
+      <LettersKeptMantel :mantel-id="mantel.id" :name="mantel.name" />
+
       <section aria-labelledby="keepers-heading" class="flex flex-col gap-3">
         <h2 id="keepers-heading" class="text-xl text-highlighted">Keepers</h2>
         <ul class="flex flex-col divide-y divide-default">

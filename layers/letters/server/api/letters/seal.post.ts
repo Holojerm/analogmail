@@ -9,7 +9,15 @@ import { postNow } from '#layers/post/server/utils/clock'
 import { letterIdSchema, letterKeySchema } from '../../../shared/utils/letter-doc'
 import { sealLetter } from '../../utils/posting'
 
-const bodySchema = z.object({ id: letterIdSchema, recipientWrappedKey: letterKeySchema })
+const bodySchema = z.object({
+  id: letterIdSchema,
+  recipientWrappedKey: letterKeySchema,
+  /** Only for a letter to a kept mantel: the day it is sealed until. */
+  opensOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+})
 
 const REFUSALS = {
   'not-yours': [404, 'That letter is not yours.'],
@@ -17,6 +25,7 @@ const REFUSALS = {
   closed: [409, 'You no longer write with this person.'],
   'sender-needs-city': [409, 'Choose your city first.'],
   'recipient-not-ready': [409, 'They have not finished setting up yet.'],
+  'cannot-seal-until': [400, 'That is not a day this letter can be sealed until.'],
 } as const
 
 export default defineEventHandler(async (event) => {
@@ -28,7 +37,14 @@ export default defineEventHandler(async (event) => {
     identifier: user.id,
   })
   const body = await readValidatedBody(event, bodySchema.parse)
-  const result = await sealLetter(db, user.id, body.id, body.recipientWrappedKey, await postNow())
+  const result = await sealLetter(
+    db,
+    user.id,
+    body.id,
+    body.recipientWrappedKey,
+    await postNow(),
+    body.opensOn ?? null,
+  )
   if (result.status !== 'sealed') {
     const [statusCode, message] = REFUSALS[result.status]
     throw createError({ statusCode, message, data: { reason: result.status } })

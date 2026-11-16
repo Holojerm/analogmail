@@ -29,6 +29,7 @@ export default defineEventHandler(async (event) => {
     recipientId: plan.recipientId,
     recipientName: plan.recipientName,
     recipientPublicKey: plan.recipientPublicKey,
+    toMantel: plan.toMantel,
     zone: plan.senderZone,
     pickupAt: plan.posting.at.toISOString(),
     postmark: plan.posting.postmark,
