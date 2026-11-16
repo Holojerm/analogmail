@@ -10,7 +10,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '~~/server/db/schema'
 import { clearExtensionsForTest, getAccountContributors } from '#server/utils/extensions'
 
-import { checkIn, forgetCheckins, whereabouts } from '../server/utils/room-checkins'
+import {
+  checkIn,
+  forgetCheckins,
+  whereabouts,
+  whereaboutsWithPlaces,
+} from '../server/utils/room-checkins'
+import { renderRoomMap, roomMapFrame } from '../server/utils/room-map'
 import { registerRoomExtensions } from '../server/utils/room-extensions'
 import {
   clearRoomFamiliesForTest,
@@ -294,6 +300,15 @@ describe('where everyone is', () => {
     ])
   })
 
+  it('puts people in the same city on one place of the map', async () => {
+    await checkIn(db, lees(), 'ann', CHICAGO, NOW)
+    await checkIn(db, lees(), 'bob', CHICAGO, NOW)
+    await checkIn(db, lees(), 'eve', TOKYO, NOW)
+
+    const { places } = await whereaboutsWithPlaces(db, LEES)
+    expect(places).toEqual([{ id: '41.85,-87.65', lat: 41.85, lng: -87.65, people: 2 }])
+  })
+
   it('is said to one family at a time, and never by someone who has left', async () => {
     await checkIn(db, lees(), 'ann', CHICAGO, NOW)
     await checkIn(db, lees(), 'eve', TOKYO, NOW)
@@ -316,5 +331,43 @@ describe('where everyone is', () => {
     const statements = contributor.deletionStatements!(db, 'ann') as BatchItem<'sqlite'>[]
     await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
     expect(await db.select().from(roomCheckins)).toEqual([])
+  })
+})
+
+describe('the family map', () => {
+  const size = { width: 760, height: 400 }
+  const at = (id: string, lat: number, lng: number, people = 1) => ({ id, lat, lng, people })
+
+  it('shows the whole globe when the family is on opposite sides of it', () => {
+    expect(roomMapFrame([])).toBeNull()
+    const places = [at('nyc', 40.7, -74), at('syd', -33.9, 151.2, 3)]
+    expect(roomMapFrame(places)).toBeNull()
+    const map = renderRoomMap(places, size)
+    expect(map.world).toBe(true)
+    expect(map.outline).toMatch(/^M/)
+    expect(map.points.map((point) => point.people)).toEqual([1, 3])
+  })
+
+  it('zooms to a region around nearby cities and keeps them inside the frame', () => {
+    const map = renderRoomMap([at('nyc', 40.71, -74.0), at('bos', 42.36, -71.06)], size)
+    expect(map.world).toBe(false)
+    expect(map.outline).toBeNull()
+    expect(map.land.length).toBeGreaterThan(1000)
+    for (const { x, y } of map.points) {
+      expect(x).toBeGreaterThan(0)
+      expect(x).toBeLessThan(size.width)
+      expect(y).toBeGreaterThan(0)
+      expect(y).toBeLessThan(size.height)
+    }
+    // Boston is north-east of New York: right of it and higher on the page.
+    const [nyc, bos] = map.points
+    expect(bos!.x).toBeGreaterThan(nyc!.x)
+    expect(bos!.y).toBeLessThan(nyc!.y)
+  })
+
+  it('gives a family in one city a region, not a single point', () => {
+    const [[west, south], [east, north]] = roomMapFrame([at('lon', 51.5, -0.1)])!
+    expect(east - west).toBeGreaterThanOrEqual(40)
+    expect(north - south).toBeGreaterThanOrEqual(22)
   })
 })

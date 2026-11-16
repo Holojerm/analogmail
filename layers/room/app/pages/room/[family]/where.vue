@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Where everyone in the family says they are. A person picks a city from the
 // list; nothing reads a device's position, and nobody is reminded or asked.
-import type { RoomFamily, RoomWhereabouts } from '../../../../shared/utils/room-types'
+import type { RoomFamily, RoomMap, RoomWhereabouts } from '../../../../shared/utils/room-types'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -15,6 +15,7 @@ interface WhereView {
   family: RoomFamily
   me: string
   people: RoomWhereabouts[]
+  map: RoomMap | null
 }
 
 const route = useRoute()
@@ -97,6 +98,8 @@ useSeo({
         icon="i-lucide-circle-alert"
         :description="failure"
       />
+
+      <RoomFamilyMap v-if="data?.map" :map="data.map" />
 
       <ul class="flex flex-col divide-y divide-default">
         <li

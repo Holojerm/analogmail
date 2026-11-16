@@ -44,6 +44,21 @@ export interface RoomWhereabouts {
   at: string | null
 }
 
+/** The family's map, already drawn: SVG path strings and a dot per city. */
+export interface RoomMap {
+  width: number
+  height: number
+  /** True when the family fits only on the whole globe. */
+  world: boolean
+  /** The globe's edge in world view; null when zoomed in (the frame is the edge). */
+  outline: string | null
+  land: string
+  borders: string
+  graticule: string
+  points: { id: string; x: number; y: number; people: number }[]
+}
+export const ROOM_MAP_SIZE = { width: 760, height: 400 }
+
 /** Long edge of a stored photo, and of its small copy for the grid. */
 export const ROOM_PHOTO_EDGE = 2560
 export const ROOM_THUMB_EDGE = 640
