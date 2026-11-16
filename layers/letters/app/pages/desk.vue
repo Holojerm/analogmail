@@ -18,6 +18,11 @@ const edited = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })
 
 function describe(letter: DeskLetter): string {
+  const sent = whenSent(letter)
+  return letter.opensOn ? `${sent} Sealed until ${yearDay(letter.opensOn)}.` : sent
+}
+
+function whenSent(letter: DeskLetter): string {
   const status = letter.status
   if (status.kind === 'awaiting_pickup') {
     return `Sealed. Collected ${pickupTime(status.pickupAt, zone.value)}, arrives ${longDay(status.arrives)}.`
