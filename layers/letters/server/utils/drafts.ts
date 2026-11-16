@@ -4,6 +4,7 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
+import { hasReceived } from './mantel'
 import type { LettersDb } from './people'
 
 /** The other person in an open correspondence the user belongs to, or null. */
@@ -28,7 +29,7 @@ export async function correspondentOf(
   return rows.find((row) => row.userId !== userId)?.userId ?? null
 }
 
-export type SaveDraftResult = 'saved' | 'not-yours' | 'sealed' | 'closed'
+export type SaveDraftResult = 'saved' | 'not-yours' | 'sealed' | 'closed' | 'not-received'
 
 /**
  * Creates the draft on its first save and replaces its ciphertext after. The
@@ -37,7 +38,14 @@ export type SaveDraftResult = 'saved' | 'not-yours' | 'sealed' | 'closed'
 export async function saveDraft(
   db: LettersDb,
   authorId: string,
-  draft: { id: string; correspondenceId: string; ciphertext: string; wrappedKey: string },
+  draft: {
+    id: string
+    correspondenceId: string
+    ciphertext: string
+    wrappedKey: string
+    /** The letter this one answers. Set when the draft is first saved, never after. */
+    inReplyTo?: string | null
+  },
   now: Date,
 ): Promise<SaveDraftResult> {
   const { letters, letterKeys } = tables
@@ -52,11 +60,26 @@ export async function saveDraft(
     return 'saved'
   }
   if (!(await correspondentOf(db, draft.correspondenceId, authorId))) return 'closed'
+  if (draft.inReplyTo) {
+    // A reply answers a letter that has arrived, in the same correspondence.
+    const [answered] = await db
+      .select({ correspondenceId: letters.correspondenceId })
+      .from(letters)
+      .where(eq(letters.id, draft.inReplyTo))
+      .limit(1)
+    if (
+      answered?.correspondenceId !== draft.correspondenceId ||
+      !(await hasReceived(db, authorId, draft.inReplyTo))
+    ) {
+      return 'not-received'
+    }
+  }
   await db.batch([
     db.insert(letters).values({
       id: draft.id,
       correspondenceId: draft.correspondenceId,
       authorId,
+      inReplyTo: draft.inReplyTo ?? null,
       ciphertext: draft.ciphertext,
       createdAt: now,
       updatedAt: now,
@@ -80,6 +103,7 @@ export async function ownLetter(db: LettersDb, authorId: string, letterId: strin
       correspondenceId: letters.correspondenceId,
       ciphertext: letters.ciphertext,
       sealedAt: letters.sealedAt,
+      inReplyTo: letters.inReplyTo,
       wrappedKey: letterKeys.wrappedKey,
     })
     .from(letters)

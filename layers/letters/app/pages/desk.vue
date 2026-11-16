@@ -50,12 +50,8 @@ useSeo({
 
 <template>
   <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <div class="flex items-baseline justify-between gap-4">
-      <h1 class="text-3xl text-highlighted">Your desk</h1>
-      <UButton to="/people" variant="link" color="neutral" class="p-0"
-        >People you write with</UButton
-      >
-    </div>
+    <LetterNav />
+    <h1 class="text-3xl text-highlighted">Your desk</h1>
 
     <UAlert
       v-if="failure"

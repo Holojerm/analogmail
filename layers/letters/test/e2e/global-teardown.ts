@@ -25,6 +25,7 @@ export default function globalTeardown(): void {
     db.exec(`DELETE FROM invites WHERE inviter_id IN (${E2E_USERS})`)
     db.exec(`DELETE FROM people WHERE user_id IN (${E2E_USERS})`)
     db.exec(`DELETE FROM postal_profiles WHERE user_id IN (${E2E_USERS})`)
+    db.exec(`DELETE FROM notices WHERE user_id IN (${E2E_USERS})`)
   } finally {
     db.close()
   }

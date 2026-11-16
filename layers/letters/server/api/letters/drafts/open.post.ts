@@ -20,5 +20,6 @@ export default defineEventHandler(async (event) => {
     ciphertext: letter.ciphertext,
     wrappedKey: letter.wrappedKey,
     sealed: Boolean(letter.sealedAt),
+    inReplyTo: letter.inReplyTo,
   }
 })
