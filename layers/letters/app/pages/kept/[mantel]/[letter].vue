@@ -85,8 +85,7 @@ useSeo({ title: 'A letter', description: 'A letter on a mantel you keep.', noind
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
     <p v-if="loading" class="text-muted" role="status">Opening…</p>
 
     <template v-else>

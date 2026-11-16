@@ -240,8 +240,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
     <h1 class="text-3xl text-highlighted">
       {{ plan ? `A letter to ${plan.recipientName}` : 'A letter' }}
     </h1>
@@ -257,13 +256,10 @@ useSeo({
       />
 
       <template v-if="sealed">
-        <UAlert
-          color="info"
-          variant="subtle"
-          icon="i-lucide-mail"
-          title="This letter is sealed"
-          description="It can be read here but not changed. Until it is collected you can recall it from your desk."
-        />
+        <p class="font-serif text-lg text-toned">
+          This letter is sealed. It can be read here but not changed. Until it is collected you can
+          recall it from your desk.
+        </p>
         <LetterPaper :doc="doc()" :photo-url="photoUrl" />
       </template>
 
@@ -272,7 +268,7 @@ useSeo({
           <h2 id="answered-heading" class="text-sm text-muted">You are replying to</h2>
           <LetterPaper :doc="answered.doc" :photo-url="answered.photoUrl" />
         </section>
-        <div class="grid gap-4 sm:grid-cols-3">
+        <div class="grid grid-cols-3 gap-3">
           <UFormField label="Paper" name="paper">
             <USelect
               v-model="stationery.paper"

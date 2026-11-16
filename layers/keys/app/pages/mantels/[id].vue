@@ -136,8 +136,7 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-xl flex-col gap-8 py-8 sm:py-12">
     <h1 class="text-3xl text-highlighted">{{ mantel ? mantel.name : 'A mantel you keep' }}</h1>
 
     <p v-if="loading" class="text-muted" role="status">Opening…</p>

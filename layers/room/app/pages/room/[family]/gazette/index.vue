@@ -28,9 +28,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-12">
-    <LetterNav />
-
+  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-8 sm:py-12">
     <UAlert
       v-if="error || !data"
       color="error"
@@ -45,13 +43,14 @@ useSeo({
         <h1 class="text-3xl text-highlighted">Gazette</h1>
       </header>
       <RoomTabs :family-id="familyId" />
-      <p class="text-muted">
+      <RoomNotice />
+      <p class="font-serif text-lg text-toned">
         On the first of each month, the month before is laid out here as a gazette: the photos added
         and where people said they were. Each January the year becomes an almanac. Nobody is told
         when one comes out; it is here when you look.
       </p>
 
-      <p v-if="!data.gazettes.length" class="text-muted">
+      <p v-if="!data.gazettes.length" class="font-serif text-lg text-toned">
         There is no gazette yet. The first one comes out on the first of the month after something
         is added to the room.
       </p>

@@ -116,11 +116,10 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-md flex-col gap-6 py-12">
-    <LetterNav />
+  <div class="mx-auto flex max-w-md flex-col gap-6 py-8 sm:py-12">
     <div>
       <h1 class="text-3xl text-highlighted">Your post</h1>
-      <p class="mt-2 text-muted">
+      <p class="mt-2 font-serif text-lg text-toned">
         Where your letters arrive, on which days, and at what hour. Letters already on their way
         keep the arrival day they were given.
       </p>

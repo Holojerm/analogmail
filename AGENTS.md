@@ -360,6 +360,17 @@ don't hand-edit them and expect the change to survive. `bun run design:check` (p
 
 The dev-only `/design-system` route renders every token and component state on one page in both
 color modes — use it to verify a design change actually landed.
+
+DESIGN.md also fixes the shape of the product and its words, and those bind every page:
+
+- **Four places, one navigation**: Mantel, Desk, People, Room. The shell is
+  `app/layouts/default.vue`; the places and the menu are in
+  `layers/post/app/components/House/`. A new page belongs to one of the four or to the menu. It
+  never adds a navigation of its own.
+- **Who can read this**: every page that shows something a person made carries one `<WhoReads>`
+  line. Encrypted and not encrypted are said in words, never by an icon or a colour.
+- **Voice**: DESIGN.md › Voice lists the words this product uses and the ones it never does
+  ("inbox", "unread", "new", "secure"). No counts, badges or nudges anywhere.
 ### The brand mark
 
 The logo is drawn **once**, in

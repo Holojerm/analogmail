@@ -28,9 +28,7 @@ useSeo({
 </script>
 
 <template>
-  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-12">
-    <LetterNav />
-
+  <div class="mx-auto flex max-w-3xl flex-col gap-6 py-8 sm:py-12">
     <template v-if="error || !issue">
       <UAlert
         color="neutral"
@@ -47,9 +45,9 @@ useSeo({
       <RoomTabs :family-id="familyId" />
 
       <header class="border-y-2 border-default py-6 text-center">
-        <p class="text-sm tracking-widest text-muted uppercase">{{ issue.family.name }}</p>
+        <p class="font-mono text-xs tracking-wide text-muted uppercase">{{ issue.family.name }}</p>
         <h1 class="mt-1 text-5xl text-highlighted">{{ name }}</h1>
-        <p class="mt-2 text-muted">
+        <p class="mt-2 font-serif text-lg text-toned">
           {{ almanac ? `The year ${roomIssueLabel(issue.id)}` : roomIssueLabel(issue.id) }}
           <template v-if="total"> · {{ total }} {{ total === 1 ? 'photo' : 'photos' }}</template>
         </p>
@@ -76,7 +74,9 @@ useSeo({
                 class="h-auto w-full rounded-sm border border-default"
               />
               <figcaption class="mt-2 text-sm">
-                <p v-if="photo.caption" class="text-default">{{ photo.caption }}</p>
+                <p v-if="photo.caption" class="font-serif text-base text-default">
+                  {{ photo.caption }}
+                </p>
                 <p class="text-muted">
                   {{ photo.uploaderName ? `${photo.uploaderName}, ` : ''
                   }}{{ day(photo.createdAt) }}
@@ -107,6 +107,7 @@ useSeo({
         </ul>
       </section>
 
+      <RoomNotice />
       <ULink :to="`/room/${familyId}/gazette`" class="self-start underline underline-offset-4">
         Every issue
       </ULink>
