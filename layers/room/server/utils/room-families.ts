@@ -14,6 +14,8 @@ export interface RoomFamilies {
   membership(db: RoomDb, userId: string, familyId: string): Promise<RoomFamily | null>
   /** Every family this person is in, closed ones included. */
   list(db: RoomDb, userId: string): Promise<RoomFamily[]>
+  /** The people in a family now, by the names they chose. */
+  members(db: RoomDb, familyId: string): Promise<{ id: string; name: string }[]>
 }
 
 let source: RoomFamilies | null = null
@@ -30,3 +32,6 @@ export const roomFamily = async (db: RoomDb, userId: string, familyId: string) =
 
 export const roomFamiliesOf = async (db: RoomDb, userId: string) =>
   source ? source.list(db, userId) : []
+
+export const roomMembers = async (db: RoomDb, familyId: string) =>
+  source ? source.members(db, familyId) : []

@@ -81,6 +81,21 @@ test('a family room: photos added, shared, and closed to those who leave', async
   await expect(bob.getByLabel('Caption')).toHaveCount(0)
   await expect(bob.getByRole('button', { name: 'Delete photo' })).toHaveCount(0)
 
+  // ── He says where he is: a city from the list, shown to the family ─────────
+  await bob.keyboard.press('Escape')
+  await bob.getByRole('link', { name: 'Where everyone is' }).click()
+  await expect(bob.getByText('Has not said')).toHaveCount(2)
+  await bob.getByLabel('Your city now').fill('Chic')
+  await bob
+    .getByRole('button', { name: /^Chicago/ })
+    .first()
+    .click()
+  await expect(bob.getByText(/^Chicago, US/)).toBeVisible()
+  await open(ann, `/room/${familyId}/where`)
+  await expect(ann.getByText(/^Chicago, US/)).toBeVisible()
+  await expect(ann.getByText('Has not said')).toHaveCount(1)
+  await open(ann, `/room/${familyId}`)
+
   // ── He leaves the family: the room and its pictures close to him ───────────
   await open(bob, `/family/${familyId}`)
   await bob.getByRole('button', { name: 'Leave The Roomers' }).click()

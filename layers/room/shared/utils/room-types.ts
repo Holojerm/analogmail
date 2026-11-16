@@ -34,6 +34,16 @@ export interface RoomUsage {
   bytes: number
 }
 
+/** Where one person in the family last said they were. */
+export interface RoomWhereabouts {
+  userId: string
+  name: string
+  /** Null until they have said. */
+  city: string | null
+  country: string | null
+  at: string | null
+}
+
 /** Long edge of a stored photo, and of its small copy for the grid. */
 export const ROOM_PHOTO_EDGE = 2560
 export const ROOM_THUMB_EDGE = 640

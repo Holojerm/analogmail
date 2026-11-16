@@ -14,6 +14,7 @@ export default function globalTeardown(): void {
 
   const db = new DatabaseSync(DB_PATH)
   try {
+    db.exec(`DELETE FROM room_checkins WHERE user_id IN (${E2E_USERS})`)
     db.exec(`DELETE FROM room_photos WHERE uploaded_by IN (${E2E_USERS})`)
     db.exec(`DELETE FROM room_albums WHERE created_by IN (${E2E_USERS})`)
   } finally {

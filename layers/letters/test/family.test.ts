@@ -20,6 +20,7 @@ import {
   closeFamily,
   createFamily,
   familiesForRoom,
+  familyMembersForRoom,
   getFamily,
   leaveFamily,
   listFamilies,
@@ -349,8 +350,14 @@ describe('what the family room is told', () => {
     expect((await familiesForRoom(db, 'ann'))[0]).toMatchObject({ organiser: true })
     expect(await familiesForRoom(db, 'eve', familyId)).toEqual([])
 
+    expect((await familyMembersForRoom(db, familyId)).map((member) => member.id)).toEqual([
+      'ann',
+      'bob',
+      'cal',
+    ])
     await leaveFamily(db, 'cal', familyId, 'cal', FRIDAY)
     expect(await familiesForRoom(db, 'cal')).toEqual([])
+    expect(await familyMembersForRoom(db, familyId)).toHaveLength(2)
     await closeFamily(db, 'ann', familyId, FRIDAY)
     expect(await familiesForRoom(db, 'bob')).toMatchObject([{ closed: true }])
   })
