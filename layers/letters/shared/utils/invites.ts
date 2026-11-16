@@ -17,6 +17,9 @@ export const MAX_OPEN_INVITES = 20
 const NAME_PATTERN = /^[\p{L}\p{M}][\p{L}\p{M}\p{N} .,'’-]*$/u
 export const DISPLAY_NAME_MAX = 40
 
+/** People in one family, the organiser included. Every letter is wrapped once per reader. */
+export const FAMILY_MEMBERS_MAX = 20
+
 export const displayNameSchema = z
   .string()
   .transform((value) => value.trim().replace(/\s+/g, ' '))
@@ -34,6 +37,8 @@ export const inviteInputSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter an email address').max(254),
   /** A mantel the inviter keeps: the invitation is to write to it. */
   mantelId: z.string().uuid().optional(),
+  /** A family the inviter organises: the invitation is to join it. */
+  familyId: z.string().uuid().optional(),
 })
 
 /**
@@ -54,6 +59,8 @@ export interface InviteView {
   expiresAt: string | null
   /** Set when the invitation is to write to a kept mantel, not to the inviter. */
   mantelName?: string | null
+  /** Set when the invitation is to join a family. */
+  familyName?: string | null
 }
 
 export interface PersonView {

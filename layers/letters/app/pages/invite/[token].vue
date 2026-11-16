@@ -17,8 +17,10 @@ const needs = ref<'name' | 'city' | null>(null)
 const signInPath = computed(() => `/auth/sign-in?redirect=${encodeURIComponent(route.path)}`)
 const sender = computed(() => invite.value?.inviterName ?? 'Someone')
 const mantelName = computed(() => invite.value?.mantelName ?? null)
+const familyName = computed(() => invite.value?.familyName ?? null)
 const heading = computed(() => {
   if (invite.value?.status !== 'open') return "This invitation can't be used"
+  if (familyName.value) return `${sender.value} invites you to ${familyName.value}`
   return mantelName.value
     ? `${sender.value} asks you to write to ${mantelName.value}`
     : `${sender.value} would like to write to you`
@@ -98,7 +100,12 @@ useSeo({
 
       <template v-if="invite?.status === 'open'">
         <div class="flex flex-col gap-2">
-          <p v-if="mantelName" class="text-muted">
+          <p v-if="familyName" class="text-muted">
+            A letter to {{ familyName }} goes to everyone in it at once, each copy arriving by post
+            in that person's own city. Accepting puts you in it: you will read what is written from
+            now on, and you can leave at any time.
+          </p>
+          <p v-else-if="mantelName" class="text-muted">
             {{ sender }} keeps a mantel for {{ mantelName }}: a place for letters to someone who
             cannot keep their own yet. Accepting lets you write to it. Letters take days to arrive,
             the way post does, and you can seal one until a day you choose, such as a birthday.

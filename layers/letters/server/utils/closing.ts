@@ -51,7 +51,14 @@ export async function closeCorrespondence(
   correspondenceId: string,
   now: Date,
 ): Promise<CloseResult> {
-  const { correspondences, correspondenceMembers: members } = tables
+  const { correspondences, correspondenceMembers: members, families } = tables
+  // A family is not closed by one member: they leave it (families.ts).
+  const [family] = await db
+    .select({ id: families.id })
+    .from(families)
+    .where(eq(families.correspondenceId, correspondenceId))
+    .limit(1)
+  if (family) return 'not-yours'
   const [member] = await db
     .select({ id: members.id })
     .from(members)

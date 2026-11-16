@@ -205,6 +205,17 @@ recipient nothing before delivery and never touches `openedAt`. Code that delete
 must delete its file too (`discardDraft`, `removeDraftPhotos`). Photos are shown from
 `data:` addresses: the content policy has no `blob:` in `img-src`, on purpose.
 
+Families (`layers/letters/server/utils/families.ts`): a family is a name on a correspondence
+with more than two members, so a letter to it is an ordinary letter with several readers.
+`planSeal` returns every reader with their own posting; `sealLetter` takes the letter's key
+wrapped once per reader and refuses if the readers are not exactly the ones planned
+(`readers-changed`). Each reader has their own delivery, on their own post, and reads on their
+own mantel; nothing tells one reader about another's copy. The writer's desk shows one letter,
+in transit until the last copy's promised day. Only the organiser invites and removes; anyone
+may leave. Leaving, removal and account deletion end one member's place and never close the
+family (`closeCorrespondence` refuses a family). A new member reads only what is sealed after
+they join.
+
 Reading (`layers/letters`): `/mantel` is home (a signed-in visit to `/dashboard` goes there) and
 lists what has been delivered; `/letter/<id>` opens one. `listMantel` and `openLetter` return
 only deliveries in state `delivered` to the caller, so nothing shows before its release, and
