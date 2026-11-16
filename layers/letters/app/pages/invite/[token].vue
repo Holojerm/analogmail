@@ -16,11 +16,13 @@ const needs = ref<'name' | 'city' | null>(null)
 
 const signInPath = computed(() => `/auth/sign-in?redirect=${encodeURIComponent(route.path)}`)
 const sender = computed(() => invite.value?.inviterName ?? 'Someone')
-const heading = computed(() =>
-  invite.value?.status === 'open'
-    ? `${sender.value} would like to write to you`
-    : "This invitation can't be used",
-)
+const mantelName = computed(() => invite.value?.mantelName ?? null)
+const heading = computed(() => {
+  if (invite.value?.status !== 'open') return "This invitation can't be used"
+  return mantelName.value
+    ? `${sender.value} asks you to write to ${mantelName.value}`
+    : `${sender.value} would like to write to you`
+})
 const until = computed(() =>
   invite.value?.expiresAt
     ? new Date(invite.value.expiresAt).toLocaleDateString(undefined, {
@@ -96,7 +98,12 @@ useSeo({
 
       <template v-if="invite?.status === 'open'">
         <div class="flex flex-col gap-2">
-          <p class="text-muted">
+          <p v-if="mantelName" class="text-muted">
+            {{ sender }} keeps a mantel for {{ mantelName }}: a place for letters to someone who
+            cannot keep their own yet. Accepting lets you write to it. Letters take days to arrive,
+            the way post does, and you can seal one until a day you choose, such as a birthday.
+          </p>
+          <p v-else class="text-muted">
             Letters here take days to arrive, the way post does, so nobody has to answer quickly.
             Accepting lets the two of you write to each other. Either of you can stop at any time.
           </p>
