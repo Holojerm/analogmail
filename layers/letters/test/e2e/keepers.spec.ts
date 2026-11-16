@@ -154,6 +154,11 @@ test('a wedding guest writes from the card, with no account', async ({ browser, 
     .first()
     .click()
   await expect(ann.getByText(/Its post arrives in Chicago/)).toBeVisible()
+  // Its days and hour change from tomorrow, like a person's own.
+  await ann.getByRole('button', { name: 'Change its post' }).click()
+  await ann.getByLabel('Saturday').uncheck()
+  await ann.getByRole('button', { name: 'Save days and hour' }).click()
+  await expect(ann.getByText(/A change to its days and hour starts on /)).toBeVisible()
   await ann.reload({ waitUntil: 'networkidle' })
   await ann.getByRole('button', { name: 'Make the write link' }).click()
   const address = new URL((await ann.getByTestId('guest-link').innerText()).trim())

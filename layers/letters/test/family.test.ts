@@ -16,7 +16,14 @@ import { acceptInvite } from '../server/utils/accept-invite'
 import { closeCorrespondence } from '../server/utils/closing'
 import { listPeople } from '../server/utils/correspondences'
 import { saveDraft } from '../server/utils/drafts'
-import { createFamily, getFamily, leaveFamily, listFamilies } from '../server/utils/families'
+import {
+  closeFamily,
+  createFamily,
+  getFamily,
+  leaveFamily,
+  listFamilies,
+  renameFamily,
+} from '../server/utils/families'
 import { inviteEmail } from '../server/utils/invite-email'
 import { createInvite, viewInvite } from '../server/utils/invites'
 import { registerLettersExtensions } from '../server/utils/letters-extensions'
@@ -291,5 +298,42 @@ describe('leaving a family', () => {
       'ann',
       'bob',
     ])
+  })
+})
+
+describe('the organiser', () => {
+  beforeEach(async () => {
+    await join('bob')
+    await join('cal')
+  })
+
+  it('renames the family, and nobody else does', async () => {
+    expect(await renameFamily(db, 'bob', familyId, 'The Stones', FRIDAY)).toBe('not-organiser')
+    expect(await renameFamily(db, 'ann', familyId, '   ', FRIDAY)).toBe('bad-name')
+    expect(await renameFamily(db, 'ann', familyId, '  The   Lees ', FRIDAY)).toBe('done')
+    expect((await getFamily(db, 'bob', familyId, FRIDAY))!.name).toBe('The Lees')
+  })
+
+  it('closes it for everyone: letters on the way go back, invitations are withdrawn', async () => {
+    await draft(LETTER)
+    await sealLetter(db, 'ann', LETTER, { bob: 'k-bob', cal: 'k-cal' }, MONDAY)
+    await createInvite(db, ann, 'dan@example.com', MONDAY, null, familyId)
+
+    expect(await closeFamily(db, 'bob', familyId, FRIDAY)).toBe('not-organiser')
+    expect(await closeFamily(db, 'ann', familyId, FRIDAY)).toBe('done')
+
+    const copies = await db.select().from(deliveries)
+    expect(
+      copies
+        .filter((copy) => copy.kind === 'letter')
+        .map((copy) => copy.state)
+        .toSorted(),
+    ).toEqual(['returned', 'returned'])
+    expect(await db.select().from(invites).where(eq(invites.familyId, familyId))).toHaveLength(2)
+    expect(await listFamilies(db, 'bob')).toEqual([])
+    await draft(SECOND)
+    expect(await planSeal(db, 'ann', toFamily, FRIDAY)).toBe('closed')
+    expect(await closeFamily(db, 'ann', familyId, FRIDAY)).toBe('not-organiser')
+    expect(await renameFamily(db, 'ann', familyId, 'Again', FRIDAY)).toBe('not-organiser')
   })
 })

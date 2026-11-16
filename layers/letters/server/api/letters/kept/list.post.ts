@@ -23,7 +23,17 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, message: 'You do not keep that mantel.' })
   const profile = await getProfile(db, mantelId)
   return {
-    post: profile ? { city: profile.cityName, country: profile.country } : null,
+    post: profile
+      ? {
+          city: profile.cityName,
+          country: profile.country,
+          mailDays: profile.mailDays,
+          deliveryHour: profile.deliveryHour,
+          pendingMailDays: profile.pendingMailDays,
+          pendingDeliveryHour: profile.pendingDeliveryHour,
+          pendingFrom: profile.pendingFrom,
+        }
+      : null,
     letters,
     ...writing,
     guestLink: await guestLinkFor(db, user.id, mantelId),

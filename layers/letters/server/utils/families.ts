@@ -196,3 +196,71 @@ export async function leaveFamily(
   await returnInTransitTo(db, memberId, now, family.correspondenceId)
   return 'left'
 }
+
+export type FamilyChange = 'done' | 'not-organiser' | 'bad-name'
+
+async function organised(db: LettersDb, userId: string, familyId: string) {
+  const { families, correspondences } = tables
+  const [family] = await db
+    .select({
+      id: families.id,
+      organiserId: families.organiserId,
+      correspondenceId: families.correspondenceId,
+      closedAt: correspondences.closedAt,
+    })
+    .from(families)
+    .innerJoin(correspondences, eq(correspondences.id, families.correspondenceId))
+    .where(eq(families.id, familyId))
+    .limit(1)
+  if (!family || family.closedAt) return null
+  const members = await activeMembers(db, family.correspondenceId)
+  return organiserOf(family, members) === userId ? { ...family, members } : null
+}
+
+/** The organiser gives the family another name. */
+export async function renameFamily(
+  db: LettersDb,
+  userId: string,
+  familyId: string,
+  name: string,
+  now: Date,
+): Promise<FamilyChange> {
+  const { families } = tables
+  const family = await organised(db, userId, familyId)
+  if (!family) return 'not-organiser'
+  const parsed = displayNameSchema.safeParse(name)
+  if (!parsed.success) return 'bad-name'
+  await db
+    .update(families)
+    .set({ name: parsed.data, updatedAt: now })
+    .where(eq(families.id, familyId))
+  return 'done'
+}
+
+/**
+ * The organiser closes the family for everyone. Nothing new can be written
+ * in it. Letters still on their way go back to their senders, invitations
+ * nobody has accepted are withdrawn, and what each person has received stays
+ * theirs to read and to copy.
+ */
+export async function closeFamily(
+  db: LettersDb,
+  userId: string,
+  familyId: string,
+  now: Date,
+): Promise<FamilyChange> {
+  const { correspondences, invites } = tables
+  const family = await organised(db, userId, familyId)
+  if (!family) return 'not-organiser'
+  const closed = await db
+    .update(correspondences)
+    .set({ closedAt: now, closedBy: userId, updatedAt: now })
+    .where(and(eq(correspondences.id, family.correspondenceId), isNull(correspondences.closedAt)))
+    .returning({ id: correspondences.id })
+  if (closed.length === 0) return 'not-organiser'
+  await db.delete(invites).where(and(eq(invites.familyId, familyId), isNull(invites.acceptedAt)))
+  for (const member of family.members) {
+    await returnInTransitTo(db, member.userId, now, family.correspondenceId)
+  }
+  return 'done'
+}

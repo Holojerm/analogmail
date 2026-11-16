@@ -61,5 +61,15 @@ test('a family: started, joined, and written to', async ({ browser, baseURL }) =
   await bob.waitForURL('**/people')
   await expect(bob.getByRole('link', { name: 'Open The Testers' })).toHaveCount(0)
 
+  // ── The organiser renames it, then closes it for everyone ──────────────────
+  await open(ann, familyPath)
+  await ann.getByLabel('A new name').fill('The Tester Family')
+  await ann.getByRole('button', { name: 'Rename' }).click()
+  await expect(ann.getByRole('heading', { name: 'The Tester Family', exact: true })).toBeVisible()
+  await ann.getByRole('button', { name: 'Close The Tester Family' }).click()
+  await ann.getByRole('button', { name: 'Close for everyone' }).click()
+  await ann.waitForURL('**/people')
+  await expect(ann.getByRole('link', { name: 'Open The Tester Family' })).toHaveCount(0)
+
   await close()
 })
