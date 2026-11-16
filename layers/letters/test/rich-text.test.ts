@@ -74,6 +74,34 @@ describe('a letter document', () => {
     })
   })
 
+  it('keeps a line set to the centre or the right, and nothing for the left', () => {
+    const fromEditor = {
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 2, textAlign: 'center' } },
+        { type: 'paragraph', attrs: { textAlign: 'right' } },
+        { type: 'paragraph', attrs: { textAlign: 'left' } },
+        { type: 'paragraph', attrs: { textAlign: null } },
+        { type: 'heading', attrs: { level: 3, textAlign: null } },
+      ],
+    }
+    expect(richDocSchema.parse(fromEditor)).toEqual({
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 2, textAlign: 'center' } },
+        { type: 'paragraph', attrs: { textAlign: 'right' } },
+        { type: 'paragraph' },
+        { type: 'paragraph' },
+        { type: 'heading', attrs: { level: 3 } },
+      ],
+    })
+    const justified = {
+      type: 'doc',
+      content: [{ type: 'paragraph', attrs: { textAlign: 'justify' } }],
+    }
+    expect(richDocSchema.safeParse(justified).success).toBe(false)
+  })
+
   it.each([
     [
       'a link mark',

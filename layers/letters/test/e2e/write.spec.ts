@@ -43,6 +43,7 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   // ── Formatting and a hand of her own are part of the encrypted letter ──────
   await ann.getByLabel('Your letter').press('ControlOrMeta+a')
   await ann.getByRole('button', { name: 'Bold' }).click()
+  await ann.getByRole('button', { name: 'Centre' }).click()
   await ann.getByLabel('Hand').click()
   await ann.getByRole('option', { name: 'Quick hand' }).click()
 
@@ -113,6 +114,7 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
     await expect(bob.locator('article.letter-face-hand strong')).toHaveText(
       `${TEXT} Bring the dog.`,
     )
+    await expect(bob.locator('article.letter-face-hand p.letter-align-center')).toHaveCount(1)
     await expect(bob.getByRole('img', { name: 'The plum tree' })).toBeVisible()
     await bob.getByRole('link', { name: 'Reply' }).click()
     await expect(bob.getByText('You are replying to')).toBeVisible()

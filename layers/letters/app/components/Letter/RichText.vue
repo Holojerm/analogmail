@@ -4,7 +4,13 @@
 // handful of tags named here.
 import { h, type VNode } from 'vue'
 
-import type { RichBlock, RichDoc, RichInline, RichMark } from '../../../shared/utils/rich-text'
+import type {
+  RichAlign,
+  RichBlock,
+  RichDoc,
+  RichInline,
+  RichMark,
+} from '../../../shared/utils/rich-text'
 
 const props = defineProps<{ doc: RichDoc }>()
 
@@ -28,12 +34,18 @@ function inline(nodes: RichInline[] = []): (VNode | string)[] {
   })
 }
 
+const aligned = (align?: RichAlign) => (align ? { class: `letter-align-${align}` } : null)
+
 function block(node: RichBlock): VNode {
   switch (node.type) {
     case 'paragraph':
-      return h('p', inline(node.content))
+      return h('p', aligned(node.attrs?.textAlign), inline(node.content))
     case 'heading':
-      return h(node.attrs.level === 2 ? 'h2' : 'h3', inline(node.content))
+      return h(
+        node.attrs.level === 2 ? 'h2' : 'h3',
+        aligned(node.attrs.textAlign),
+        inline(node.content),
+      )
     case 'horizontalRule':
       return h('hr')
     case 'blockquote':
