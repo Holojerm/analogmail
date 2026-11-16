@@ -17,7 +17,7 @@ interface City {
 
 const post = ref<{ city: string; country: string } | null>(null)
 const letters = ref<KeptItem[]>([])
-const writers = ref<{ userId: string; name: string }[]>([])
+const writers = ref<{ userId: string; name: string; keeper: boolean }[]>([])
 const invited = ref<{ id: string; email: string }[]>([])
 const writerEmail = ref('')
 const inviteLink = ref<string | null>(null)
@@ -118,6 +118,22 @@ async function invite() {
   }
 }
 
+async function writerAction(body: Record<string, string>) {
+  busy.value = true
+  failure.value = null
+  try {
+    await $fetch('/api/letters/kept/writers', {
+      method: 'POST',
+      body: { ...body, mantelId: props.mantelId },
+    })
+    await load()
+  } catch (error) {
+    failure.value = message(error)
+  } finally {
+    busy.value = false
+  }
+}
+
 function describe(letter: KeptItem): string {
   if (letter.sealed && letter.opensOn) return `Sealed. Opens ${yearDay(letter.opensOn)}.`
   const postmark = letter.postmark ? `Postmarked ${longDay(letter.postmark)}.` : ''
@@ -198,14 +214,45 @@ function describe(letter: KeptItem): string {
       <h3 class="mt-4 text-lg text-highlighted">Who writes to {{ name }}</h3>
       <p class="text-sm text-muted">
         Its keepers can write from here. Ask grandparents, godparents or friends to write too: each
-        gets their own invitation, and none of them can read what the others wrote.
+        gets their own invitation, and none of them can read what the others wrote. If you stop
+        someone, their letters still on the way go back to them, and what has arrived stays.
       </p>
       <ul v-if="writers.length || invited.length" class="flex flex-col divide-y divide-default">
-        <li v-for="writer in writers" :key="writer.userId" class="py-2 text-highlighted">
-          {{ writer.name }}
+        <li
+          v-for="writer in writers"
+          :key="writer.userId"
+          class="flex items-center justify-between gap-4 py-2"
+        >
+          <span class="text-highlighted">{{ writer.name }}</span>
+          <UButton
+            v-if="!writer.keeper"
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            :disabled="busy"
+            :aria-label="`Stop ${writer.name} writing to ${name}`"
+            @click="writerAction({ action: 'stop', writerId: writer.userId })"
+          >
+            Stop
+          </UButton>
+          <span v-else class="text-sm text-muted">Keeper</span>
         </li>
-        <li v-for="waiting in invited" :key="waiting.id" class="py-2 text-muted">
-          {{ waiting.email }} · invited
+        <li
+          v-for="waiting in invited"
+          :key="waiting.id"
+          class="flex items-center justify-between gap-4 py-2"
+        >
+          <span class="text-muted">{{ waiting.email }} · invited</span>
+          <UButton
+            size="sm"
+            variant="ghost"
+            color="neutral"
+            :disabled="busy"
+            :aria-label="`Withdraw the invitation to ${waiting.email}`"
+            @click="writerAction({ action: 'withdraw', inviteId: waiting.id })"
+          >
+            Withdraw
+          </UButton>
         </li>
       </ul>
       <form class="flex flex-col gap-3" @submit.prevent="invite">
