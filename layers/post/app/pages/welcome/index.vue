@@ -7,13 +7,14 @@ definePageMeta({ middleware: 'auth' })
 
 const postal = usePostalProfile()
 
+// The checkbox group's items carry string values; the weekday number is parsed back out.
 const WEEKDAYS = [
-  { value: 1, label: 'Monday' },
-  { value: 2, label: 'Tuesday' },
-  { value: 3, label: 'Wednesday' },
-  { value: 4, label: 'Thursday' },
-  { value: 5, label: 'Friday' },
-  { value: 6, label: 'Saturday' },
+  { value: '1', label: 'Monday' },
+  { value: '2', label: 'Tuesday' },
+  { value: '3', label: 'Wednesday' },
+  { value: '4', label: 'Thursday' },
+  { value: '5', label: 'Friday' },
+  { value: '6', label: 'Saturday' },
 ]
 const HOURS = Array.from({ length: 16 }, (_, index) => index + 6).map((hour) => ({
   value: hour,
@@ -35,7 +36,10 @@ let latest = 0
 watch(query, async (text) => {
   const request = (latest += 1)
   if (city.value && text !== place(city.value)) city.value = null
-  if (city.value || text.trim().length < 2) return (options.value = [])
+  if (city.value || text.trim().length < 2) {
+    options.value = []
+    return
+  }
   const found = await $fetch<{ cities: CityOption[] }>('/api/post/cities', { query: { q: text } })
   if (request === latest) options.value = found.cities
 })
@@ -47,7 +51,9 @@ function choose(option: CityOption) {
 }
 
 const mailDays = computed(() =>
-  days.value.length === WEEKDAYS.length ? ALL_MAIL_DAYS : mailDaysFromWeekdays(days.value),
+  days.value.length === WEEKDAYS.length
+    ? ALL_MAIL_DAYS
+    : mailDaysFromWeekdays(days.value.map(Number)),
 )
 const ready = computed(() => Boolean(city.value) && days.value.length > 0)
 
