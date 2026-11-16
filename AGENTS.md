@@ -81,6 +81,16 @@ Display names go into email to strangers, so `displayNameSchema` refuses anythin
 as a link or an address: do not loosen it. Sign-up ends on `/people`, which is also where an
 invitation opened before sign-up is picked up again.
 
+Writing (`layers/letters`): `/write` is the desk for one letter, `/desk` lists drafts and sent
+letters. A letter is a `LetterDoc` (plain text, stationery, the signed name) encrypted in the
+browser under its own random key; that key is wrapped once per reader to their public key
+(`layers/letters/app/utils/letter-crypto.ts`). The server validates the envelope's shape and
+stores it. A draft has only its author's key row. Sealing (`sealLetter`) adds the recipient's
+key and a delivery whose pickup, postmark and dates are fixed in one transaction; recall
+before pickup undoes exactly that. What a sender sees afterwards comes only from
+`senderView`: never read `deliveries.state`, `deliveredAt` or `openedAt` on the sender's side.
+Times are shown in the sender's profile time zone, not the device's.
+
 ---
 
 ## Where things are documented
