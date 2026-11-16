@@ -236,6 +236,12 @@
     letter-spacing: -0.02em;
   }
 
+  /* DESIGN.md › Play › The little things. */
+  ::selection {
+    background-color: var(--art-blush);
+    color: var(--ui-text-highlighted);
+  }
+
   code,
   kbd,
   pre,
@@ -251,6 +257,248 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ── 6. Play ──────────────────────────────────────────────────────────────
+ * DESIGN.md › Play and › Motion. The drawings' three colours and everything
+ * that moves. Play lives at the edges: none of this touches a letter's text.
+ *
+ * Every loop below stops under prefers-reduced-motion through the rule in
+ * @layer base. The scroll-linked reveal has no duration to shorten, so it is
+ * wrapped in its own no-preference query. */
+
+:root {
+  /* The drawings are printed in two inks on paper: clay and black. */
+  --art-clay: var(--color-clay-500);
+  --art-blush: var(--color-clay-200);
+  --art-paper: var(--paper-sheet);
+  --art-kraft: var(--paper-kraft);
+  --art-cream: var(--paper-cream);
+  --line: var(--ui-color-neutral-800);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-settle: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.dark {
+  --art-clay: var(--color-clay-400);
+  --art-blush: var(--color-clay-900);
+  --line: var(--ui-color-neutral-300);
+}
+
+/* A band of the well colour that runs the full width of the window from
+ * inside the page's container. The layout clips sideways overflow, since
+ * 100vw counts a classic scrollbar. */
+@utility band {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+
+/* DESIGN.md › Motion › Under the thumb. Every button gives a little. */
+.btn-give {
+  transition:
+    scale 120ms var(--ease-spring),
+    background-color 150ms ease-out;
+}
+.btn-give:active:not(:disabled, [aria-disabled='true']) {
+  scale: 0.96;
+}
+
+/* Still for most of its cycle, then a small lean and back: something
+ * settling, not something swinging. The stillness also matters to anyone (or
+ * any test) trying to press it. */
+@keyframes sway {
+  0%,
+  80%,
+  100% {
+    rotate: 0deg;
+  }
+  87% {
+    rotate: -1.6deg;
+  }
+  94% {
+    rotate: 1.1deg;
+  }
+}
+/* Leaves in a draught never stop. */
+@keyframes rustle {
+  from {
+    rotate: -1.5deg;
+  }
+  to {
+    rotate: 1.5deg;
+  }
+}
+@keyframes hop {
+  0% {
+    translate: 0 0;
+  }
+  40% {
+    translate: 0 -5px;
+  }
+  100% {
+    translate: 0 0;
+  }
+}
+@keyframes pop {
+  from {
+    scale: 0.6;
+    opacity: 0;
+  }
+  to {
+    scale: 1;
+    opacity: 1;
+  }
+}
+/* `transform`, not `translate`: a filled animation would otherwise hold
+ * `translate` for good and cancel any hover lift on the same element. */
+@keyframes rise {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes wiggle {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  25% {
+    rotate: -4deg;
+  }
+  50% {
+    rotate: 3deg;
+  }
+  75% {
+    rotate: -2deg;
+  }
+}
+@keyframes pendulum {
+  from {
+    rotate: -9deg;
+  }
+  to {
+    rotate: 9deg;
+  }
+}
+@keyframes flicker {
+  0%,
+  100% {
+    scale: 1 1;
+    rotate: -2deg;
+  }
+  30% {
+    scale: 0.92 1.08;
+    rotate: 3deg;
+  }
+  60% {
+    scale: 1.06 0.94;
+    rotate: -1deg;
+  }
+}
+@keyframes breathe {
+  from {
+    scale: 1 1;
+  }
+  to {
+    scale: 1.02 1.05;
+  }
+}
+@keyframes tail {
+  0%,
+  70%,
+  100% {
+    rotate: 0deg;
+  }
+  80% {
+    rotate: 14deg;
+  }
+  90% {
+    rotate: -4deg;
+  }
+}
+@keyframes thunk {
+  0% {
+    scale: 1.8;
+    rotate: -14deg;
+    opacity: 0;
+  }
+  60% {
+    scale: 0.94;
+    rotate: -3deg;
+    opacity: 1;
+  }
+  100% {
+    scale: 1;
+    rotate: -5deg;
+    opacity: 1;
+  }
+}
+@keyframes unfold {
+  from {
+    clip-path: inset(0 0 62% 0);
+    transform: translateY(10px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: translateY(0);
+  }
+}
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes post-away {
+  0% {
+    translate: 0 0;
+    scale: 1;
+    opacity: 1;
+  }
+  35% {
+    translate: 0 -18px;
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    translate: 0 70px;
+    scale: 0.55 0.2;
+    opacity: 0;
+  }
+}
+
+/* Idle: something standing on a shelf leans now and then, each at its own
+ * pace (set --pace). The pivot is where it stands. */
+@utility play-sway {
+  transform-origin: 50% 100%;
+  animation: sway var(--pace, 7s) ease-in-out infinite;
+}
+@utility play-hop {
+  animation: hop 400ms var(--ease-spring) both;
+}
+@utility play-wiggle-hover {
+  &:hover {
+    animation: wiggle 500ms ease-in-out;
+  }
+}
+@utility play-unfold {
+  animation: unfold 520ms var(--ease-settle) both;
+}
+
+/* Comes up as it scrolls into view, where the browser can link an animation
+ * to scrolling. Elsewhere it is simply there. */
+@utility play-rise {
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
     }
   }
 }

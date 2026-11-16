@@ -34,6 +34,14 @@ export default defineAppConfig({
       },
     },
 
+    // DESIGN.md › Motion › Under the thumb: every button gives a little when
+    // pressed (.btn-give in main.css). Nothing else about a button changes.
+    button: {
+      slots: {
+        base: 'btn-give',
+      },
+    },
+
     // DESIGN.md › Component behavior › Long-form content.
     //
     // NuxtUI registers its Prose* components as soon as @nuxt/content is

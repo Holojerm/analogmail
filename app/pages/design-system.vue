@@ -327,6 +327,30 @@ useSeo({
       <WhoReads>Everyone in The Lees sees this room, and we could read what is in it.</WhoReads>
     </section>
 
+    <section class="space-y-6" data-testid="play">
+      <h2 class="text-2xl text-highlighted">Play</h2>
+      <div class="flex flex-wrap items-end gap-6">
+        <ArtClock class="h-24" />
+        <ArtPlant class="h-24" />
+        <ArtCandle class="h-24" />
+        <ArtCat class="h-16" />
+        <ArtPostbox class="h-28" />
+        <ArtEnvelope class="w-28" />
+      </div>
+      <div class="flex flex-wrap items-end gap-4">
+        <ArtStamp
+          v-for="seed in ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l']"
+          :key="seed"
+          :seed="seed"
+          class="h-16"
+        />
+      </div>
+      <div class="w-48">
+        <p class="font-display text-2xl text-highlighted">slowly</p>
+        <ArtSquiggle />
+      </div>
+    </section>
+
     <section class="space-y-6">
       <h2 class="text-2xl text-highlighted">Components</h2>
 

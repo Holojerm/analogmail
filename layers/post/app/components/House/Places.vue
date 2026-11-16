@@ -14,9 +14,24 @@ const places = [
     icon: 'i-lucide-mail',
     under: ['/mantel', '/letter', '/mantels', '/kept', '/archive'],
   },
-  { label: 'Desk', to: '/desk', icon: 'i-lucide-pen-line', under: ['/desk', '/write'] },
-  { label: 'People', to: '/people', icon: 'i-lucide-users', under: ['/people', '/family'] },
-  { label: 'Room', to: '/rooms', icon: 'i-lucide-armchair', under: ['/rooms', '/room'] },
+  {
+    label: 'Desk',
+    to: '/desk',
+    icon: 'i-lucide-pen-line',
+    under: ['/desk', '/write'],
+  },
+  {
+    label: 'People',
+    to: '/people',
+    icon: 'i-lucide-users',
+    under: ['/people', '/family'],
+  },
+  {
+    label: 'Room',
+    to: '/rooms',
+    icon: 'i-lucide-armchair',
+    under: ['/rooms', '/room'],
+  },
 ]
 
 function current(place: (typeof places)[number]): 'page' | 'true' | undefined {
@@ -40,7 +55,13 @@ function current(place: (typeof places)[number]): 'page' | 'true' | undefined {
           :aria-current="current(place)"
           class="flex flex-col items-center gap-1 py-2 text-xs text-muted focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary aria-[current]:font-medium aria-[current]:text-highlighted"
         >
-          <UIcon :name="place.icon" class="size-5" />
+          <!-- The place you are in is marked, and hops as you arrive. -->
+          <span
+            class="grid place-items-center rounded-full px-4 py-1"
+            :class="current(place) ? 'play-hop bg-(--art-blush)' : ''"
+          >
+            <UIcon :name="place.icon" class="size-5" />
+          </span>
           {{ place.label }}
         </NuxtLink>
       </li>
@@ -53,7 +74,7 @@ function current(place: (typeof places)[number]): 'page' | 'true' | undefined {
       :key="place.to"
       :to="place.to"
       :aria-current="current(place)"
-      class="rounded-sm py-1 text-muted underline-offset-8 hover:text-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-[current]:text-highlighted aria-[current]:underline"
+      class="rounded-sm py-1 text-muted decoration-primary decoration-wavy decoration-2 underline-offset-8 hover:text-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary aria-[current]:text-highlighted aria-[current]:underline"
     >
       {{ place.label }}
     </NuxtLink>
