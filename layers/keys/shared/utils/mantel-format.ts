@@ -32,7 +32,18 @@ export const newMantelSchema = z.object({
   publicKey: z.string().regex(PUBLIC_KEY_PATTERN),
   keeperWrap: z.string().regex(KEEPER_WRAP_PATTERN),
   recoveryWrap: z.string().regex(WRAPPED_KEY_PATTERN),
+  recoveryProofHash: z.string().regex(/^[0-9a-f]{64}$/),
 })
+
+/** What the recovery code derives to prove itself: 32 bytes, base64url. */
+export const recoveryProofSchema = z.string().regex(/^[A-Za-z0-9_-]{43}$/)
+
+/**
+ * Days between the recovery code being used by someone who is not a keeper
+ * and that person becoming one. The keepers are told at once and any of them
+ * can cancel it in that time.
+ */
+export const RECOVERY_WAIT_DAYS = 30
 export type NewMantel = z.infer<typeof newMantelSchema>
 
 /** Days an offer of a keeper's seat stays open. */
