@@ -19,6 +19,7 @@ import { ownLetter, saveDraft } from '../server/utils/drafts'
 import { inviteEmail } from '../server/utils/invite-email'
 import { createInvite, viewInvite } from '../server/utils/invites'
 import {
+  changeMantelPost,
   listKeptMantel,
   listWriters,
   openKeptLetter,
@@ -448,5 +449,48 @@ describe('inviting a writer', () => {
     expect(await withdrawWriterInvite(db, 'eve', LEO, invite.id)).toBe(false)
     expect(await withdrawWriterInvite(db, 'bob', LEO, invite.id)).toBe(true)
     expect(await viewInvite(db, invite.token, MONDAY)).toMatchObject({ status: 'unknown' })
+  })
+})
+
+describe("changing a mantel's post", () => {
+  const TOKYO = 1850147
+  const postOf = async () =>
+    (await db.select().from(postalProfiles).where(eq(postalProfiles.userId, LEO)))[0]!
+
+  beforeEach(async () => {
+    await db.delete(schema.cities)
+    await db.insert(schema.cities).values({
+      id: TOKYO,
+      name: 'Tokyo',
+      searchName: 'tokyo',
+      country: 'JP',
+      lat: 35.69,
+      lng: 139.69,
+      timeZone: 'Asia/Tokyo',
+    })
+  })
+
+  it('is for its keepers', async () => {
+    expect(await changeMantelPost(db, 'eve', LEO, { cityId: TOKYO }, MONDAY)).toBe('not-keeper')
+    expect((await postOf()).cityName).toBe('Chicago')
+  })
+
+  it('moves it to another city at once', async () => {
+    expect(await changeMantelPost(db, 'bob', LEO, { cityId: 1 }, MONDAY)).toBe('unknown-city')
+    expect(await changeMantelPost(db, 'bob', LEO, { cityId: TOKYO }, MONDAY)).toBe('changed')
+    expect(await postOf()).toMatchObject({ cityName: 'Tokyo', timeZone: 'Asia/Tokyo' })
+  })
+
+  it('changes its days and hour from tomorrow, and needs it to have a post', async () => {
+    const saturdays = { mailDays: 0b100000, deliveryHour: 8 }
+    expect(await changeMantelPost(db, 'ann', LEO, saturdays, MONDAY)).toBe('changed')
+    expect(await postOf()).toMatchObject({
+      mailDays: 0b111111,
+      pendingMailDays: 0b100000,
+      pendingDeliveryHour: 8,
+    })
+    await db.delete(postalProfiles).where(eq(postalProfiles.userId, LEO))
+    expect(await changeMantelPost(db, 'ann', LEO, saturdays, MONDAY)).toBe('no-post')
+    expect(await changeMantelPost(db, 'ann', LEO, { cityId: TOKYO }, MONDAY)).toBe('no-post')
   })
 })

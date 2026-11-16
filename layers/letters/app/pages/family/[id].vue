@@ -76,6 +76,43 @@ async function leave(memberId?: string) {
   }
 }
 
+const newName = ref('')
+const confirming = ref(false)
+
+async function rename() {
+  busy.value = true
+  failure.value = null
+  try {
+    await $fetch('/api/letters/families/rename', {
+      method: 'POST',
+      body: { familyId: family.value!.id, name: newName.value },
+    })
+    newName.value = ''
+    await load()
+  } catch (error) {
+    failure.value = message(error)
+  } finally {
+    busy.value = false
+  }
+}
+
+async function close() {
+  busy.value = true
+  failure.value = null
+  try {
+    await $fetch('/api/letters/families/close', {
+      method: 'POST',
+      body: { familyId: family.value!.id },
+    })
+    await navigateTo('/people')
+  } catch (error) {
+    failure.value = message(error)
+    confirming.value = false
+  } finally {
+    busy.value = false
+  }
+}
+
 useSeo({ title: 'A family', description: 'A family you write with.', noindex: true })
 </script>
 
@@ -165,6 +202,25 @@ useSeo({ title: 'A family', description: 'A family you write with.', noindex: tr
         </p>
       </section>
 
+      <section v-if="organising" aria-labelledby="name-heading" class="flex flex-col gap-3">
+        <h2 id="name-heading" class="text-xl text-highlighted">Its name</h2>
+        <form class="flex flex-col gap-3" @submit.prevent="rename">
+          <UFormField label="A new name" name="family-name">
+            <UInput v-model="newName" maxlength="60" size="lg" class="w-full" autocomplete="off" />
+          </UFormField>
+          <UButton
+            type="submit"
+            variant="outline"
+            color="neutral"
+            class="self-start"
+            :loading="busy"
+            :disabled="!newName.trim()"
+          >
+            Rename
+          </UButton>
+        </form>
+      </section>
+
       <section aria-labelledby="leave-heading" class="flex flex-col gap-3">
         <h2 id="leave-heading" class="text-xl text-highlighted">Leave</h2>
         <p class="text-sm text-muted">
@@ -180,6 +236,27 @@ useSeo({ title: 'A family', description: 'A family you write with.', noindex: tr
         >
           Leave {{ family.name }}
         </UButton>
+      </section>
+
+      <section v-if="organising" aria-labelledby="close-heading" class="flex flex-col gap-3">
+        <h2 id="close-heading" class="text-xl text-highlighted">Close the family</h2>
+        <p class="text-sm text-muted">
+          Nobody can write in it afterwards. Letters still on their way go back to whoever sent
+          them. Everyone keeps what they have already received.
+        </p>
+        <UButton class="self-start" variant="outline" color="error" @click="confirming = true">
+          Close {{ family.name }}
+        </UButton>
+        <UModal
+          v-model:open="confirming"
+          :title="`Close ${family.name}?`"
+          description="This ends the family for everyone in it and cannot be undone."
+        >
+          <template #footer>
+            <UButton variant="ghost" color="neutral" @click="confirming = false">Keep it</UButton>
+            <UButton color="error" :loading="busy" @click="close">Close for everyone</UButton>
+          </template>
+        </UModal>
       </section>
     </template>
   </div>
