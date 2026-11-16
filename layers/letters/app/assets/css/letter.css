@@ -66,6 +66,12 @@
   line-height: inherit;
   white-space: pre-wrap;
 }
+.letter-align-center {
+  text-align: center;
+}
+.letter-align-right {
+  text-align: right;
+}
 .letter-prose :is(h2, h3) {
   color: inherit;
   font-family: inherit;

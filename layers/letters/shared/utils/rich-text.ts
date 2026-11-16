@@ -1,5 +1,6 @@
 // The text of a letter: paragraphs, headings, lists, quotes and rules, with
-// bold, italic, underline, strike and fixed-width text. It is the editor's own document shape,
+// bold, italic, underline, strike and fixed-width text, and lines set to the
+// centre or the right. It is the editor's own document shape,
 // held to exactly these parts. A letter comes from another person's browser,
 // so anything outside this list makes it unreadable rather than rendered:
 // there are no links, no images and no HTML in a letter.
@@ -20,13 +21,18 @@ export interface RichBreak {
 }
 export type RichInline = RichText | RichBreak
 
+// Left is how a line starts, so only the other two are kept.
+export const RICH_ALIGNS = ['center', 'right'] as const
+export type RichAlign = (typeof RICH_ALIGNS)[number]
+
 export interface RichParagraph {
   type: 'paragraph'
+  attrs?: { textAlign: RichAlign }
   content?: RichInline[]
 }
 export interface RichHeading {
   type: 'heading'
-  attrs: { level: 2 | 3 }
+  attrs: { level: 2 | 3; textAlign?: RichAlign }
   content?: RichInline[]
 }
 export interface RichRule {
@@ -62,14 +68,44 @@ const inlineSchema: z.ZodType<RichInline> = z.union([
   z.object({ type: z.literal('hardBreak') }),
 ])
 
+// The editor writes `left` or nothing on every line it has not moved.
+const alignSchema = z.enum(['left', ...RICH_ALIGNS]).nullish()
+const kept = (align: 'left' | RichAlign | null | undefined): RichAlign | undefined =>
+  align && align !== 'left' ? align : undefined
+
 const blockSchema: z.ZodType<RichBlock> = z.lazy(() =>
   z.union([
-    z.object({ type: z.literal('paragraph'), content: z.array(inlineSchema).optional() }),
-    z.object({
-      type: z.literal('heading'),
-      attrs: z.object({ level: z.union([z.literal(2), z.literal(3)]) }),
-      content: z.array(inlineSchema).optional(),
-    }),
+    z
+      .object({
+        type: z.literal('paragraph'),
+        attrs: z.object({ textAlign: alignSchema }).optional(),
+        content: z.array(inlineSchema).optional(),
+      })
+      .transform(({ type, attrs, content }): RichParagraph => {
+        const textAlign = kept(attrs?.textAlign)
+        return {
+          type,
+          ...(textAlign ? { attrs: { textAlign } } : {}),
+          ...(content ? { content } : {}),
+        }
+      }),
+    z
+      .object({
+        type: z.literal('heading'),
+        attrs: z.object({
+          level: z.union([z.literal(2), z.literal(3)]),
+          textAlign: alignSchema,
+        }),
+        content: z.array(inlineSchema).optional(),
+      })
+      .transform(({ type, attrs, content }): RichHeading => {
+        const textAlign = kept(attrs.textAlign)
+        return {
+          type,
+          attrs: { level: attrs.level, ...(textAlign ? { textAlign } : {}) },
+          ...(content ? { content } : {}),
+        }
+      }),
     z.object({ type: z.literal('horizontalRule') }),
     z.object({
       type: z.enum(['bulletList', 'orderedList']),
