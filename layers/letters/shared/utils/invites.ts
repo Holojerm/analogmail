@@ -32,7 +32,18 @@ export const displayNameSchema = z
 
 export const inviteInputSchema = z.object({
   email: z.string().trim().toLowerCase().email('Enter an email address').max(254),
+  /** A mantel the inviter keeps: the invitation is to write to it. */
+  mantelId: z.string().uuid().optional(),
 })
+
+/**
+ * A mantel's name as it may appear in an email to a stranger: only if it would
+ * pass as a person's display name. Otherwise the email does not use it.
+ */
+export const mailableMantelName = (name: string): string => {
+  const parsed = displayNameSchema.safeParse(name)
+  return parsed.success ? parsed.data : 'someone dear to them'
+}
 
 export type InviteStatus = 'open' | 'expired' | 'accepted' | 'unknown'
 
@@ -41,6 +52,8 @@ export interface InviteView {
   status: InviteStatus
   inviterName: string | null
   expiresAt: string | null
+  /** Set when the invitation is to write to a kept mantel, not to the inviter. */
+  mantelName?: string | null
 }
 
 export interface PersonView {

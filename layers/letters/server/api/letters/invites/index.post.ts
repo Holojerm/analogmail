@@ -17,6 +17,7 @@ const REFUSALS = {
   'already-writing': 'You already write with this person.',
   pending: 'You have already invited this address.',
   'too-many': 'You have many invitations waiting. Withdraw one first.',
+  'not-keeper': 'You do not keep that mantel.',
 } as const
 
 export default defineEventHandler(async (event) => {
@@ -27,9 +28,15 @@ export default defineEventHandler(async (event) => {
     windowSeconds: 3600,
     identifier: user.id,
   })
-  const { email } = await readValidatedBody(event, inviteInputSchema.parse)
+  const { email, mantelId } = await readValidatedBody(event, inviteInputSchema.parse)
 
-  const result = await createInvite(db, { id: user.id, email: user.email }, email, await postNow())
+  const result = await createInvite(
+    db,
+    { id: user.id, email: user.email },
+    email,
+    await postNow(),
+    mantelId ?? null,
+  )
   if (result.status !== 'created') {
     throw createError({
       statusCode: result.status === 'needs-name' ? 409 : 400,
