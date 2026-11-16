@@ -2,41 +2,9 @@
 // email, the other opens the link with no account, signs up, and accepting
 // makes them correspondents.
 
-import type { Page } from '@playwright/test'
-
 import { expect, test, uniqueEmail } from '../../../../test/e2e/fixtures'
 
-const PASSWORD = 'invite-password-0001'
-
-async function open(page: Page, path: string): Promise<void> {
-  await page.goto(path, { waitUntil: 'networkidle' })
-}
-
-/** The dev-only link the page shows when no mail provider is configured, as a local path. */
-async function mailedLink(page: Page, name: string): Promise<string> {
-  const href = await page.getByRole('link', { name }).getAttribute('href')
-  const url = new URL(href!)
-  return `${url.pathname}${url.hash}`
-}
-
-/** From the sign-up page to the end of sign-up: recovery code, then a city. */
-async function finishSignUp(page: Page, email: string): Promise<void> {
-  await page.getByLabel('Email').fill(email)
-  await page.getByRole('button', { name: 'Email me a link' }).click()
-  await open(page, await mailedLink(page, 'Open the confirmation link'))
-  await page.getByLabel('Password').fill(PASSWORD)
-  await page.getByRole('button', { name: 'Create account' }).click()
-  await page.waitForURL('**/welcome/recovery-code', { timeout: 30_000 })
-  await page.getByLabel('I have written my recovery code down').check()
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await page.waitForURL((url) => url.pathname === '/welcome', { timeout: 15_000 })
-  await page.getByLabel('Your city').fill('Chicago')
-  await page
-    .getByRole('button', { name: /^Chicago/ })
-    .first()
-    .click()
-  await page.getByRole('button', { name: 'Continue' }).click()
-}
+import { finishSignUp, open } from './helpers'
 
 test('an invitation: sent, opened signed out, accepted after sign-up', async ({
   page,

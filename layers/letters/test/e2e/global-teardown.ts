@@ -14,6 +14,10 @@ export default function globalTeardown(): void {
 
   const db = new DatabaseSync(DB_PATH)
   try {
+    const letters = `SELECT id FROM letters WHERE author_id IN (${E2E_USERS})`
+    db.exec(`DELETE FROM deliveries WHERE letter_id IN (${letters})`)
+    db.exec(`DELETE FROM letter_keys WHERE letter_id IN (${letters})`)
+    db.exec(`DELETE FROM letters WHERE author_id IN (${E2E_USERS})`)
     db.exec(
       `DELETE FROM correspondences WHERE id IN (SELECT correspondence_id FROM correspondence_members WHERE user_id IN (${E2E_USERS}))`,
     )
