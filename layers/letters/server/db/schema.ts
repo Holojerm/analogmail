@@ -94,6 +94,10 @@ export const letters = sqliteTable(
     // 'YYYY-MM-DD'. A letter to a kept mantel may be sealed until this day:
     // before it, the server serves its text, photo and key to no reader.
     opensOn: text('opens_on'),
+    // 'member', or 'guest' for a letter written from a write link without an
+    // account. A guest letter has no author row and names its link.
+    origin: text('origin').notNull().default('member'),
+    guestLinkId: text('guest_link_id'),
     ciphertext: text('ciphertext').notNull(),
     // Where the sealed photo is stored, if there is one. Changes only on a draft.
     photoKey: text('photo_key'),
@@ -105,6 +109,28 @@ export const letters = sqliteTable(
     index('letters_correspondence_idx').on(table.correspondenceId),
     index('letters_author_idx').on(table.authorId),
   ],
+)
+
+// A write link for an anniversary mantel: the address on a printed card that
+// lets a guest write without an account. Replacing it revokes the old one.
+export const guestLinks = sqliteTable(
+  'guest_links',
+  {
+    // Random, and the only secret in the link's path.
+    id: text('id').primaryKey(),
+    mantelId: text('mantel_id').notNull(),
+    // The correspondence guest letters are filed under. Its only member is the mantel.
+    correspondenceId: text('correspondence_id').notNull(),
+    // Both 'YYYY-MM-DD' on the mantel's calendar. Every letter from this link
+    // is sealed until `opensOn`; none is accepted after `closesOn`.
+    opensOn: text('opens_on').notNull(),
+    closesOn: text('closes_on').notNull(),
+    maxLetters: integer('max_letters').notNull().default(300),
+    createdBy: text('created_by'),
+    revokedAt: integer('revoked_at', { mode: 'timestamp' }),
+    ...timestamps,
+  },
+  (table) => [index('guest_links_mantel_idx').on(table.mantelId)],
 )
 
 // One row per reader: the letter's content key, wrapped to that reader's

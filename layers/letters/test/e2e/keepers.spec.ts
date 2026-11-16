@@ -4,7 +4,7 @@
 
 import { expect, test } from '../../../../test/e2e/fixtures'
 
-import { makePair, open } from './helpers'
+import { device, makePair, open } from './helpers'
 
 test('a kept mantel: opened, its code shown once, a second keeper seated', async ({
   browser,
@@ -117,5 +117,62 @@ test('a keeper asks someone to write to the mantel', async ({ browser, baseURL }
   await ann.reload({ waitUntil: 'networkidle' })
   await expect(ann.getByText('Bob Tester', { exact: true })).toBeVisible()
 
+  await close()
+})
+
+test('a wedding guest writes from the card, with no account', async ({ browser, baseURL }) => {
+  test.setTimeout(180_000)
+  const { ann, close } = await makePair(browser, baseURL!)
+
+  // ── The couple's mantel, its post and its write link ───────────────────────
+  await open(ann, '/mantels/new')
+  await ann.getByLabel('Anniversary letters for a couple').check()
+  await ann.getByLabel('Whose mantel is it?').fill('Maya and Theo')
+  await ann.getByRole('button', { name: 'Open the mantel' }).click()
+  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
+  await ann.getByLabel("The mantel's city").fill('Chicago')
+  await ann
+    .getByRole('button', { name: /^Chicago/ })
+    .first()
+    .click()
+  await expect(ann.getByText(/Its post arrives in Chicago/)).toBeVisible()
+  await ann.reload({ waitUntil: 'networkidle' })
+  await ann.getByRole('button', { name: 'Make the write link' }).click()
+  const address = new URL((await ann.getByTestId('guest-link').innerText()).trim())
+  expect(address.pathname).toMatch(/^\/w\/[A-Za-z0-9_-]{22}$/)
+  expect(address.hash).toMatch(/^#[A-Za-z0-9_-]{22}$/)
+
+  // ── A guest, signed out, on their own phone ────────────────────────────────
+  const guest = await device(browser, baseURL!)
+  await open(guest, `${address.pathname}#not-the-printed-fingerprint`)
+  await expect(guest.getByText('This link does not match its card')).toBeVisible()
+  await expect(guest.getByLabel('Your letter')).toHaveCount(0)
+
+  await open(guest, `${address.pathname}${address.hash}`)
+  await expect(guest.getByRole('heading', { name: 'A letter to Maya and Theo' })).toBeVisible()
+  await guest.getByLabel('Your letter').fill('May your house be loud and your table long.')
+  await guest.getByLabel('Signed').fill('Aunt Rosa')
+  const posted = guest.waitForRequest((request) =>
+    request.url().endsWith('/api/letters/guest/post'),
+  )
+  await guest.getByRole('button', { name: 'Seal and send' }).click()
+  const sent = (await posted).postData() ?? ''
+  expect(sent).toContain('"ciphertext":"v1.')
+  expect(sent).not.toContain('Rosa')
+  expect(sent).not.toContain('table long')
+  await expect(guest.getByRole('heading', { name: 'Sealed' })).toBeVisible()
+  await expect(guest.getByText(/^It opens on /)).toBeVisible()
+  expect(
+    (await (await guest.request.get('/api/_auth/session')).json()) as object,
+  ).not.toHaveProperty('user')
+
+  // ── The couple sees that a letter came through the link, and no more ───────
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByText('1 of 300 letters received through this link.')).toBeVisible()
+  await expect(ann.getByText('Nothing has arrived yet.')).toBeVisible()
+
+  await guest.context().close()
   await close()
 })
