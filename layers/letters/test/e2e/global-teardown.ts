@@ -22,6 +22,14 @@ export default function globalTeardown(): void {
       `DELETE FROM correspondences WHERE id IN (SELECT correspondence_id FROM correspondence_members WHERE user_id IN (${E2E_USERS}))`,
     )
     db.exec(`DELETE FROM correspondence_members WHERE user_id IN (${E2E_USERS})`)
+    const kept = `SELECT id FROM mantels WHERE created_by IN (${E2E_USERS})`
+    db.exec(
+      `DELETE FROM mantel_votes WHERE proposal_id IN (SELECT id FROM mantel_proposals WHERE mantel_id IN (${kept}))`,
+    )
+    for (const table of ['mantel_proposals', 'mantel_key_wraps', 'mantel_keepers']) {
+      db.exec(`DELETE FROM ${table} WHERE mantel_id IN (${kept})`)
+    }
+    db.exec(`DELETE FROM mantels WHERE created_by IN (${E2E_USERS})`)
     db.exec(`DELETE FROM invites WHERE inviter_id IN (${E2E_USERS})`)
     db.exec(`DELETE FROM people WHERE user_id IN (${E2E_USERS})`)
     db.exec(`DELETE FROM postal_profiles WHERE user_id IN (${E2E_USERS})`)
