@@ -10,9 +10,16 @@ import { registerPublicApiRoutes } from '#server/utils/public-routes'
 import { postNow } from '#layers/post/server/utils/clock'
 
 import { returnInTransitTo } from './closing'
+import { exportLetters, type AccountExportLetters } from './letters-export'
 import type { LettersDb } from './people'
 import { photoStore } from './photo-store'
 import { removeDraftPhotos, type PhotoStore } from './photos'
+
+declare module '#server/utils/extensions' {
+  interface AccountExportSections {
+    letters: AccountExportLetters
+  }
+}
 
 const PURGE_BATCH = 500
 
@@ -75,6 +82,7 @@ export function registerLettersExtensions(photos: PhotoStore = photoStore): void
       // Drafts go in the deletion itself; their photo files are not rows.
       await removeDraftPhotos(db, photos, userId)
     },
+    exportSection: exportLetters,
     deletionStatements: (db, userId) => {
       const now = new Date()
       const myDrafts = db

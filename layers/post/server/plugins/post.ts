@@ -7,6 +7,14 @@ import { registerAccountContributor } from '#server/utils/extensions'
 import { registerOpsSeverity } from '#server/utils/ops-severity'
 import { registerPublicApiRoutes } from '#server/utils/public-routes'
 
+import { exportPost, type AccountExportPost } from '../utils/post-export'
+
+declare module '#server/utils/extensions' {
+  interface AccountExportSections {
+    post: AccountExportPost
+  }
+}
+
 export default defineNitroPlugin(() => {
   // Resend calls this with no session; the route checks the Svix signature.
   registerPublicApiRoutes([{ path: '/api/webhooks/resend', methods: ['POST'] }])
@@ -17,6 +25,7 @@ export default defineNitroPlugin(() => {
   // Deleting an account deletes where its mail arrived and its notices.
   registerAccountContributor({
     key: 'post',
+    exportSection: exportPost,
     deletionStatements: (db, userId) => [
       db.delete(tables.postalProfiles).where(eq(tables.postalProfiles.userId, userId)),
       db.delete(tables.notices).where(eq(tables.notices.userId, userId)),

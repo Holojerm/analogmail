@@ -49,5 +49,12 @@
       delete your account, the letters you received, your drafts and your settings are deleted.
       Letters you sent stay with the people you sent them to.
     </p>
+    <p>
+      <strong class="text-highlighted">Your copy.</strong> The download on your account page holds
+      what we hold: who you write with, your city and mail days, and every letter you wrote or
+      received, encrypted as we store it. It leaves out letters still on their way to you, and it
+      says nothing about what became of a letter you sent. Photos are not in it yet. To read your
+      letters, open them here on a device that has your key.
+    </p>
   </section>
 </template>
