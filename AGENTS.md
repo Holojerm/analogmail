@@ -120,7 +120,12 @@ Who keeps a mantel changes only through `custody.ts`: a proposal takes effect wh
 half of the keepers have voted (`carries`), so two keepers must both agree. Seating a keeper
 also needs that person's acceptance and a wrapped copy from a keeper's browser, which the
 server cannot make. A mantel's last keeper cannot delete their account. Do not add a path
-that writes `mantel_keepers` or `mantel_key_wraps` outside these two files.
+that writes `mantel_keepers` or `mantel_key_wraps` outside these two files. Pages: `/mantels`
+(kept mantels and offered seats), `/mantels/new` (keys made here, recovery code shown once)
+and `/mantels/<id>` (keepers, proposals, and the fingerprint check before a keeper's browser
+wraps the key to a new one). The person being seated reads their own key's fingerprint from
+their screen; the keeper compares it with the one computed from the key the server handed
+over, so a key swapped by the server shows as a mismatch.
 
 A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
 hour (`/welcome`). Those guards cover the landing page and letter pages only; account and
