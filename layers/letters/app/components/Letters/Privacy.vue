@@ -64,6 +64,15 @@
       sealed until.
     </p>
     <p>
+      <strong class="text-highlighted">Letters from guests.</strong> A couple can print a link that
+      lets wedding guests write to them without an account. A guest's letter is encrypted in the
+      guest's browser to the couple's key, with the name they signed inside it. We learn when a
+      letter was sent and how large it is, and nothing about who sent it beyond what any web request
+      shows. No account is made, and the guest keeps no way to change or recall it. The link carries
+      a fingerprint of the couple's key after the # sign, which browsers do not send to us, so the
+      page can tell if it has been handed the wrong key.
+    </p>
+    <p>
       <strong class="text-highlighted">Your copy.</strong> The download on your account page holds
       what we hold: who you write with, your city and mail days, and every letter you wrote or
       received, encrypted as we store it. It leaves out letters still on their way to you, and it

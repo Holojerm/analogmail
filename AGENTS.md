@@ -143,6 +143,15 @@ the keeper. A writer who is not a keeper reads nothing on the mantel, and no wri
 another's letters. A mantel's name is printed in that email only when it would pass as a
 display name (`mailableMantelName`).
 
+Guest letters (`layers/letters/server/utils/guest-letters.ts`): an anniversary mantel can
+have one write link, `/w/<id>#<fingerprint>`. The id is the only secret in the path; the
+fragment is a fingerprint of the mantel's public key, which the guest's page checks before it
+shows a form (`keyFingerprintToken`). A guest letter has no author, `origin` 'guest', no
+transit, and is sealed until the link's `opensOn`. The two routes under
+`/api/letters/guest/` are the only letter routes that work signed out: they sit behind
+`requireTurnstile` and rate limits per sender and per link, and the link has a closing day
+and a cap. Never add the guest's name, or anything else from inside the letter, to a row.
+
 A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
 hour (`/welcome`). Those guards cover the landing page and letter pages only; account and
 security pages must stay reachable without them. Guards that decide in the browser redirect
