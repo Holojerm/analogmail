@@ -91,7 +91,7 @@ of code for each:
 | `layers/letters` | Invites, correspondences, letters, the mantel page, writing desk, stationery, seals |
 | `layers/keys` | Account and mantel keys, wrapping, recovery codes, browser crypto |
 | `layers/print` (planned) | The `PrintProvider` interface, the first provider, the consent step, order records, book layout |
-| `layers/room` | The family room: a family's photo album (check-ins, map, screen, gazette and almanac are planned). Not end-to-end encrypted, and every room page says so. Never imports from or joins to `layers/letters`: who is in a family reaches it through `layers/room/server/utils/room-families.ts`, which the letters plugin registers with. Every row and file carries a family id, and every route starts with `requireRoom` |
+| `layers/room` | The family room: a family's photo album, and where each person says they are (the map, screen, gazette and almanac are planned). Not end-to-end encrypted, and every room page says so. Never imports from or joins to `layers/letters`: who is in a family reaches it through `layers/room/server/utils/room-families.ts`, which the letters plugin registers with. Every row and file carries a family id, and every route starts with `requireRoom` |
 | `layers/credentials`, `layers/feedback` | Vendored from the template (`bun run layers:pull`), pinned in `layers.lock.json` |
 
 Scheduling functions are pure, live in `layers/post/shared/`, and take `now` as an argument;

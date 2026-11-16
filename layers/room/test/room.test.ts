@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '~~/server/db/schema'
 import { clearExtensionsForTest, getAccountContributors } from '#server/utils/extensions'
 
+import { checkIn, forgetCheckins, whereabouts } from '../server/utils/room-checkins'
 import { registerRoomExtensions } from '../server/utils/room-extensions'
 import {
   clearRoomFamiliesForTest,
@@ -36,7 +37,7 @@ import {
 import { ROOM_FAMILY_BYTES_MAX, type RoomFamily } from '../shared/utils/room-types'
 
 const db = drizzle(env.DB, { schema })
-const { users, roomAlbums, roomPhotos } = schema
+const { users, cities, roomAlbums, roomCheckins, roomPhotos } = schema
 
 const LEES = 'aaaaaaaa-0000-4000-8000-000000000001'
 const STONES = 'bbbbbbbb-0000-4000-8000-000000000002'
@@ -72,6 +73,7 @@ async function add(family: RoomFamily, who: string, at = NOW, albumId?: string) 
 }
 
 beforeEach(async () => {
+  await db.delete(roomCheckins)
   await db.delete(roomPhotos)
   await db.delete(roomAlbums)
   await db.delete(users)
@@ -94,6 +96,7 @@ describe('who is in a room', () => {
       membership: async (_db, userId, familyId) =>
         userId === 'ann' && familyId === LEES ? lees(true) : null,
       list: async (_db, userId) => (userId === 'ann' ? [lees(true)] : []),
+      members: async () => [],
     })
     expect(await roomFamily(db, 'ann', LEES)).toMatchObject({ name: 'The Lees', organiser: true })
     expect(await roomFamily(db, 'eve', LEES)).toBeNull()
@@ -240,5 +243,78 @@ describe('deleting an account', () => {
     expect((await listRoomPhotos(db, LEES)).photos.map((row) => row.id)).toEqual([kept.id])
     expect(await stored()).toHaveLength(2)
     expect(await listRoomAlbums(db, LEES)).toMatchObject([{ createdBy: null, photoCount: 1 }])
+  })
+})
+
+describe('where everyone is', () => {
+  const TOKYO = 1850147
+  const CHICAGO = 4887398
+  const members = [
+    { id: 'ann', name: 'Ann' },
+    { id: 'bob', name: 'Bob' },
+  ]
+
+  beforeEach(async () => {
+    await db.delete(cities)
+    await db.insert(cities).values([
+      {
+        id: TOKYO,
+        name: 'Tokyo',
+        searchName: 'tokyo',
+        country: 'JP',
+        lat: 35.69,
+        lng: 139.69,
+        timeZone: 'Asia/Tokyo',
+      },
+      {
+        id: CHICAGO,
+        name: 'Chicago',
+        searchName: 'chicago',
+        country: 'US',
+        lat: 41.85,
+        lng: -87.65,
+        timeZone: 'America/Chicago',
+      },
+    ])
+    registerRoomFamilies({
+      membership: async () => null,
+      list: async () => [],
+      members: async (_db, familyId) => (familyId === LEES ? members : []),
+    })
+  })
+
+  it('lists each person in the family with the last city they said', async () => {
+    expect(await checkIn(db, lees(), 'ann', 1, NOW)).toBe('unknown-city')
+    expect(await checkIn(db, lees(), 'ann', CHICAGO, NOW)).toBe('done')
+    expect(await checkIn(db, lees(), 'ann', TOKYO, new Date('2026-11-18T09:00:00Z'))).toBe('done')
+
+    expect(await whereabouts(db, LEES)).toEqual([
+      { userId: 'ann', name: 'Ann', city: 'Tokyo', country: 'JP', at: '2026-11-18T09:00:00.000Z' },
+      { userId: 'bob', name: 'Bob', city: null, country: null, at: null },
+    ])
+  })
+
+  it('is said to one family at a time, and never by someone who has left', async () => {
+    await checkIn(db, lees(), 'ann', CHICAGO, NOW)
+    await checkIn(db, lees(), 'eve', TOKYO, NOW)
+
+    expect(await whereabouts(db, STONES)).toEqual([])
+    expect((await whereabouts(db, LEES)).map((person) => person.userId)).toEqual(['ann', 'bob'])
+    expect(await checkIn(db, { ...lees(), closed: true }, 'ann', TOKYO, NOW)).toBe('closed')
+  })
+
+  it('can be taken back, and goes with a deleted account', async () => {
+    await checkIn(db, lees(), 'ann', CHICAGO, NOW)
+    await checkIn(db, stones, 'ann', CHICAGO, NOW)
+    await forgetCheckins(db, LEES, 'ann')
+    expect((await whereabouts(db, LEES))[0]).toMatchObject({ userId: 'ann', city: null })
+    expect(await db.select().from(roomCheckins)).toHaveLength(1)
+
+    clearExtensionsForTest()
+    registerRoomExtensions(store)
+    const contributor = getAccountContributors().find((entry) => entry.key === 'room')!
+    const statements = contributor.deletionStatements!(db, 'ann') as BatchItem<'sqlite'>[]
+    await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+    expect(await db.select().from(roomCheckins)).toEqual([])
   })
 })

@@ -303,3 +303,18 @@ export async function familiesForRoom(db: LettersDb, userId: string, familyId?: 
   }
   return found
 }
+
+/** The people in a family now, for the room's list of who is where. */
+export async function familyMembersForRoom(db: LettersDb, familyId: string) {
+  const { families } = tables
+  const [family] = await db
+    .select({ correspondenceId: families.correspondenceId })
+    .from(families)
+    .where(eq(families.id, familyId))
+    .limit(1)
+  if (!family) return []
+  return (await activeMembers(db, family.correspondenceId)).map((member) => ({
+    id: member.userId,
+    name: member.name,
+  }))
+}
