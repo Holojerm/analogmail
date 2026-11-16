@@ -9,6 +9,12 @@ interface Kept {
   name: string
   role: string
 }
+interface Recovery {
+  id: string
+  mantelName: string
+  readyAt: string
+  ready: boolean
+}
 interface Offer {
   id: string
   mantelName: string
@@ -18,7 +24,26 @@ interface Offer {
 }
 
 const mantelKeys = useMantelKeys()
-const { data, refresh } = await useFetch<{ mantels: Kept[]; offers: Offer[] }>('/api/mantels')
+const { data, refresh } = await useFetch<{
+  mantels: Kept[]
+  offers: Offer[]
+  recoveries: Recovery[]
+}>('/api/mantels')
+const recoveries = computed(() => data.value?.recoveries ?? [])
+const day = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+
+async function recovery(id: string, action: 'finish' | 'cancel') {
+  failure.value = null
+  try {
+    await $fetch('/api/mantels/recover/act', { method: 'POST', body: { id, action } })
+  } catch (error) {
+    failure.value =
+      (error as { data?: { message?: string } }).data?.message ?? 'That did not work. Try again.'
+  } finally {
+    await refresh()
+  }
+}
 const kept = computed(() => data.value?.mantels ?? [])
 const offers = computed(() => data.value?.offers ?? [])
 const failure = ref<string | null>(null)
@@ -105,6 +130,34 @@ useSeo({
       </UCard>
     </section>
 
+    <section
+      v-if="recoveries.length"
+      aria-labelledby="recoveries-heading"
+      class="flex flex-col gap-3"
+    >
+      <h2 id="recoveries-heading" class="text-xl text-highlighted">Recovery codes you used</h2>
+      <UCard v-for="claim in recoveries" :key="claim.id">
+        <div class="flex flex-col gap-3">
+          <p class="text-highlighted">{{ claim.mantelName }}</p>
+          <p class="text-sm text-muted">
+            {{
+              claim.ready
+                ? 'The wait is over and no keeper cancelled it.'
+                : `Its keepers can cancel this until ${day(claim.readyAt)}.`
+            }}
+          </p>
+          <div class="flex gap-3">
+            <UButton v-if="claim.ready" @click="recovery(claim.id, 'finish')">
+              Become a keeper
+            </UButton>
+            <UButton variant="ghost" color="neutral" @click="recovery(claim.id, 'cancel')">
+              Take it back
+            </UButton>
+          </div>
+        </div>
+      </UCard>
+    </section>
+
     <section aria-labelledby="kept-heading" class="flex flex-col gap-3">
       <h2 id="kept-heading" class="text-xl text-highlighted">Kept by you</h2>
       <p v-if="kept.length === 0" class="text-muted">You keep no mantels.</p>
@@ -125,7 +178,12 @@ useSeo({
           </UButton>
         </li>
       </ul>
-      <UButton to="/mantels/new" class="self-start">Open a new mantel</UButton>
+      <div class="flex flex-wrap gap-3">
+        <UButton to="/mantels/new">Open a new mantel</UButton>
+        <UButton to="/mantels/recover" variant="outline" color="neutral">
+          Use a recovery code
+        </UButton>
+      </div>
     </section>
   </div>
 </template>

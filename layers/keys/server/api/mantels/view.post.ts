@@ -10,6 +10,7 @@ import { postNow } from '#layers/post/server/utils/clock'
 
 import { proposalsOf } from '../../utils/custody'
 import { getMantel } from '../../utils/mantels'
+import { recoveriesOf } from '../../utils/recovery'
 
 const bodySchema = z.object({ id: z.string().uuid() })
 
@@ -40,5 +41,6 @@ export default defineEventHandler(async (event) => {
     me: user.id,
     keepers: mantel.keepers.map((keeper) => ({ ...keeper, name: nameOf(keeper.userId) })),
     proposals: proposals.map((proposal) => ({ ...proposal, name: nameOf(proposal.subjectId) })),
+    recoveries: await recoveriesOf(db, user.id, id),
   }
 })
