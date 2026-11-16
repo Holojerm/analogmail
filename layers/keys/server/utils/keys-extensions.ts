@@ -7,6 +7,22 @@ import * as tables from '@nuxthub/db/schema'
 import { onCredentialsPasswordReset } from '#layers/credentials/server/utils/credentials-hooks'
 import { registerAccountContributor } from '#server/utils/extensions'
 
+export interface AccountExportKeys {
+  /** The public half of the account's key pair, which letters are sealed to. */
+  publicKey: string | null
+  /**
+   * What the private key is locked under. The locked copies stay on the
+   * server: they are no use without the password, passkey or recovery code.
+   */
+  lockedUnder: { kind: string; addedAt: string }[]
+}
+
+declare module '#server/utils/extensions' {
+  interface AccountExportSections {
+    keys: AccountExportKeys
+  }
+}
+
 export function registerKeysExtensions(): void {
   const { userKeys, keyWraps } = tables
 
@@ -31,6 +47,24 @@ export function registerKeysExtensions(): void {
         .from(keyWraps)
         .where(eq(keyWraps.userId, userId))
       return row?.total ?? 0
+    },
+    async exportSection(db, userId) {
+      const [key] = await db
+        .select({ publicKey: userKeys.publicKey })
+        .from(userKeys)
+        .where(eq(userKeys.userId, userId))
+        .limit(1)
+      const wraps = await db
+        .select({ kind: keyWraps.kind, createdAt: keyWraps.createdAt })
+        .from(keyWraps)
+        .where(eq(keyWraps.userId, userId))
+      return {
+        publicKey: key?.publicKey ?? null,
+        lockedUnder: wraps.map((wrap) => ({
+          kind: wrap.kind,
+          addedAt: wrap.createdAt.toISOString(),
+        })),
+      }
     },
     deletionStatements: (db, userId) => [
       db.delete(keyWraps).where(eq(keyWraps.userId, userId)),
