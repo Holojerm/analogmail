@@ -6,6 +6,10 @@ export interface PostalProfile {
   timeZone: string
   mailDays: number
   deliveryHour: number
+  /** A change to mail days or hour that is waiting, and the day it starts. */
+  pendingMailDays?: number | null
+  pendingDeliveryHour?: number | null
+  pendingFrom?: string | null
 }
 
 export interface CityOption {
@@ -40,6 +44,10 @@ export function usePostalProfile() {
     profile,
     load,
     create,
+    /** After a settings change: the server's answer replaces what is held. */
+    set(next: PostalProfile) {
+      profile.value = next
+    },
     /** Sign-out: the next person's profile is fetched fresh. */
     reset: () => {
       profile.value = undefined

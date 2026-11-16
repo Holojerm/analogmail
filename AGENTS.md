@@ -99,6 +99,14 @@ to its author. A reply is an ordinary letter with `inReplyTo` set when its draft
 saved; it can answer only a letter that has arrived for its writer. `LetterNav` is the
 product's navigation: the template's layout is not edited.
 
+Settings and leaving: `/settings/post` changes mail days and the hour from tomorrow
+(`changeMailSettings` writes a pending change; never write `mailDays` directly) and the city at
+once. Closing a correspondence (`closeCorrespondence`) returns letters in transit to whoever
+closed it; that person's own posted letters still arrive. Account deletion follows the paper
+rule through the letters and post contributors: received letters, drafts, keys and settings
+go; sent letters stay with their recipients with `authorId` null. The privacy page's letters
+section is `LettersPrivacy`; keep it true when the encryption or what the server stores changes.
+
 ---
 
 ## Where things are documented

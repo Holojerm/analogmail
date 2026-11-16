@@ -63,6 +63,20 @@ async function copyLink() {
   }
 }
 
+const stopping = ref<string | null>(null)
+
+async function stopWriting(correspondenceId: string) {
+  try {
+    await $fetch('/api/letters/correspondences/close', {
+      method: 'POST',
+      body: { id: correspondenceId },
+    })
+  } finally {
+    stopping.value = null
+    await refresh()
+  }
+}
+
 async function withdraw(id: string) {
   try {
     await $fetch('/api/letters/invites/withdraw', { method: 'POST', body: { id } })
@@ -105,19 +119,51 @@ useSeo({
         <li
           v-for="person in people"
           :key="person.correspondenceId"
-          class="flex items-center justify-between gap-4 py-3"
+          class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3"
         >
           <div class="min-w-0">
             <p class="text-highlighted">{{ person.name }}</p>
             <p class="text-sm text-muted">since {{ day(person.since) }}</p>
           </div>
-          <UButton
-            size="sm"
-            :to="{ path: '/write', query: { to: person.correspondenceId } }"
-            :aria-label="`Write to ${person.name}`"
+          <div v-if="stopping === person.correspondenceId" class="flex shrink-0 items-center gap-2">
+            <UButton
+              size="sm"
+              color="error"
+              variant="subtle"
+              @click="stopWriting(person.correspondenceId)"
+            >
+              Stop writing
+            </UButton>
+            <UButton size="sm" variant="ghost" color="neutral" @click="stopping = null">
+              Cancel
+            </UButton>
+          </div>
+          <div v-else class="flex shrink-0 gap-2">
+            <UButton
+              size="sm"
+              :to="{ path: '/write', query: { to: person.correspondenceId } }"
+              :aria-label="`Write to ${person.name}`"
+            >
+              Write
+            </UButton>
+            <UButton
+              size="sm"
+              variant="ghost"
+              color="neutral"
+              :aria-label="`Stop writing with ${person.name}`"
+              @click="stopping = person.correspondenceId"
+            >
+              Stop
+            </UButton>
+          </div>
+          <p
+            v-if="stopping === person.correspondenceId"
+            class="basis-full text-sm text-muted"
+            role="status"
           >
-            Write
-          </UButton>
+            Letters on their way to you will go back to {{ person.name }}. Letters you have posted
+            will still arrive. This cannot be undone.
+          </p>
         </li>
       </ul>
     </section>

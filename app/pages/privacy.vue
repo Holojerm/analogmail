@@ -71,11 +71,14 @@ useSeo({
       <section class="flex flex-col gap-3">
         <h2 class="text-2xl text-highlighted">The short version</h2>
         <p>
-          {{ entity }} collects the minimum needed to run {{ app }}: who you are, what you've paid
-          for, and how the app is being used. We don't sell your data, we don't run ad trackers, and
-          you can have the whole account deleted by asking.
+          {{ entity }} collects the minimum needed to run {{ app }}: who you are, who you write
+          with, and how the app is being used. Your letters are encrypted so that we cannot read
+          them. We don't sell your data, we don't run ad trackers, and you can delete the whole
+          account yourself.
         </p>
       </section>
+
+      <LettersPrivacy />
 
       <section class="flex flex-col gap-3">
         <h2 class="text-2xl text-highlighted">What we collect</h2>
@@ -88,7 +91,10 @@ useSeo({
           <strong class="text-highlighted">Usage data.</strong> Pages visited, features used, and
           errors encountered, tied to your account ID so we can debug a problem you report.
         </p>
-        <p><strong class="text-highlighted">Content.</strong> Whatever you create in the app.</p>
+        <p>
+          <strong class="text-highlighted">Content.</strong> Your letters, encrypted as described
+          above, and the display name you choose for the people you write with.
+        </p>
       </section>
 
       <section class="flex flex-col gap-3">
