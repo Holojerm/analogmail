@@ -11,8 +11,27 @@ export const inviteLink = (appUrl: string, token: string) => `${appUrl}/invite/$
 
 export function inviteEmail(
   brand: Branding,
-  invite: { inviterName: string; token: string; mantelName?: string | null },
+  invite: {
+    inviterName: string
+    token: string
+    mantelName?: string | null
+    familyName?: string | null
+  },
 ): EmailContent {
+  if (invite.familyName) {
+    return composeEmail(
+      'family-invite',
+      `${invite.inviterName} invites you to ${invite.familyName}`,
+      brand,
+      {
+        inviterName: invite.inviterName,
+        // A family's name is held to the display-name rule when it is made.
+        familyName: invite.familyName,
+        url: inviteLink(brand.appUrl, invite.token),
+        expiresDays: INVITE_TTL_DAYS,
+      },
+    )
+  }
   if (invite.mantelName) {
     const mantelName = mailableMantelName(invite.mantelName)
     return composeEmail(

@@ -8,12 +8,16 @@ import { hasReceived } from './mantel'
 import type { LettersDb } from './people'
 import type { PhotoStore } from './photos'
 
-/** The other person in an open correspondence the user belongs to, or null. */
-export async function correspondentOf(
+/**
+ * Everyone else in an open correspondence the user belongs to. Null when they
+ * are not in it or it is closed. A pair has one other member, a family
+ * several, and a kept mantel is a member under its own id.
+ */
+export async function otherMembers(
   db: LettersDb,
   correspondenceId: string,
   userId: string,
-): Promise<string | null> {
+): Promise<string[] | null> {
   const { correspondences, correspondenceMembers: members } = tables
   const rows = await db
     .select({ userId: members.userId })
@@ -27,7 +31,16 @@ export async function correspondentOf(
       ),
     )
   if (!rows.some((row) => row.userId === userId)) return null
-  return rows.find((row) => row.userId !== userId)?.userId ?? null
+  return rows.map((row) => row.userId).filter((id) => id !== userId)
+}
+
+/** The other person in a pair the user belongs to, or null. */
+export async function correspondentOf(
+  db: LettersDb,
+  correspondenceId: string,
+  userId: string,
+): Promise<string | null> {
+  return (await otherMembers(db, correspondenceId, userId))?.[0] ?? null
 }
 
 export type SaveDraftResult = 'saved' | 'not-yours' | 'sealed' | 'closed' | 'not-received'
@@ -60,7 +73,8 @@ export async function saveDraft(
       .where(and(eq(letters.id, draft.id), isNull(letters.sealedAt)))
     return 'saved'
   }
-  if (!(await correspondentOf(db, draft.correspondenceId, authorId))) return 'closed'
+  // Open, with someone to write to: a family of one has nobody yet.
+  if (!(await otherMembers(db, draft.correspondenceId, authorId))?.length) return 'closed'
   if (draft.inReplyTo) {
     // A reply answers a letter that has arrived, in the same correspondence.
     const [answered] = await db

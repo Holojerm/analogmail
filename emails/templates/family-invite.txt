@@ -1,0 +1,12 @@
+{{inviterName}} invites you to {{familyName}}
+
+{{inviterName}} has started {{familyName}} on {{appName}} and would like you in it. A letter to the family goes to everyone in it at once, each copy arriving by post in that person's own city.
+
+Letters take days to arrive, so nobody has to answer quickly. You will read what is written from the day you join.
+
+See the invitation: {{url}}
+
+—
+The invitation is good for {{expiresDays}} days. If you don't know {{inviterName}}, ignore this email: nothing more will be sent, and your address is deleted when the invitation expires.
+
+{{appUrl}}

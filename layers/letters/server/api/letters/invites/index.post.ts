@@ -18,6 +18,8 @@ const REFUSALS = {
   pending: 'You have already invited this address.',
   'too-many': 'You have many invitations waiting. Withdraw one first.',
   'not-keeper': 'You do not keep that mantel.',
+  'not-organiser': 'Only the organiser of a family invites people to it.',
+  'family-full': 'This family has as many members as it can hold.',
 } as const
 
 export default defineEventHandler(async (event) => {
@@ -28,7 +30,7 @@ export default defineEventHandler(async (event) => {
     windowSeconds: 3600,
     identifier: user.id,
   })
-  const { email, mantelId } = await readValidatedBody(event, inviteInputSchema.parse)
+  const { email, mantelId, familyId } = await readValidatedBody(event, inviteInputSchema.parse)
 
   const result = await createInvite(
     db,
@@ -36,6 +38,7 @@ export default defineEventHandler(async (event) => {
     email,
     await postNow(),
     mantelId ?? null,
+    familyId ?? null,
   )
   if (result.status !== 'created') {
     throw createError({

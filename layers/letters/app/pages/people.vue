@@ -240,5 +240,7 @@ useSeo({
         </li>
       </ul>
     </section>
+
+    <PeopleFamilies v-if="name" />
   </div>
 </template>
