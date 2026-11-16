@@ -26,6 +26,13 @@
       family lives.
     </p>
     <p>
+      <strong class="text-highlighted">The gazette and the almanac.</strong> Each past month, and
+      each past year, of a room can be read as one page: the photos added and the cities people said
+      they were in. An issue is put together when someone reads it, from what is in the room then. A
+      photo you delete, or a city you take back, is gone from every issue too. Nobody is emailed
+      when one comes out.
+    </p>
+    <p>
       <strong class="text-highlighted">Removing photos.</strong> Whoever added a photo can delete
       it, and so can the family's organiser. If you leave a family, the photos you added stay with
       it unless you delete them first. If you delete your account, every photo you added is deleted
