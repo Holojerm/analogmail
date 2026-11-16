@@ -1,0 +1,120 @@
+/* The letter's paper: its faces and how its text is set. Plain CSS, not
+ * utilities, because one rule set has to reach both the page a letter is read
+ * on and the editor it is written in, whose own theme styles the same tags.
+ * Sizes are in em so a heading scales with the face it sits in.
+ * DESIGN.md › Typography › Letter faces. */
+
+/* A handwriting face has one weight. Without this, bold in a letter would be
+ * invisible: the app turns synthesised weights off everywhere else. */
+.letter-paper {
+  font-synthesis: weight style;
+}
+
+.letter-face-serif {
+  font-family: 'Lora', ui-serif, Georgia, serif;
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+.letter-face-sans {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+.letter-face-typewriter {
+  font-family: 'Courier Prime', ui-monospace, 'Courier New', monospace;
+  font-size: 1rem;
+  line-height: 1.8;
+}
+.letter-face-hand {
+  font-family: 'Caveat', 'Bradley Hand', cursive;
+  font-size: 1.5rem;
+  line-height: 1.45;
+}
+.letter-face-print {
+  font-family: 'Kalam', 'Comic Sans MS', cursive;
+  font-size: 1.125rem;
+  line-height: 1.75;
+}
+.letter-face-cursive {
+  font-family: 'Homemade Apple', 'Snell Roundhand', cursive;
+  font-size: 1.0625rem;
+  line-height: 2.1;
+}
+
+/* The signature is a form field while the letter is being written. It is
+ * written in the letter's face and ink, like the name it becomes. */
+.letter-paper .letter-signature {
+  font: inherit;
+  color: inherit;
+}
+
+.letter-prose {
+  overflow-wrap: break-word;
+  padding-inline: 0;
+  color: inherit;
+}
+.letter-prose > * {
+  margin-block: 0.9em;
+}
+.letter-prose > :first-child {
+  margin-top: 0;
+}
+.letter-prose > :last-child {
+  margin-bottom: 0;
+}
+.letter-prose p {
+  line-height: inherit;
+  white-space: pre-wrap;
+}
+.letter-prose :is(h2, h3) {
+  color: inherit;
+  font-family: inherit;
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: 1.3;
+}
+.letter-prose h2 {
+  font-size: 1.45em;
+}
+.letter-prose h3 {
+  font-size: 1.2em;
+}
+.letter-prose :is(ul, ol) {
+  padding-inline-start: 1.5em;
+}
+.letter-prose ul {
+  list-style: disc;
+}
+.letter-prose ol {
+  list-style: decimal;
+}
+.letter-prose li {
+  margin-block: 0.3em;
+  padding-inline-start: 0.25em;
+}
+.letter-prose li::marker {
+  color: currentcolor;
+}
+.letter-prose li > * {
+  margin-block: 0.3em;
+}
+.letter-prose blockquote {
+  border-inline-start: 2px solid currentcolor;
+  padding-inline-start: 1em;
+  font-style: italic;
+  opacity: 0.85;
+}
+.letter-prose blockquote > * {
+  margin-block: 0.6em;
+}
+.letter-prose hr {
+  margin-block: 1.6em;
+  border: 0;
+  border-top: 1px solid currentcolor;
+  opacity: 0.35;
+}
+
+.letter-prose code {
+  font-family: 'Courier Prime', ui-monospace, monospace;
+  font-size: 0.95em;
+}

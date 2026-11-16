@@ -8,10 +8,14 @@ export const PAPER_CLASS: Record<Stationery['paper'], string> = {
   soft: 'bg-muted',
   card: 'bg-elevated',
 }
+// Faces and their sizes live in letter.css, with the rest of the paper.
 export const FONT_CLASS: Record<Stationery['font'], string> = {
-  serif: 'font-display text-xl leading-relaxed',
-  sans: 'font-sans text-base leading-relaxed',
-  typewriter: 'font-mono text-sm leading-loose',
+  serif: 'letter-face-serif',
+  sans: 'letter-face-sans',
+  typewriter: 'letter-face-typewriter',
+  hand: 'letter-face-hand',
+  print: 'letter-face-print',
+  cursive: 'letter-face-cursive',
 }
 export const INK_CLASS: Record<Stationery['ink'], string> = {
   black: 'text-default',
@@ -28,6 +32,9 @@ export const FONT_LABEL: Record<Stationery['font'], string> = {
   serif: 'Serif',
   sans: 'Sans',
   typewriter: 'Typewriter',
+  hand: 'Quick hand',
+  print: 'Neat hand',
+  cursive: 'Cursive',
 }
 export const INK_LABEL: Record<Stationery['ink'], string> = {
   black: 'Black',
@@ -36,7 +43,12 @@ export const INK_LABEL: Record<Stationery['ink'], string> = {
 }
 
 export const stationeryClass = (stationery: Stationery) =>
-  [PAPER_CLASS[stationery.paper], FONT_CLASS[stationery.font], INK_CLASS[stationery.ink]].join(' ')
+  [
+    'letter-paper',
+    PAPER_CLASS[stationery.paper],
+    FONT_CLASS[stationery.font],
+    INK_CLASS[stationery.ink],
+  ].join(' ')
 
 /**
  * A pickup as "on Monday at 5:00 PM", in the sender's own time zone: the

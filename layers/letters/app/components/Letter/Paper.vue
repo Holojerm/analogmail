@@ -15,7 +15,7 @@ defineProps<{
     class="rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
     :class="stationeryClass(doc.stationery)"
   >
-    <p class="whitespace-pre-wrap break-words">{{ doc.body }}</p>
+    <LetterRichText :doc="doc.content" />
     <p v-if="doc.from" class="mt-8 text-right">{{ doc.from }}</p>
     <template v-if="doc.photo">
       <img

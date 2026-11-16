@@ -34,6 +34,12 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
   await ann.waitForURL('**/write?letter=*')
 
+  // ── Formatting and a hand of her own are part of the encrypted letter ──────
+  await ann.getByLabel('Your letter').press('ControlOrMeta+a')
+  await ann.getByRole('button', { name: 'Bold' }).click()
+  await ann.getByLabel('Hand').click()
+  await ann.getByRole('option', { name: 'Quick hand' }).click()
+
   // ── A photo is redrawn and encrypted here; the server gets a sealed file ───
   const uploaded = ann.waitForRequest(
     (request) => request.url().includes('/api/letters/drafts/photo?') && request.method() === 'PUT',
@@ -67,7 +73,7 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   await ann.getByRole('button', { name: 'Recall the letter to Bob Tester' }).click()
   await expect(ann.getByText(/^Draft, edited /)).toBeVisible()
   await ann.getByRole('link', { name: 'Continue' }).click()
-  await expect(ann.getByLabel('Your letter')).toHaveValue(TEXT)
+  await expect(ann.getByLabel('Your letter')).toHaveText(TEXT)
   await expect(ann.getByLabel('Describe the photo')).toHaveValue('The plum tree')
   await ann.getByLabel('Your letter').fill(`${TEXT} Bring the dog.`)
   await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
@@ -98,6 +104,9 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
     // ── He opens it on his own device and answers on a sheet below it ────────
     await bob.getByRole('link', { name: /From Ann Tester/ }).click()
     await expect(bob.getByText(`${TEXT} Bring the dog.`)).toBeVisible()
+    await expect(bob.locator('article.letter-face-hand strong')).toHaveText(
+      `${TEXT} Bring the dog.`,
+    )
     await expect(bob.getByRole('img', { name: 'The plum tree' })).toBeVisible()
     await bob.getByRole('link', { name: 'Reply' }).click()
     await expect(bob.getByText('You are replying to')).toBeVisible()
