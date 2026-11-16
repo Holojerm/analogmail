@@ -49,6 +49,10 @@ export async function getProfile(db: PostDb, userId: string) {
       timeZone: postalProfiles.timeZone,
       mailDays: postalProfiles.mailDays,
       deliveryHour: postalProfiles.deliveryHour,
+      // A change that is waiting, and the day it starts.
+      pendingMailDays: postalProfiles.pendingMailDays,
+      pendingDeliveryHour: postalProfiles.pendingDeliveryHour,
+      pendingFrom: postalProfiles.pendingFrom,
     })
     .from(postalProfiles)
     .where(eq(postalProfiles.userId, userId))
