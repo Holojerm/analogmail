@@ -18,6 +18,7 @@ import {
   letterDocSchema,
   letterKeySchema,
 } from '../shared/utils/letter-doc'
+import { richDocFromText } from '../shared/utils/rich-text'
 
 const LETTER = '4b0f6c1e-0d3a-4c1f-9e57-1f2f6b6f0a11'
 const OTHER = '9a1d2c3b-4e5f-4a6b-8c7d-0e1f2a3b4c5d'
@@ -142,7 +143,7 @@ describe('a photo', () => {
 
   it('is described inside the letter, within the size the letter allows', () => {
     const photo = { id: PHOTO, width: 2560, height: 1920, alt: 'The plum tree' }
-    const doc = { v: 1, body: 'x', stationery: DEFAULT_STATIONERY, from: 'Ann' }
+    const doc = { v: 2, content: richDocFromText('x'), stationery: DEFAULT_STATIONERY, from: 'Ann' }
 
     expect(letterDocSchema.safeParse(doc).success).toBe(true)
     expect(letterDocSchema.safeParse({ ...doc, photo }).success).toBe(true)

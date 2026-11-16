@@ -7,11 +7,17 @@ import {
   INKS,
   LETTER_BODY_MAX,
   PAPERS,
-  letterDocSchema,
+  parseLetterDoc,
   type LetterDoc,
   type Stationery,
 } from '../../shared/utils/letter-doc'
 import type { LetterPhoto } from '../../shared/utils/letter-photo'
+import {
+  emptyRichDoc,
+  isBlankRichDoc,
+  richTextLength,
+  type RichDoc,
+} from '../../shared/utils/rich-text'
 import { decryptLetter, encryptLetter, newContentKey, wrapContentKey } from '../utils/letter-crypto'
 
 import type { ReadLetter } from '../composables/useOpenLetter'
@@ -37,7 +43,7 @@ const failure = ref<string | null>(null)
 const letterId = ref('')
 const correspondenceId = ref('')
 const sealed = ref(false)
-const body = ref('')
+const content = ref<RichDoc>(emptyRichDoc())
 const from = ref('')
 const stationery = reactive<Stationery>({ ...DEFAULT_STATIONERY })
 const saveState = ref<'idle' | 'saving' | 'saved' | 'failed'>('idle')
@@ -53,13 +59,14 @@ let contentKey: Uint8Array<ArrayBuffer> | null = null
 let wrappedForMe = ''
 let created = false
 let timer: ReturnType<typeof setTimeout> | undefined
+let snapshot = ''
 
 const message = (error: unknown, fallback: string) =>
   (error as { data?: { message?: string } }).data?.message ?? fallback
 
 const doc = (): LetterDoc => ({
-  v: 1,
-  body: body.value,
+  v: 2,
+  content: content.value,
   stationery: { ...stationery },
   from: from.value,
   ...(photo.value ? { photo: photo.value } : {}),
@@ -94,8 +101,8 @@ onMounted(async () => {
       })
       const key = await letterKeys.open(opened.wrappedKey, opened.id)
       const text = key ? await decryptLetter(key, opened.id, opened.ciphertext) : null
-      const parsed = text ? letterDocSchema.safeParse(JSON.parse(text)) : null
-      if (!key || !parsed?.success) throw new Error('unreadable')
+      const parsed = text ? parseLetterDoc(text) : null
+      if (!key || !parsed) throw new Error('unreadable')
       contentKey = key
       wrappedForMe = opened.wrappedKey
       created = true
@@ -103,10 +110,10 @@ onMounted(async () => {
       correspondenceId.value = opened.correspondenceId
       sealed.value = opened.sealed
       inReplyTo.value = opened.inReplyTo
-      body.value = parsed.data.body
-      from.value = parsed.data.from
-      Object.assign(stationery, parsed.data.stationery)
-      photo.value = parsed.data.photo
+      content.value = parsed.content
+      from.value = parsed.from
+      Object.assign(stationery, parsed.stationery)
+      photo.value = parsed.photo
       if (photo.value) photoUrl.value = await loadLetterPhoto(key, opened.id, photo.value)
     } else {
       const to = typeof route.query.to === 'string' ? route.query.to : null
@@ -125,13 +132,14 @@ onMounted(async () => {
   } catch {
     failure.value = 'This letter could not be opened on this device.'
   } finally {
+    snapshot = JSON.stringify(doc())
     await nextTick()
     loading.value = false
   }
 })
 
 async function save(): Promise<boolean> {
-  if (sealed.value || !contentKey) return false
+  if (sealed.value || !contentKey || tooLong.value) return false
   clearTimeout(timer)
   saveState.value = 'saving'
   try {
@@ -149,6 +157,7 @@ async function save(): Promise<boolean> {
       created = true
       await router.replace({ query: { letter: letterId.value } })
     }
+    snapshot = JSON.stringify(doc())
     saveState.value = 'saved'
     return true
   } catch {
@@ -157,14 +166,20 @@ async function save(): Promise<boolean> {
   }
 }
 
-watch([body, from, () => ({ ...stationery }), photo], () => {
+watch([content, from, () => ({ ...stationery }), photo], () => {
   if (loading.value || sealed.value) return
+  // The editor reports its document again when it mounts. Only a real change
+  // is worth a save, and an untouched new sheet must not become a draft.
+  if (JSON.stringify(doc()) === snapshot) return
   saveState.value = 'idle'
   confirming.value = false
   clearTimeout(timer)
   timer = setTimeout(save, 1500)
 })
 onBeforeUnmount(() => clearTimeout(timer))
+
+const blank = computed(() => isBlankRichDoc(content.value))
+const tooLong = computed(() => richTextLength(content.value) > LETTER_BODY_MAX)
 
 // A photo is stored against the draft's row, so the draft is saved first.
 const ensureDraft = async () => created || (await save())
@@ -263,20 +278,19 @@ useSeo({
           class="flex flex-col gap-6 rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
           :class="stationeryClass(stationery)"
         >
-          <UFormField label="Your letter" name="body" :ui="{ label: 'sr-only' }">
-            <UTextarea
-              v-model="body"
+          <LetterEditor v-model="content" />
+          <UFormField
+            label="Signed"
+            name="from"
+            class="self-end text-right"
+            :ui="{ labelWrapper: 'justify-end' }"
+          >
+            <UInput
+              v-model="from"
               variant="none"
-              autoresize
-              :rows="14"
-              :maxlength="LETTER_BODY_MAX"
-              class="w-full"
-              :ui="{ base: 'p-0 text-inherit' }"
-              placeholder="Dear…"
+              maxlength="60"
+              :ui="{ base: 'letter-signature p-0 text-right' }"
             />
-          </UFormField>
-          <UFormField label="Signed" name="from" class="self-end">
-            <UInput v-model="from" variant="none" maxlength="60" :ui="{ base: 'p-0 text-right' }" />
           </UFormField>
         </div>
 
@@ -290,13 +304,18 @@ useSeo({
 
         <div class="flex flex-wrap items-center justify-between gap-4">
           <p class="text-sm text-muted" role="status" aria-live="polite">
-            <template v-if="saveState === 'saving'">Saving…</template>
+            <template v-if="tooLong"
+              >This letter is too long to send. Shorten it a little.</template
+            >
+            <template v-else-if="saveState === 'saving'">Saving…</template>
             <template v-else-if="saveState === 'saved'">Saved, encrypted on this device.</template>
             <template v-else-if="saveState === 'failed'"
               >Not saved. Check your connection.</template
             >
           </p>
-          <UButton :disabled="!body.trim() || !plan" @click="prepareSeal">Seal the letter</UButton>
+          <UButton :disabled="blank || tooLong || !plan" @click="prepareSeal">
+            Seal the letter
+          </UButton>
         </div>
 
         <UCard v-if="confirming && plan">

@@ -136,7 +136,7 @@ as a link or an address: do not loosen it. Sign-up ends on `/people`, which is a
 invitation opened before sign-up is picked up again.
 
 Writing (`layers/letters`): `/write` is the desk for one letter, `/desk` lists drafts and sent
-letters. A letter is a `LetterDoc` (plain text, stationery, the signed name) encrypted in the
+letters. A letter is a `LetterDoc` (rich text, stationery, the signed name) encrypted in the
 browser under its own random key; that key is wrapped once per reader to their public key
 (`layers/letters/app/utils/letter-crypto.ts`). The server validates the envelope's shape and
 stores it. A draft has only its author's key row. Sealing (`sealLetter`) adds the recipient's
@@ -144,6 +144,13 @@ key and a delivery whose pickup, postmark and dates are fixed in one transaction
 before pickup undoes exactly that. What a sender sees afterwards comes only from
 `senderView`: never read `deliveries.state`, `deliveredAt` or `openedAt` on the sender's side.
 Times are shown in the sender's profile time zone, not the device's.
+
+Letter text is rich text: the editor's document held to the node and mark list in
+`layers/letters/shared/utils/rich-text.ts` (no links, images or HTML). A letter comes from
+another person's browser, so it is parsed with `parseLetterDoc` and drawn node by node by
+`LetterRichText`: never `v-html`, and never widen the list without widening the renderer and
+its test. The editor is NuxtUI's `UEditor` wrapped in `LetterEditor`. Faces and the paper's
+type are plain CSS in `layers/letters/app/assets/css/letter.css` (DESIGN.md › Letter faces).
 
 Photos (`layers/letters`): a letter carries at most one. The browser redraws it at 2560 px on
 the long edge as a JPEG (which drops the camera's metadata), encrypts it under the letter's

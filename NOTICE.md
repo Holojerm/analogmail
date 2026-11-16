@@ -10,6 +10,10 @@ This repository was created from [nuxt-cf-template](https://github.com/Holojerm/
 
 The list of cities people choose from is from [GeoNames](https://www.geonames.org/) (the `cities15000` export), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It is not stored in this repository: `bun run cities:import` downloads it into the database.
 
+## Fonts
+
+The faces a letter can be written in are open-source and are downloaded at build time, not stored in this repository: [Lora](https://github.com/cyrealtype/Lora-Cyrillic), [Courier Prime](https://github.com/quoteunquoteapps/CourierPrime), [Caveat](https://github.com/googlefonts/caveat) and [Kalam](https://github.com/itfoundry/kalam) under the [SIL Open Font License 1.1](https://openfontlicense.org/), and [Homemade Apple](https://fonts.google.com/specimen/Homemade+Apple) under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). The app's own three (Inter, Instrument Serif, JetBrains Mono) are also under the SIL Open Font License.
+
 ## Contributions
 
 Outside contributions are not accepted without a signed contributor agreement.

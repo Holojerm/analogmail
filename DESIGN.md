@@ -203,6 +203,27 @@ Use the semantic utility, never a numbered scale. `text-gray-900` is a build fai
 Headings are set in the display serif at weight 400 with `-0.02em` tracking. The size does the
 work, not the weight.
 
+### Letter faces
+
+A letter's paper is the one surface that does not use the three families above. The writer
+picks a face, and it is part of the encrypted letter. These faces appear on the paper of a
+letter (writing, reading, and later print) and nowhere else in the interface.
+
+| Choice | Family | Licence |
+|---|---|---|
+| Serif | Lora, 400 and 700, with italics | OFL 1.1 |
+| Sans | Inter | OFL 1.1 |
+| Typewriter | Courier Prime, 400 and 700, with italics | OFL 1.1 |
+| Quick hand | Caveat, 400 and 700 | OFL 1.1 |
+| Neat hand | Kalam, 400 and 700 | OFL 1.1 |
+| Cursive | Homemade Apple, 400 | Apache 2.0 |
+
+They are declared in `layers/letters/app/assets/css/letter.css` and
+`layers/letters/nuxt.config.ts`, and self-hosted like the rest. The paper is also the one
+place faux bold and italic are allowed (`font-synthesis`), because a handwriting face has one
+weight and a writer who marks a word bold must see it. Headings inside a letter are sized in
+`em` so they scale with the chosen face. Ink and paper colours still come from the token layer.
+
 ### Scale
 
 | Token | Size | Line height |
