@@ -68,13 +68,15 @@ of code for each:
 - The private key of a child's or anniversary mantel exists only as copies wrapped to its
   keepers and to its recovery code. The server never holds it, and there is no escrow.
 - A child's mantel belongs to the child. No guardian action or account deletion removes its
-  letters.
+  letters. Custody changes (adding or removing a guardian, the seal, handover, closing) need
+  more than half of the guardians to agree; no guardian can remove another alone.
 - A guest writes without an account only by encrypting in the browser to the mantel's public
   key, checked against the fingerprint in the link's fragment. The guest's name is inside the
   ciphertext.
 - Letter text leaves the browser unencrypted for one reason: the reader's own print order,
   after a consent step that names the print partner. The server never writes it to storage,
-  logs or a queue in readable form. Print providers sit behind the `PrintProvider` interface.
+  logs or a queue in readable form: a print file is staged as ciphertext under a one-time key
+  the server does not store. Print providers sit behind the `PrintProvider` interface.
 - A screen or any other integration reads at most one boolean per person ("something on your
   mantel"), never content, senders, counts or which mantel. It is off until that person turns
   it on for themself. It goes up at their release and down at their local midnight, and it
