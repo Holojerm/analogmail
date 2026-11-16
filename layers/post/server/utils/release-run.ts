@@ -29,6 +29,7 @@ import {
   type ReleaseState,
 } from '../../shared/utils/release'
 import type { PostalProfile } from '../db/schema'
+import { noticeAudience } from './notice-audience'
 
 export type PostDb = ReturnType<typeof drizzle<typeof tables>>
 type Statement = BatchItem<'sqlite'>
@@ -175,6 +176,10 @@ export async function runRelease(
   const dueTurns = turns.filter((turn) => turn.due)
   report.due = dueTurns.length
   const waiting = dueTurns.length > 0 ? await waitingMail(db, dueTurns) : new Map()
+  const audience = await noticeAudience(
+    db,
+    dueTurns.map((turn) => turn.userId),
+  )
 
   for (const turn of turns) {
     const settings = settingsColumns(turn.state)
@@ -197,14 +202,18 @@ export async function runRelease(
         .where(and(inArray(deliveries.id, ids), eq(deliveries.state, 'in_transit'))),
     )
     if (plan.notify) {
-      group.push(
-        db
-          .insert(notices)
-          // Queued on the post office clock, which is what the notice's
-          // expiry is measured against.
-          .values({ userId: turn.userId, mailDate: turn.release.date, createdAt: now })
-          .onConflictDoNothing(),
-      )
+      // A kept mantel's keepers are told in its place. Still one notice per
+      // person per day: someone whose own mail came too is not told twice.
+      for (const userId of audience.get(turn.userId) ?? [turn.userId]) {
+        group.push(
+          db
+            .insert(notices)
+            // Queued on the post office clock, which is what the notice's
+            // expiry is measured against.
+            .values({ userId, mailDate: turn.release.date, createdAt: now })
+            .onConflictDoNothing(),
+        )
+      }
     }
     const next = nextRelease(now, { ...turn.state, lastReleaseDate: turn.release.date })
     group.push(

@@ -104,10 +104,13 @@ export async function loadLetterPhoto(
   contentKey: Bytes,
   letterId: string,
   photo: LetterPhoto,
+  /** Set when the letter is on a mantel the reader keeps, not their own. */
+  mantelId?: string,
 ): Promise<string | null> {
   try {
     const sealed = await $fetch<ArrayBuffer>(`/api/letters/photo/${letterId}`, {
       responseType: 'arrayBuffer',
+      query: mantelId ? { mantel: mantelId } : undefined,
     })
     const image = await decryptPhoto(contentKey, { letterId, photoId: photo.id }, sealed)
     return image ? await asDataUrl(image) : null

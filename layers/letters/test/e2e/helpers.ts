@@ -44,6 +44,7 @@ export interface Pair {
 }
 
 let network = 30
+let pairs = 0
 
 /**
  * A device on its own network. Outside Cloudflare every caller shares one
@@ -67,11 +68,13 @@ export async function makePair(browser: Browser, baseURL: string): Promise<Pair>
   await ann.request.post('/api/dev/seed')
 
   await open(ann, '/auth/sign-up')
-  await finishSignUp(ann, uniqueEmail('inviter'))
+  // Two pairs made by one worker share its run token, so each gets a number.
+  pairs += 1
+  await finishSignUp(ann, uniqueEmail(`inviter${pairs}`))
   await ann.waitForURL('**/people', { timeout: 15_000 })
   await ann.getByLabel('Your name').fill('Ann Tester')
   await ann.getByRole('button', { name: 'Save name' }).click()
-  const bobEmail = uniqueEmail('invitee')
+  const bobEmail = uniqueEmail(`invitee${pairs}`)
   await ann.getByLabel('Their email').fill(bobEmail)
   await ann.getByRole('button', { name: 'Send invitation' }).click()
   const link = new URL((await ann.getByTestId('invite-link').innerText()).trim())

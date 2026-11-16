@@ -50,6 +50,20 @@
       Letters you sent stay with the people you sent them to.
     </p>
     <p>
+      <strong class="text-highlighted">Mantels kept for someone else.</strong> A child's mantel, or
+      a couple's, has a key of its own. Its keepers each hold a copy, locked to their own key, and
+      one more copy is locked under a printed recovery code. We hold none that we can open. When
+      mail arrives there, its keepers are told, the same way you are told about your own.
+    </p>
+    <p>
+      <strong class="text-highlighted">Sealed letters.</strong> A letter to a kept mantel can be
+      sealed until a day its writer picks. Until that day we do not hand its text, its photo or its
+      key to anyone, its keepers included; the writer keeps their own copy. This is a promise kept
+      by our servers together with a key we do not have. It is not a mathematical time lock: to read
+      one early, both we and a keeper would have to break the rules. We can see the day a letter is
+      sealed until.
+    </p>
+    <p>
       <strong class="text-highlighted">Your copy.</strong> The download on your account page holds
       what we hold: who you write with, your city and mail days, and every letter you wrote or
       received, encrypted as we store it. It leaves out letters still on their way to you, and it
