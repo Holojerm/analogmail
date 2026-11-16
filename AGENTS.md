@@ -16,7 +16,7 @@ notices and print:
 
 | Kind | What it is | State |
 | --- | --- | --- |
-| Pair | Letters between two friends. The free tier | The MVP, being built |
+| Pair | Letters between two friends. The free tier | Built |
 | Family mantel | Letters to a whole family, plus an optional family room (photos, check-ins, map, e-ink screen) that is **not** encrypted | Planned |
 | Child's mantel | Letters to someone who cannot read yet, sealed until a date or until handover; two guardians hold the key | Planned |
 | Anniversary letters | Wedding guests write to a couple from a QR card; the letters open on the first anniversary | Planned |
@@ -90,7 +90,7 @@ of code for each:
 | `layers/post` | Calendar, transit, the release task, notices, the `Notifier` interface, the dev clock |
 | `layers/letters` | Invites, correspondences, letters, the mantel page, writing desk, stationery, seals |
 | `layers/keys` | Account and mantel keys, wrapping, recovery codes, browser crypto |
-| `layers/print` (planned) | The `PrintProvider` interface, Lulu, the consent step, order records, book layout |
+| `layers/print` (planned) | The `PrintProvider` interface, the first provider, the consent step, order records, book layout |
 | `layers/room` (future) | The family room: photos, check-ins, map, screen, gazette, almanac. Never imports from or joins to `layers/letters` |
 | `layers/credentials`, `layers/feedback` | Vendored from the template (`bun run layers:pull`), pinned in `layers.lock.json` |
 
