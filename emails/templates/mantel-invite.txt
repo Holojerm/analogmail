@@ -1,0 +1,12 @@
+{{inviterName}} asks you to write to {{mantelName}}
+
+{{inviterName}} keeps a mantel for {{mantelName}} on {{appName}}: a place for letters to someone who cannot keep their own yet. They have asked you to write to it.
+
+Letters there take days to arrive, the way post does. You can seal one until a day you choose, such as a birthday years from now.
+
+See the invitation: {{url}}
+
+—
+The invitation is good for {{expiresDays}} days. If you don't know {{inviterName}}, ignore this email: nothing more will be sent, and your address is deleted when the invitation expires.
+
+{{appUrl}}

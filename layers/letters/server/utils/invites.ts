@@ -10,6 +10,9 @@ import { normalizeEmail } from '#server/utils/users'
 
 import { INVITE_TTL_MS, MAX_OPEN_INVITES, type InviteView } from '../../shared/utils/invites'
 import { openCorrespondenceBetween } from './correspondences'
+import { isKeeper } from '#layers/keys/server/utils/mantels'
+
+import { recipientIdentity } from './recipients'
 import { getDisplayName, type LettersDb } from './people'
 
 export function newInviteToken(): string {
@@ -19,8 +22,15 @@ export function newInviteToken(): string {
 export const hashInviteToken = (token: string) => sha256Hex(`invite:${token}`)
 
 export type CreateInviteResult =
-  | { status: 'created'; id: string; token: string; expiresAt: Date; inviterName: string }
-  | { status: 'self' | 'needs-name' | 'already-writing' | 'pending' | 'too-many' }
+  | {
+      status: 'created'
+      id: string
+      token: string
+      expiresAt: Date
+      inviterName: string
+      mantelName: string | null
+    }
+  | { status: 'self' | 'needs-name' | 'already-writing' | 'pending' | 'too-many' | 'not-keeper' }
 
 /**
  * Makes an invitation to `email`. The answer never says whether that address
@@ -32,9 +42,15 @@ export async function createInvite(
   inviter: { id: string; email: string },
   email: string,
   now: Date,
+  /** A mantel the inviter keeps: the invitation is then to write to it. */
+  mantelId: string | null = null,
 ): Promise<CreateInviteResult> {
   const address = normalizeEmail(email)
   if (address === normalizeEmail(inviter.email)) return { status: 'self' }
+  const mantel = mantelId ? await recipientIdentity(db, mantelId) : null
+  if (mantelId && (!mantel?.mantel || !(await isKeeper(db, inviter.id, mantelId)))) {
+    return { status: 'not-keeper' }
+  }
 
   const inviterName = await getDisplayName(db, inviter.id)
   if (!inviterName) return { status: 'needs-name' }
@@ -45,10 +61,11 @@ export async function createInvite(
     isNull(invites.acceptedAt),
     gt(invites.expiresAt, now),
   )
+  const sameKind = mantelId ? eq(invites.mantelId, mantelId) : isNull(invites.mantelId)
   const [waiting] = await db
     .select({ id: invites.id })
     .from(invites)
-    .where(and(open, eq(invites.inviteeEmail, address)))
+    .where(and(open, sameKind, eq(invites.inviteeEmail, address)))
     .limit(1)
   if (waiting) return { status: 'pending' }
 
@@ -57,7 +74,7 @@ export async function createInvite(
     .from(users)
     .where(eq(users.email, address))
     .limit(1)
-  if (existing && (await openCorrespondenceBetween(db, inviter.id, existing.id))) {
+  if (existing && (await openCorrespondenceBetween(db, mantelId ?? inviter.id, existing.id))) {
     return { status: 'already-writing' }
   }
 
@@ -73,10 +90,18 @@ export async function createInvite(
       inviteeEmail: address,
       tokenHash: await hashInviteToken(token),
       expiresAt,
+      mantelId,
       createdAt: now,
     })
     .returning({ id: invites.id })
-  return { status: 'created', id: row!.id, token, expiresAt, inviterName }
+  return {
+    status: 'created',
+    id: row!.id,
+    token,
+    expiresAt,
+    inviterName,
+    mantelName: mantel?.name ?? null,
+  }
 }
 
 export async function findInviteRow(db: LettersDb, token: string) {
@@ -94,7 +119,13 @@ export async function viewInvite(db: LettersDb, token: string, now: Date): Promi
   if (!row) return { status: 'unknown', inviterName: null, expiresAt: null }
   const inviterName = await getDisplayName(db, row.inviterId)
   const status = row.acceptedAt ? 'accepted' : row.expiresAt <= now ? 'expired' : 'open'
-  return { status, inviterName, expiresAt: row.expiresAt.toISOString() }
+  const mantel = row.mantelId ? await recipientIdentity(db, row.mantelId) : null
+  return {
+    status,
+    inviterName,
+    expiresAt: row.expiresAt.toISOString(),
+    mantelName: row.mantelId ? (mantel?.name ?? null) : undefined,
+  }
 }
 
 /** The inviter takes back an invitation nobody has accepted. */
