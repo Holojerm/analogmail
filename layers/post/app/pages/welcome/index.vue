@@ -67,7 +67,8 @@ async function submit() {
       mailDays: mailDays.value,
       deliveryHour: hour.value,
     })
-    await navigateTo('/dashboard')
+    // Nobody to write to yet: the people page is where a new account starts.
+    await navigateTo('/people')
   } catch {
     failure.value = 'Could not save that. Try again.'
   } finally {
@@ -76,7 +77,7 @@ async function submit() {
 }
 
 onMounted(async () => {
-  if (await postal.load()) await navigateTo('/dashboard', { replace: true })
+  if (await postal.load()) await navigateTo('/people', { replace: true })
 })
 
 useSeo({
@@ -141,7 +142,7 @@ useSeo({
           :description="failure"
         />
         <UButton type="submit" size="lg" block :loading="pending" :disabled="!ready">
-          Open my mantel
+          Continue
         </UButton>
       </form>
     </UCard>

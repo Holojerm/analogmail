@@ -36,6 +36,13 @@
       "when": 1794789301606,
       "tag": "0004_salty_carnage",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794798461316,
+      "tag": "0005_burly_captain_stacy",
+      "breakpoints": true
     }
   ]
 }
