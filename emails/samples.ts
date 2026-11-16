@@ -18,6 +18,7 @@ export const SAMPLES: Record<string, EmailSample> = {
     reply: 'Fixed in this morning’s release — thanks for the report.',
     quoted: 'The export button does nothing on Safari',
   },
+  'mail-arrived': { ...brand },
   'magic-link': {
     ...brand,
     url: `${brand.appUrl}/auth/confirm?token=2f9c1d`,

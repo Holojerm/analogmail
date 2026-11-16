@@ -9,6 +9,15 @@ const here = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 export default defineNuxtConfig({
   $meta: { name: 'post' },
 
+  runtimeConfig: {
+    post: {
+      // Signing secret of the Resend webhook that reports bounces
+      // (`whsec_…`). Set with `wrangler secret put
+      // NUXT_POST_RESEND_WEBHOOK_SECRET`. Unset, the webhook route 404s.
+      resendWebhookSecret: '',
+    },
+  },
+
   // The dev clock's bar and page exist only in local development. They are
   // registered here rather than found under plugins/ and pages/, so a
   // production build has neither. Its API routes end in `.dev.ts`.

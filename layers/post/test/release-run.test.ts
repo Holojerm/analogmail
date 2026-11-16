@@ -85,7 +85,7 @@ describe('the release run', () => {
       'delivered',
       'in_transit',
     ])
-    expect(mail[0]!.deliveredAt).toEqual(MONDAY_TEN)
+    expect(mail[0]).toMatchObject({ deliveredAt: MONDAY_TEN, mailDate: '2026-11-16' })
     expect(mail[3]!.deliveredAt).toBeNull()
     expect(await db.select().from(notices)).toMatchObject([
       { userId: 'ann', mailDate: '2026-11-16', state: 'pending' },
