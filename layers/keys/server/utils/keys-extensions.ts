@@ -1,10 +1,11 @@
 // What keys registers with core and with the credentials layer. Called once
 // per isolate by layers/keys/server/plugins/keys.ts; tests call it directly.
 
-import { and, count, eq, isNull, lt, ne } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, lt, ne } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { onCredentialsPasswordReset } from '#layers/credentials/server/utils/credentials-hooks'
+import { registerNoticeAudience } from '#layers/post/server/utils/notice-audience'
 import {
   registerAccountContributor,
   registerDeletionGuard,
@@ -75,6 +76,26 @@ export async function soleKeeperOf(db: KeysDb, userId: string): Promise<string[]
 
 export function registerKeysExtensions(): void {
   const { userKeys, keyWraps, mantelKeepers, mantelKeyWraps, mantelProposals } = tables
+
+  // When mail arrives on a kept mantel, its keepers are the ones to tell.
+  registerNoticeAudience(async (db, recipientIds) => {
+    const audience = new Map<string, string[]>()
+    for (let i = 0; i < recipientIds.length; i += 80) {
+      const keepers = await db
+        .select({ mantelId: mantelKeepers.mantelId, userId: mantelKeepers.userId })
+        .from(mantelKeepers)
+        .where(
+          and(
+            inArray(mantelKeepers.mantelId, recipientIds.slice(i, i + 80)),
+            isNull(mantelKeepers.leftAt),
+          ),
+        )
+      for (const keeper of keepers) {
+        audience.set(keeper.mantelId, [...(audience.get(keeper.mantelId) ?? []), keeper.userId])
+      }
+    }
+    return audience
+  })
 
   registerPurgeContributor({
     key: 'mantelProposals',
