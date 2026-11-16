@@ -29,6 +29,7 @@ interface MantelView {
   kind: 'child' | 'anniversary'
   name: string
   me: string
+  publicKey: string
   wrappedKey: string | null
   keepers: Keeper[]
   proposals: Proposal[]
@@ -162,6 +163,11 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
       />
 
       <LettersKeptMantel :mantel-id="mantel.id" :name="mantel.name" />
+      <LettersGuestLink
+        v-if="mantel.kind === 'anniversary'"
+        :mantel-id="mantel.id"
+        :public-key="mantel.publicKey"
+      />
 
       <section aria-labelledby="keepers-heading" class="flex flex-col gap-3">
         <h2 id="keepers-heading" class="text-xl text-highlighted">Keepers</h2>
