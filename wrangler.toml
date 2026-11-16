@@ -16,9 +16,9 @@
 
 name = "dearmantel"
 compatibility_date = "2025-09-01"
-# Explicit because a [[routes]] entry (the custom domain below) flips wrangler's
-# default to false. Kept on so the workers.dev address keeps answering.
-workers_dev = true
+# Off: the app answers on its own domain only. Two addresses would mean two
+# sets of sessions, and a passkey made on one does not work on the other.
+workers_dev = false
 # `queue_consumer_wait_for_wait_until` is not decoration — it PINS today's
 # default, and the email consumer's correctness rests on it.
 #
@@ -180,6 +180,12 @@ crons = ["0 4 * * *", "*/15 * * * *"]
 pattern = "dearmantel.com"
 custom_domain = true
 
+# www exists only to redirect to the apex
+# (layers/post/server/middleware/canonical-host.ts).
+[[routes]]
+pattern = "www.dearmantel.com"
+custom_domain = true
+
 [vars]
 NUXT_PUBLIC_APP_NAME = "Dear Mantel"
 # The one-sentence description: meta description, /llms.txt and schema.org.
@@ -275,6 +281,8 @@ NUXT_PUBLIC_POSTHOG_KEY = ""
 # Inheritable, so it MUST be set — see "Why `name` is set here" above.
 [env.preview]
 name = "dearmantel-preview"
+# The preview Worker has no domain of its own, so it keeps its workers.dev one.
+workers_dev = true
 
 [[env.preview.d1_databases]]
 binding = "DB"
