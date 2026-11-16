@@ -11,6 +11,7 @@ import {
   type LetterDoc,
   type Stationery,
 } from '../../shared/utils/letter-doc'
+import type { LetterPhoto } from '../../shared/utils/letter-photo'
 import { decryptLetter, encryptLetter, newContentKey, wrapContentKey } from '../utils/letter-crypto'
 
 import type { ReadLetter } from '../composables/useOpenLetter'
@@ -45,6 +46,8 @@ const confirming = ref(false)
 const sealing = ref(false)
 const inReplyTo = ref<string | null>(null)
 const answered = ref<ReadLetter | null>(null)
+const photo = ref<LetterPhoto | undefined>()
+const photoUrl = ref<string | null>(null)
 
 let contentKey: Uint8Array<ArrayBuffer> | null = null
 let wrappedForMe = ''
@@ -59,6 +62,7 @@ const doc = (): LetterDoc => ({
   body: body.value,
   stationery: { ...stationery },
   from: from.value,
+  ...(photo.value ? { photo: photo.value } : {}),
 })
 
 async function loadPlan() {
@@ -84,7 +88,10 @@ onMounted(async () => {
         wrappedKey: string
         sealed: boolean
         inReplyTo: string | null
-      }>('/api/letters/drafts/open', { method: 'POST', body: { id: existing } })
+      }>('/api/letters/drafts/open', {
+        method: 'POST',
+        body: { id: existing },
+      })
       const key = await letterKeys.open(opened.wrappedKey, opened.id)
       const text = key ? await decryptLetter(key, opened.id, opened.ciphertext) : null
       const parsed = text ? letterDocSchema.safeParse(JSON.parse(text)) : null
@@ -99,6 +106,8 @@ onMounted(async () => {
       body.value = parsed.data.body
       from.value = parsed.data.from
       Object.assign(stationery, parsed.data.stationery)
+      photo.value = parsed.data.photo
+      if (photo.value) photoUrl.value = await loadLetterPhoto(key, opened.id, photo.value)
     } else {
       const to = typeof route.query.to === 'string' ? route.query.to : null
       if (!to) return await navigateTo('/people')
@@ -148,7 +157,7 @@ async function save(): Promise<boolean> {
   }
 }
 
-watch([body, from, () => ({ ...stationery })], () => {
+watch([body, from, () => ({ ...stationery }), photo], () => {
   if (loading.value || sealed.value) return
   saveState.value = 'idle'
   confirming.value = false
@@ -156,6 +165,10 @@ watch([body, from, () => ({ ...stationery })], () => {
   timer = setTimeout(save, 1500)
 })
 onBeforeUnmount(() => clearTimeout(timer))
+
+// A photo is stored against the draft's row, so the draft is saved first.
+const ensureDraft = async () => created || (await save())
+const currentKey = () => contentKey
 
 async function prepareSeal() {
   failure.value = null
@@ -190,7 +203,11 @@ async function seal() {
 const options = <T extends string>(values: readonly T[], labels: Record<T, string>) =>
   values.map((value) => ({ value, label: labels[value] }))
 
-useSeo({ title: 'Write a letter', description: 'Write and seal a letter.', noindex: true })
+useSeo({
+  title: 'Write a letter',
+  description: 'Write and seal a letter.',
+  noindex: true,
+})
 </script>
 
 <template>
@@ -218,13 +235,13 @@ useSeo({ title: 'Write a letter', description: 'Write and seal a letter.', noind
           title="This letter is sealed"
           description="It can be read here but not changed. Until it is collected you can recall it from your desk."
         />
-        <LetterPaper :doc="doc()" />
+        <LetterPaper :doc="doc()" :photo-url="photoUrl" />
       </template>
 
       <template v-else-if="letterId">
         <section v-if="answered" aria-labelledby="answered-heading" class="flex flex-col gap-3">
           <h2 id="answered-heading" class="text-sm text-muted">You are replying to</h2>
-          <LetterPaper :doc="answered.doc" />
+          <LetterPaper :doc="answered.doc" :photo-url="answered.photoUrl" />
         </section>
         <div class="grid gap-4 sm:grid-cols-3">
           <UFormField label="Paper" name="paper">
@@ -263,6 +280,14 @@ useSeo({ title: 'Write a letter', description: 'Write and seal a letter.', noind
           </UFormField>
         </div>
 
+        <LetterPhotoField
+          v-model:photo="photo"
+          v-model:url="photoUrl"
+          :letter-id="letterId"
+          :content-key="currentKey"
+          :ensure-draft="ensureDraft"
+        />
+
         <div class="flex flex-wrap items-center justify-between gap-4">
           <p class="text-sm text-muted" role="status" aria-live="polite">
             <template v-if="saveState === 'saving'">Saving…</template>
@@ -277,8 +302,8 @@ useSeo({ title: 'Write a letter', description: 'Write and seal a letter.', noind
         <UCard v-if="confirming && plan">
           <div class="flex flex-col gap-4">
             <p class="text-highlighted">
-              It will be collected {{ pickupTime(plan.pickupAt, plan.zone) }} and arrives
-              {{ longDay(plan.arrives) }}.
+              It will be collected
+              {{ pickupTime(plan.pickupAt, plan.zone) }} and arrives {{ longDay(plan.arrives) }}.
             </p>
             <p class="text-sm text-muted">
               Until it is collected you can recall it and change it. After that it is on its way and

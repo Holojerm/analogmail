@@ -69,7 +69,8 @@ export const invites = sqliteTable(
 )
 
 // A draft until sealed. Everything a reader would recognise as the letter
-// (text, stationery, signature, the photo's key) is inside `ciphertext`.
+// (text, stationery, signature, the photo's id and description) is inside
+// `ciphertext`.
 export const letters = sqliteTable(
   'letters',
   {
@@ -85,7 +86,7 @@ export const letters = sqliteTable(
     // The sender's calendar day, 'YYYY-MM-DD'.
     postmarkDate: text('postmark_date'),
     ciphertext: text('ciphertext').notNull(),
-    // R2 key of the encrypted photo, if there is one.
+    // Where the sealed photo is stored, if there is one. Changes only on a draft.
     photoKey: text('photo_key'),
     // Version of the encryption scheme, so it can change without a guess.
     scheme: integer('scheme').notNull().default(1),
