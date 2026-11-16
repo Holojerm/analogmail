@@ -91,6 +91,14 @@ before pickup undoes exactly that. What a sender sees afterwards comes only from
 `senderView`: never read `deliveries.state`, `deliveredAt` or `openedAt` on the sender's side.
 Times are shown in the sender's profile time zone, not the device's.
 
+Reading (`layers/letters`): `/mantel` is home (a signed-in visit to `/dashboard` goes there) and
+lists what has been delivered; `/letter/<id>` opens one. `listMantel` and `openLetter` return
+only deliveries in state `delivered` to the caller, so nothing shows before its release, and
+they are the only code that reads `openedAt`. A returned letter arrives as a `return` delivery
+to its author. A reply is an ordinary letter with `inReplyTo` set when its draft is first
+saved; it can answer only a letter that has arrived for its writer. `LetterNav` is the
+product's navigation: the template's layout is not edited.
+
 ---
 
 ## Where things are documented
