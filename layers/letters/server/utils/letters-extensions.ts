@@ -11,6 +11,8 @@ import { postNow } from '#layers/post/server/utils/clock'
 
 import { returnInTransitTo } from './closing'
 import type { LettersDb } from './people'
+import { photoStore } from './photo-store'
+import { removeDraftPhotos, type PhotoStore } from './photos'
 
 const PURGE_BATCH = 500
 
@@ -36,7 +38,7 @@ export async function purgeExpiredInvites(
   return { count: expired.length, truncated: expired.length === PURGE_BATCH }
 }
 
-export function registerLettersExtensions(): void {
+export function registerLettersExtensions(photos: PhotoStore = photoStore): void {
   const {
     invites,
     people,
@@ -70,6 +72,8 @@ export function registerLettersExtensions(): void {
     },
     async beforeDeletion(db, userId) {
       await returnInTransitTo(db, userId, await postNow())
+      // Drafts go in the deletion itself; their photo files are not rows.
+      await removeDraftPhotos(db, photos, userId)
     },
     deletionStatements: (db, userId) => {
       const now = new Date()

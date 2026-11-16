@@ -4,6 +4,8 @@
 
 import { z } from 'zod'
 
+import { letterPhotoSchema } from './letter-photo'
+
 /** Characters of body text. Long enough for a very long letter. */
 export const LETTER_BODY_MAX = 50_000
 
@@ -18,7 +20,11 @@ export const stationerySchema = z.object({
 })
 export type Stationery = z.infer<typeof stationerySchema>
 
-export const DEFAULT_STATIONERY: Stationery = { paper: 'plain', font: 'serif', ink: 'black' }
+export const DEFAULT_STATIONERY: Stationery = {
+  paper: 'plain',
+  font: 'serif',
+  ink: 'black',
+}
 
 /**
  * The plaintext of a letter. `from` is the writer's name as they signed it,
@@ -30,6 +36,7 @@ export const letterDocSchema = z.object({
   body: z.string().max(LETTER_BODY_MAX),
   stationery: stationerySchema,
   from: z.string().max(60),
+  photo: letterPhotoSchema.optional(),
 })
 export type LetterDoc = z.infer<typeof letterDocSchema>
 
