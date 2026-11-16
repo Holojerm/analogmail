@@ -54,11 +54,12 @@ const appName = useRuntimeConfig().public.appName
       focusable="false"
       :class="['shrink-0', markClass]"
     >
-      <!-- Two quarried strata, offset — DESIGN.md › Brand mark. Slab corners
-           (rx 1.5), not pills: the radius echoes --ui-radius rather than
-           contradicting it. -->
-      <rect x="3" y="7" width="26" height="6.5" rx="1.5" />
-      <rect x="3" y="18.5" width="17" height="6.5" rx="1.5" opacity=".55" />
+      <!-- An envelope standing on a mantel — DESIGN.md › Brand mark. The shelf
+           and the flap are solid, the envelope lighter. Slab corners (rx 1.5):
+           the radius echoes --ui-radius rather than contradicting it. -->
+      <rect x="7" y="6" width="18" height="13" rx="1.5" opacity=".55" />
+      <path d="M8.2 6.6h15.6L16 13.4z" />
+      <rect x="3" y="22" width="26" height="4.5" rx="1.5" />
     </svg>
 
     <span
