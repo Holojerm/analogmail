@@ -45,3 +45,110 @@ export const keyWraps = sqliteTable(
 
 export type UserKey = typeof userKeys.$inferSelect
 export type KeyWrap = typeof keyWraps.$inferSelect
+
+// A mantel that is not one person's: a child's, or a couple's anniversary
+// letters. It has its own key pair, made in a keeper's browser. Only the
+// public half is here. Where and when its mail arrives, and what is sealed,
+// belong to the letters and post layers.
+export const mantels = sqliteTable('mantels', {
+  id: text('id').primaryKey(),
+  // 'child' or 'anniversary'.
+  kind: text('kind').notNull(),
+  name: text('name').notNull(),
+  // SPKI, base64url. Never replaced: letters are sealed to it.
+  publicKey: text('public_key').notNull(),
+  scheme: integer('scheme').notNull().default(1),
+  createdBy: text('created_by'),
+  closedAt: integer('closed_at', { mode: 'timestamp' }),
+  ...timestamps,
+})
+
+// The people who hold a mantel's key. A row with `leftAt` set is history.
+export const mantelKeepers = sqliteTable(
+  'mantel_keepers',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    mantelId: text('mantel_id').notNull(),
+    userId: text('user_id').notNull(),
+    // 'guardian', 'partner' or 'successor'.
+    role: text('role').notNull(),
+    addedBy: text('added_by'),
+    leftAt: integer('left_at', { mode: 'timestamp' }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('mantel_keepers_seat_idx').on(table.mantelId, table.userId),
+    index('mantel_keepers_user_idx').on(table.userId),
+  ],
+)
+
+// The mantel's private key, encrypted in a browser: one copy per keeper,
+// wrapped to that keeper's account public key, and one under the mantel's
+// recovery code (`keeperId` is ''). The server can open none of them.
+export const mantelKeyWraps = sqliteTable(
+  'mantel_key_wraps',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    mantelId: text('mantel_id').notNull(),
+    // 'keeper' or 'recovery'.
+    kind: text('kind').notNull(),
+    keeperId: text('keeper_id').notNull().default(''),
+    wrapped: text('wrapped').notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('mantel_key_wraps_holder_idx').on(table.mantelId, table.kind, table.keeperId),
+  ],
+)
+
+// A change to who keeps a mantel. It takes effect only when more than half of
+// the keepers have voted for it. Adding someone also needs that person's own
+// acceptance, and then a keeper's browser to wrap the key to them.
+export const mantelProposals = sqliteTable(
+  'mantel_proposals',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    mantelId: text('mantel_id').notNull(),
+    // 'add_keeper' or 'remove_keeper'.
+    kind: text('kind').notNull(),
+    // For an addition: the address it was offered to, cleared once it is settled.
+    subjectEmail: text('subject_email'),
+    // The person joining (set when they accept) or the keeper leaving.
+    subjectId: text('subject_id'),
+    role: text('role'),
+    proposedBy: text('proposed_by').notNull(),
+    acceptedAt: integer('accepted_at', { mode: 'timestamp' }),
+    // 'done', 'withdrawn', 'declined' or 'expired'. Null while it is open.
+    outcome: text('outcome'),
+    settledAt: integer('settled_at', { mode: 'timestamp' }),
+    expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index('mantel_proposals_mantel_idx').on(table.mantelId),
+    index('mantel_proposals_email_idx').on(table.subjectEmail),
+  ],
+)
+
+export const mantelVotes = sqliteTable(
+  'mantel_votes',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    proposalId: text('proposal_id').notNull(),
+    userId: text('user_id').notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('mantel_votes_voter_idx').on(table.proposalId, table.userId)],
+)
+
+export type Mantel = typeof mantels.$inferSelect
+export type MantelKeeper = typeof mantelKeepers.$inferSelect
+export type MantelProposal = typeof mantelProposals.$inferSelect

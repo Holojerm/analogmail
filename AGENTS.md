@@ -112,6 +112,16 @@ it there and in its test, not in the composable. A public key is never replaced.
 keeps the private key in IndexedDB until sign-out. Pages that open letters use
 `middleware: ['auth', 'keys']`.
 
+Custodial mantels (`layers/keys`): a child's or anniversary mantel has its own key pair, made
+in a keeper's browser (`mantel-crypto.ts`). The server holds the public key and wrapped copies
+of the private key: one per keeper, wrapped to that keeper's account key, and one under the
+mantel's recovery code. It never holds the key itself, and the key is never kept on a device.
+Who keeps a mantel changes only through `custody.ts`: a proposal takes effect when more than
+half of the keepers have voted (`carries`), so two keepers must both agree. Seating a keeper
+also needs that person's acceptance and a wrapped copy from a keeper's browser, which the
+server cannot make. A mantel's last keeper cannot delete their account. Do not add a path
+that writes `mantel_keepers` or `mantel_key_wraps` outside these two files.
+
 A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
 hour (`/welcome`). Those guards cover the landing page and letter pages only; account and
 security pages must stay reachable without them. Guards that decide in the browser redirect
