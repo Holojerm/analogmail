@@ -5,6 +5,7 @@ import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
 import { openCorrespondenceBetween } from './correspondences'
+import { joinFamily } from './families'
 import { findInviteRow } from './invites'
 import { getDisplayName, type LettersDb } from './people'
 
@@ -52,6 +53,14 @@ export async function acceptInvite(
       .where(and(eq(invites.id, invite.id), isNull(invites.acceptedAt)))
       .returning({ id: invites.id })
     if (claimed.length === 0) return acceptInvite(db, token, accepterId, now)
+  }
+
+  if (invite.familyId) {
+    // Joining a family adds a member to its one correspondence.
+    const joined = await joinFamily(db, accepterId, invite.familyId, now)
+    if (joined === 'gone' || joined === 'full') return { status: 'expired' }
+    await db.update(invites).set({ correspondenceId: joined }).where(eq(invites.id, invite.id))
+    return { status: 'accepted', correspondenceId: joined }
   }
 
   // To the inviter, or to the mantel they keep, which is a member under its

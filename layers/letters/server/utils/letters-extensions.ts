@@ -1,7 +1,7 @@
 // What letters registers with core. Called once per isolate by
 // layers/letters/server/plugins/letters.ts; tests call it directly.
 
-import { and, count, eq, inArray, isNull, lt } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, lt, notInArray } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { registerAccountContributor, registerPurgeContributor } from '#server/utils/extensions'
@@ -49,6 +49,7 @@ export function registerLettersExtensions(photos: PhotoStore = photoStore): void
   const {
     invites,
     people,
+    families,
     correspondences,
     correspondenceMembers: members,
     letters,
@@ -101,7 +102,17 @@ export function registerLettersExtensions(photos: PhotoStore = photoStore): void
         db
           .update(correspondences)
           .set({ closedAt: now, closedBy: userId })
-          .where(and(isNull(correspondences.closedAt), inArray(correspondences.id, mine))),
+          // A family goes on without them: only their own place in it ends.
+          .where(
+            and(
+              isNull(correspondences.closedAt),
+              inArray(correspondences.id, mine),
+              notInArray(
+                correspondences.id,
+                db.select({ id: families.correspondenceId }).from(families),
+              ),
+            ),
+          ),
         db
           .update(members)
           .set({ leftAt: now })
