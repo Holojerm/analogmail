@@ -1,6 +1,6 @@
-// Writing, end to end in Chromium: a letter is encrypted in the browser,
-// sealed with its arrival day shown, recalled before pickup, and reads back
-// only on a device that holds the key.
+// A letter, end to end in Chromium: encrypted in the browser, sealed with
+// its arrival day shown, recalled before pickup, delivered days later on the
+// recipient's mail day, read there, and answered.
 
 import { expect, test } from '../../../../test/e2e/fixtures'
 
@@ -8,9 +8,12 @@ import { makePair } from './helpers'
 
 const TEXT = 'Dear Bob, the plums are ripe. Come in August.'
 
-test('a letter: written, sealed, recalled and sealed again', async ({ browser, baseURL }) => {
+test('a letter: written, sealed, recalled, delivered, read and answered', async ({
+  browser,
+  baseURL,
+}) => {
   test.setTimeout(180_000)
-  const { ann, close } = await makePair(browser, baseURL!)
+  const { ann, bob, close } = await makePair(browser, baseURL!)
 
   // ── Ann writes; the draft is saved encrypted ───────────────────────────────
   await ann.getByRole('link', { name: 'Write to Bob Tester' }).click()
@@ -53,6 +56,48 @@ test('a letter: written, sealed, recalled and sealed again', async ({ browser, b
   await ann.waitForURL('**/desk')
   await expect(ann.getByText(/^Sealed\. Collected /)).toBeVisible()
   await expect(ann.getByText('No drafts.')).toBeVisible()
+
+  // ── Nothing shows on Bob's mantel until his mail day comes round ───────────
+  await bob.goto('/mantel', { waitUntil: 'networkidle' })
+  await expect(bob.getByText('Nothing has arrived yet.')).toBeVisible()
+  const session = (await (await bob.request.get('/api/_auth/session')).json()) as {
+    user: { id: string }
+  }
+  try {
+    // The dev clock: each jump is Bob's next mail day, and runs the release.
+    for (let day = 0; day < 6; day += 1) {
+      await ann.request.post('/api/dev/clock', {
+        data: { action: 'mail-day', userId: session.user.id },
+      })
+      await bob.goto('/mantel', { waitUntil: 'networkidle' })
+      if ((await bob.getByText('From Ann Tester').count()) > 0) break
+    }
+    await expect(bob.getByText('From Ann Tester')).toBeVisible()
+    await expect(bob.getByText('Unopened')).toBeVisible()
+
+    // ── He opens it on his own device and answers on a sheet below it ────────
+    await bob.getByRole('link', { name: /From Ann Tester/ }).click()
+    await expect(bob.getByText(`${TEXT} Bring the dog.`)).toBeVisible()
+    await bob.getByRole('link', { name: 'Reply' }).click()
+    await expect(bob.getByText('You are replying to')).toBeVisible()
+    await expect(bob.getByText(`${TEXT} Bring the dog.`)).toBeVisible()
+    await bob.getByLabel('Your letter').fill('Dear Ann, we will come. The dog too.')
+    await expect(bob.getByText('Saved, encrypted on this device.')).toBeVisible()
+    await bob.getByRole('button', { name: 'Seal the letter' }).click()
+    await bob.getByRole('button', { name: 'Seal and post' }).click()
+    await bob.waitForURL('**/desk')
+    await bob.goto('/mantel', { waitUntil: 'networkidle' })
+    await expect(bob.getByText('Unopened')).toHaveCount(0)
+
+    // ── Ann is told nothing: her desk has only what the postmark allows ──────
+    await ann.goto('/desk', { waitUntil: 'networkidle' })
+    await expect(ann.getByText(/^(In transit, arrives|Postmarked) /)).toBeVisible()
+    await expect(ann.getByRole('button', { name: /Recall/ })).toHaveCount(0)
+    await ann.goto('/mantel', { waitUntil: 'networkidle' })
+    await expect(ann.getByText('Nothing has arrived yet.')).toBeVisible()
+  } finally {
+    await ann.request.post('/api/dev/clock', { data: { action: 'reset' } })
+  }
 
   await close()
 })

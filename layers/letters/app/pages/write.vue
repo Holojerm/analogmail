@@ -13,6 +13,8 @@ import {
 } from '../../shared/utils/letter-doc'
 import { decryptLetter, encryptLetter, newContentKey, wrapContentKey } from '../utils/letter-crypto'
 
+import type { ReadLetter } from '../composables/useOpenLetter'
+
 definePageMeta({ middleware: ['auth', 'keys'] })
 
 interface SealPlan {
@@ -27,6 +29,7 @@ interface SealPlan {
 const route = useRoute()
 const router = useRouter()
 const letterKeys = useLetterKeys()
+const openLetter = useOpenLetter()
 
 const loading = ref(true)
 const failure = ref<string | null>(null)
@@ -40,6 +43,8 @@ const saveState = ref<'idle' | 'saving' | 'saved' | 'failed'>('idle')
 const plan = ref<SealPlan | null>(null)
 const confirming = ref(false)
 const sealing = ref(false)
+const inReplyTo = ref<string | null>(null)
+const answered = ref<ReadLetter | null>(null)
 
 let contentKey: Uint8Array<ArrayBuffer> | null = null
 let wrappedForMe = ''
@@ -78,6 +83,7 @@ onMounted(async () => {
         ciphertext: string
         wrappedKey: string
         sealed: boolean
+        inReplyTo: string | null
       }>('/api/letters/drafts/open', { method: 'POST', body: { id: existing } })
       const key = await letterKeys.open(opened.wrappedKey, opened.id)
       const text = key ? await decryptLetter(key, opened.id, opened.ciphertext) : null
@@ -89,6 +95,7 @@ onMounted(async () => {
       letterId.value = opened.id
       correspondenceId.value = opened.correspondenceId
       sealed.value = opened.sealed
+      inReplyTo.value = opened.inReplyTo
       body.value = parsed.data.body
       from.value = parsed.data.from
       Object.assign(stationery, parsed.data.stationery)
@@ -96,11 +103,15 @@ onMounted(async () => {
       const to = typeof route.query.to === 'string' ? route.query.to : null
       if (!to) return await navigateTo('/people')
       correspondenceId.value = to
+      inReplyTo.value = typeof route.query.reply === 'string' ? route.query.reply : null
       letterId.value = crypto.randomUUID()
       contentKey = newContentKey()
       wrappedForMe = await letterKeys.wrapForMe(contentKey, letterId.value)
       from.value = (await $fetch<{ name: string | null }>('/api/letters/name')).name ?? ''
     }
+    // The letter being answered lies above the sheet. It may no longer be
+    // readable here; the reply does not depend on it.
+    if (inReplyTo.value) answered.value = await openLetter(inReplyTo.value).catch(() => null)
     await loadPlan()
   } catch {
     failure.value = 'This letter could not be opened on this device.'
@@ -122,6 +133,7 @@ async function save(): Promise<boolean> {
         correspondenceId: correspondenceId.value,
         ciphertext: await encryptLetter(contentKey, letterId.value, JSON.stringify(doc())),
         wrappedKey: wrappedForMe,
+        inReplyTo: inReplyTo.value,
       },
     })
     if (!created) {
@@ -183,12 +195,10 @@ useSeo({ title: 'Write a letter', description: 'Write and seal a letter.', noind
 
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-6 py-12">
-    <div class="flex items-baseline justify-between gap-4">
-      <h1 class="text-3xl text-highlighted">
-        {{ plan ? `A letter to ${plan.recipientName}` : 'A letter' }}
-      </h1>
-      <UButton to="/desk" variant="link" color="neutral" class="p-0">Your desk</UButton>
-    </div>
+    <LetterNav />
+    <h1 class="text-3xl text-highlighted">
+      {{ plan ? `A letter to ${plan.recipientName}` : 'A letter' }}
+    </h1>
 
     <p v-if="loading" class="text-muted" role="status">Opening…</p>
     <template v-else>
@@ -212,6 +222,10 @@ useSeo({ title: 'Write a letter', description: 'Write and seal a letter.', noind
       </template>
 
       <template v-else-if="letterId">
+        <section v-if="answered" aria-labelledby="answered-heading" class="flex flex-col gap-3">
+          <h2 id="answered-heading" class="text-sm text-muted">You are replying to</h2>
+          <LetterPaper :doc="answered.doc" />
+        </section>
         <div class="grid gap-4 sm:grid-cols-3">
           <UFormField label="Paper" name="paper">
             <USelect

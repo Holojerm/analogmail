@@ -6,7 +6,7 @@
 // The check runs in the browser. On a first load it waits until the page has
 // hydrated: a redirect in the middle of hydration would swap the page under
 // the server's markup.
-const NEEDS_A_CITY = ['/dashboard']
+const NEEDS_A_CITY = ['/dashboard', '/mantel', '/desk', '/write']
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server) return
