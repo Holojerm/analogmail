@@ -197,6 +197,21 @@ useSeo({
       </div>
     </UCard>
 
+    <UCard>
+      <template #header>
+        <h2 class="text-xl text-highlighted">Sign-in</h2>
+      </template>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <p class="text-sm text-muted">
+          Change your password, add a passkey, or
+          <ULink to="/settings/recovery-code" class="underline">make a new recovery code</ULink>.
+        </p>
+        <UButton to="/settings/security" color="neutral" variant="soft"
+          >Password and passkeys</UButton
+        >
+      </div>
+    </UCard>
+
     <!-- Your data — self-serve export and deletion. The only genuinely
          destructive control on this page, so it's the only one styled that
          way; "Download your data" beside it is a plain secondary action. -->

@@ -1,0 +1,48 @@
+// The signed-in person's postal profile, fetched once and shared.
+
+export interface PostalProfile {
+  cityName: string
+  country: string
+  timeZone: string
+  mailDays: number
+  deliveryHour: number
+}
+
+export interface CityOption {
+  id: number
+  name: string
+  region: string | null
+  country: string
+  timeZone: string
+}
+
+export function usePostalProfile() {
+  /** `undefined` until fetched; `null` when the person has not chosen a city. */
+  const profile = useState<PostalProfile | null | undefined>('postal-profile', () => undefined)
+
+  async function load(): Promise<PostalProfile | null> {
+    if (profile.value === undefined) {
+      const result = await $fetch<{ profile: PostalProfile | null }>('/api/post/profile')
+      profile.value = result.profile
+    }
+    return profile.value ?? null
+  }
+
+  async function create(body: { cityId: number; mailDays: number; deliveryHour: number }) {
+    const result = await $fetch<{ profile: PostalProfile }>('/api/post/profile', {
+      method: 'POST',
+      body,
+    })
+    profile.value = result.profile
+  }
+
+  return {
+    profile,
+    load,
+    create,
+    /** Sign-out: the next person's profile is fetched fresh. */
+    reset: () => {
+      profile.value = undefined
+    },
+  }
+}

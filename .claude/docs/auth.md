@@ -9,52 +9,6 @@ Magic-link sign-in, OAuth providers, session revocation, the `rateLimit()` two-b
 
 ## Auth Patterns
 
-Sign-in is **implemented**, not scaffolded. The primary path is a **magic link**
-(`server/api/auth/magic-link.post.ts` → `/auth/verify` → `verify.post.ts`); Apple,
-Google, and GitHub OAuth sit under it at `server/api/auth/<provider>.get.ts`;
-users are provisioned on first login by `upsertOAuthUser()`; and a dev-only email
-shortcut lets a fresh clone reach a gated page without registering anything.
-
-Three rules the magic-link flow depends on, each of which is a real bug if broken:
-
-- **A GET never spends a token.** Mail security gateways prefetch every URL in an
-  incoming message, so a link that signs you in by being fetched signs the scanner
-  in. `GET /api/auth/magic-link/verify` only reports whether a token is usable;
-  the POST behind the button on `/auth/verify` is what consumes it.
-- **Redemption is one atomic statement** — `UPDATE … WHERE used_at IS NULL AND
-  expires_at > now RETURNING *` (`server/utils/magic-link.ts`). Read-then-write is a
-  login bypass with a race in it: two requests carrying one token would both win.
-- **The request endpoint answers identically for an unknown address**, or it is an
-  account-enumeration oracle. Its per-address rate limit is what stops it being a
-  mail cannon pointed at someone else's inbox.
-- **Reserved addresses are refused at mint time.** Deletion anonymizes the `users`
-  row and keys it `deleted-<id>@deleted.invalid`, so a link for that tombstone
-  would redeem into the deleted account. `isUndeliverableAddress()` refuses the
-  `.invalid` TLD. The sign-in email is `security.sign_in_link`, which the
-  taxonomy classifies as mandatory, so it can never carry List-Unsubscribe.
-- **The token rides in the URL fragment**, never the query string. A fragment is
-  never transmitted, so it reaches no access log, no `Referer`, and no proxy —
-  which matters because PostHog autocapture attaches `location.href` to every
-  event. `app/utils/analytics-privacy.ts` scrubs whatever gets past that.
-- **Nothing about the address is observable from outside.** The per-mailbox
-  budget is charged inside `createMagicLinkToken()` rather than by `rateLimit()`,
-  because the wrapper's `X-RateLimit-Remaining` header and 429 would each answer
-  "is this stranger mid-sign-in?" to anyone who POSTs their address. Exhaustion, a
-  reserved address, and a provider-rejected send all return the same `{ ok: true }`.
-- **The per-mailbox budget is counted in D1, in the same batch as the token
-  insert.** `MAGIC_LINK_RATE_LIMIT` is 5 per 15 minutes per canonical mailbox
-  (`magic_link_tokens.mailbox`, from `canonicalizeEmailForLimiting()`, so
-  `victim+1@gmail.com` … `+9999` are one bucket). D1 serialises the batches, so N
-  parallel requests for one mailbox get exactly five mails — the KV fixed window
-  it replaced was get-then-set and let every parallel request through, and the
-  native binding cannot express a 15-minute window and counts per colo. The row
-  is the charge: an over-budget request still writes its token row (nobody holds
-  the token; it expires with the rest) and skips the mail.
-
-GitHub ships **unconfigured on purpose** — it is a developer credential, and a
-consumer sign-in page that leads with it tells most visitors the product isn't for
-them. Configure it for a devtool fork; it renders last either way
-(`server/api/auth/providers.get.ts`).
 
 ```typescript
 // Protect a page client-side (UX only — see the warning below)
@@ -102,13 +56,6 @@ Never default that flag to `true` when adding a provider. The magic-link path is
 the one place where that flag is our own evidence rather than a third party's: the
 token was mailed to that address and came back.
 
-Adding a provider is three steps: add the `oauth.<name>` keys to
-`nuxt.config.ts`, write `server/api/auth/<name>.get.ts` mapping the provider's
-user shape onto `OAuthProfile`, and add a row to `server/api/auth/providers.get.ts`
-so `/login` renders the button. (Apple is the exception to step two twice over:
-its callback is a cross-site form POST, so that route is `apple.ts` with no
-method suffix, and it needs `NUXT_OAUTH_APPLE_REDIRECT_URL` because its handler
-does not fall back to the request origin the way the others do.)
 
 **Never put a secret in a URL a browser will keep.** Two flows here have to hand
 someone a credential in a link — the sign-in link and the unsubscribe link — and

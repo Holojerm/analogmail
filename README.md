@@ -462,20 +462,16 @@ non-inheritable: override one in an environment and you must override all of the
 
 ## Auth
 
-Sign-in works out of the box. The primary path is a **magic link** — type an address, get a link,
-no password ever exists. Apple and Google sit under it as conveniences, GitHub is available but off
-by default, and a dev-only email shortcut means a fresh clone reaches a gated page without
-registering anything at all.
+Sign-in is **password and passkeys** only, from the vendored credentials layer
+([`.claude/docs/credentials.md`](./.claude/docs/credentials.md)). The browser derives the sign-in
+value, so the server never receives the password. A dev-only email shortcut means a fresh clone
+reaches a gated page without registering anything at all.
 
 | Piece | Where | What it does |
 | --- | --- | --- |
-| Magic link | [`server/api/auth/magic-link.post.ts`](./server/api/auth/magic-link.post.ts), [`verify.get.ts`](./server/api/auth/magic-link/verify.get.ts), [`verify.post.ts`](./server/api/auth/magic-link/verify.post.ts) | Mint → confirm → redeem. Only the token's SHA-256 hash is stored; 15-minute TTL; single-use, enforced by one atomic `UPDATE`. |
-| Token lifecycle | [`server/utils/magic-link.ts`](./server/utils/magic-link.ts) | Generate, hash, inspect, consume, sweep. Covered by [`test/magic-link.test.ts`](./test/magic-link.test.ts). |
-| Confirmation page | [`app/pages/auth/verify.vue`](./app/pages/auth/verify.vue) | Where the link lands. The button is what spends the token — see below. |
-| Provider routes | [`apple.ts`](./server/api/auth/apple.ts), [`google.get.ts`](./server/api/auth/google.get.ts), [`github.get.ts`](./server/api/auth/github.get.ts) | Start *and* finish the OAuth dance — one route each. Callback URL to register is the route's own path. |
+| Token lifecycle | [`server/utils/magic-link.ts`](./server/utils/magic-link.ts) | Kept for account deletion and the nightly purge; no route mints tokens now. Covered by [`test/magic-link.test.ts`](./test/magic-link.test.ts). |
 | Sign-in tail | [`server/utils/auth.ts`](./server/utils/auth.ts) | Provisions the user, seals the session, sends the welcome email, redirects. Adding a provider is ~15 lines of profile mapping. |
 | Provisioning | [`server/utils/users.ts`](./server/utils/users.ts) | Find-or-create by verified email. Covered by [`test/users.test.ts`](./test/users.test.ts). |
-| Which buttons to show | `GET /api/auth/providers` | Reports which providers are configured (and whether email can be sent at all), so nothing renders a button that dead-ends. |
 | Dev sign-in | [`server/api/auth/dev.post.ts`](./server/api/auth/dev.post.ts) | Email, no password. `import.meta.dev` is a build-time constant, so the handler is dead code in production and the route 404s. `bun seed` writes a demo user and an admin you can sign in as this way — see below. |
 | Server guard | [`server/middleware/auth.ts`](./server/middleware/auth.ts) | 401s every `/api/*` route except the allowlist in [`server/utils/public-routes.ts`](./server/utils/public-routes.ts) (documented in [`.claude/docs/auth.md › Public API surface`](./.claude/docs/auth.md)): `/api/health`, `/api/auth/`, `/api/_auth/`, the token-guarded `/api/status` and `/api/fleet`, `/api/email/unsubscribe`, and whatever a feature registers (feedback: `POST /api/feedback`). Also rate-limits the auth surface. |
 | Client guard | [`app/middleware/auth.ts`](./app/middleware/auth.ts) | `definePageMeta({ middleware: 'auth' })`. UX only — see below. |

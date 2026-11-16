@@ -49,6 +49,21 @@ dev clock is local only: a bar on every page and `/dev/post` (people, next deliv
 notice outbox, a button that seeds three people). Its routes end in `.dev.ts` and its page is
 added in `$development`, so a production build contains none of it. Keep it that way.
 
+Sign-in is password and passkeys only (`layers/credentials`, vendored; see
+`.claude/docs/credentials.md`). Keys (`layers/keys`): each account has one ECDH P-256 key pair,
+made in the browser at sign-up. The server stores the public key and the private key only as
+wraps under secrets it never holds (the password's unlock key, each passkey's PRF output, the
+recovery code). Every unlock path is one function, `layers/keys/app/utils/key-unlock.ts`; change
+it there and in its test, not in the composable. A public key is never replaced. The device
+keeps the private key in IndexedDB until sign-out. Pages that open letters use
+`middleware: ['auth', 'keys']`.
+
+A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
+hour (`/welcome`). Those guards cover the landing page and letter pages only; account and
+security pages must stay reachable without them. Guards that decide in the browser redirect
+after hydration, never during it. The city list is GeoNames data loaded by
+`bun run cities:import` (add `--remote` for production); it is not a migration.
+
 Notices: the release queues one `notices` row per person per mail day, and `dispatchNotices`
 sends them through a `Notifier` (`layers/post/server/notify/`; email is the only one). The flag
 email takes no data but the brand, so it cannot name a sender or count letters. A send is at
