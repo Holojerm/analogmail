@@ -50,6 +50,12 @@
       Letters you sent stay with the people you sent them to.
     </p>
     <p>
+      <strong class="text-highlighted">Families.</strong> A letter to a family is one letter with a
+      separate copy of its key for each person in it, locked to that person's own key. We can see
+      who is in a family and its name. Someone who joins later reads what is written after they
+      join: earlier letters were never locked to their key, and we cannot change that for them.
+    </p>
+    <p>
       <strong class="text-highlighted">Mantels kept for someone else.</strong> A child's mantel, or
       a couple's, has a key of its own. Its keepers each hold a copy, locked to their own key, and
       one more copy is locked under a printed recovery code. We hold none that we can open. When

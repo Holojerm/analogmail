@@ -25,9 +25,11 @@ import type { ReadLetter } from '../composables/useOpenLetter'
 definePageMeta({ middleware: ['auth', 'keys'] })
 
 interface SealPlan {
-  recipientId: string
+  /** The person, the kept mantel, or the family the letter is to. */
   recipientName: string
-  recipientPublicKey: string
+  /** Everyone who will read it: one, or each other member of a family. */
+  readers: { id: string; name: string; publicKey: string; arrives: string }[]
+  toFamily: boolean
   /** A kept mantel: the letter may be sealed until a day. */
   toMantel: boolean
   zone: string
@@ -196,17 +198,25 @@ async function prepareSeal() {
 }
 
 async function seal() {
-  if (!plan.value || !contentKey) return
+  const key = contentKey
+  if (!plan.value || !key) return
   sealing.value = true
   try {
     await $fetch('/api/letters/seal', {
       method: 'POST',
       body: {
         id: letterId.value,
-        recipientWrappedKey: await wrapContentKey(plan.value.recipientPublicKey, contentKey, {
-          letterId: letterId.value,
-          readerId: plan.value.recipientId,
-        }),
+        wrappedKeys: Object.fromEntries(
+          await Promise.all(
+            plan.value.readers.map(async (reader) => [
+              reader.id,
+              await wrapContentKey(reader.publicKey, key, {
+                letterId: letterId.value,
+                readerId: reader.id,
+              }),
+            ]),
+          ),
+        ),
         opensOn: plan.value.toMantel && opensOn.value ? opensOn.value : null,
       },
     })
@@ -324,7 +334,19 @@ useSeo({
 
         <UCard v-if="confirming && plan">
           <div class="flex flex-col gap-4">
-            <p class="text-highlighted">
+            <template v-if="plan.toFamily">
+              <p class="text-highlighted">
+                It will be collected {{ pickupTime(plan.pickupAt, plan.zone) }}. Each of them gets
+                their own copy, on their own post:
+              </p>
+              <ul class="text-sm">
+                <li v-for="reader in plan.readers" :key="reader.id">
+                  <span class="text-highlighted">{{ reader.name }}</span>
+                  <span class="text-muted"> · arrives {{ longDay(reader.arrives) }}</span>
+                </li>
+              </ul>
+            </template>
+            <p v-else class="text-highlighted">
               It will be collected
               {{ pickupTime(plan.pickupAt, plan.zone) }} and arrives {{ longDay(plan.arrives) }}.
             </p>

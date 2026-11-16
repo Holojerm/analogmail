@@ -11,7 +11,8 @@ import { sealLetter } from '../../utils/posting'
 
 const bodySchema = z.object({
   id: letterIdSchema,
-  recipientWrappedKey: letterKeySchema,
+  /** The letter's key, wrapped once per reader, by reader id. */
+  wrappedKeys: z.record(z.string().min(1).max(64), letterKeySchema),
   /** Only for a letter to a kept mantel: the day it is sealed until. */
   opensOn: z
     .string()
@@ -26,6 +27,7 @@ const REFUSALS = {
   'sender-needs-city': [409, 'Choose your city first.'],
   'recipient-not-ready': [409, 'They have not finished setting up yet.'],
   'cannot-seal-until': [400, 'That is not a day this letter can be sealed until.'],
+  'readers-changed': [409, 'Who reads this letter has changed. Look again, then seal it.'],
 } as const
 
 export default defineEventHandler(async (event) => {
@@ -41,7 +43,7 @@ export default defineEventHandler(async (event) => {
     db,
     user.id,
     body.id,
-    body.recipientWrappedKey,
+    body.wrappedKeys,
     await postNow(),
     body.opensOn ?? null,
   )
