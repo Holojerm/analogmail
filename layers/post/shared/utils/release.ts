@@ -37,6 +37,13 @@ export function settingsOn(date: LocalDate, state: ReleaseState): MailSettings {
   return state.pending && date >= state.pending.from ? state.pending : state.current
 }
 
+/** Folds a pending change into `current` once its date has come. */
+export function settle(state: ReleaseState, today: LocalDate): ReleaseState {
+  if (!state.pending || today < state.pending.from) return state
+  const { mailDays, hour } = state.pending
+  return { ...state, current: { mailDays, hour }, pending: null }
+}
+
 /**
  * The next release for this person: the first mail day from today on that
  * has not been released yet.
