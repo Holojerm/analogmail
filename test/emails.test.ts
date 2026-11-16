@@ -19,6 +19,7 @@ const ACTION_URL: Record<EmailName, (data: Record<string, unknown>) => string> =
   'account-deleted': (d) => `${d.appUrl}`,
   'activation-nudge': (d) => `${d.appUrl}/dashboard`,
   'feedback-reply': (d) => `${d.appUrl}`,
+  'mail-arrived': (d) => `${d.appUrl}/mailbox`,
   'magic-link': (d) => String(d.url),
   welcome: (d) => `${d.appUrl}`,
 }

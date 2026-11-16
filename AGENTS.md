@@ -49,6 +49,13 @@ dev clock is local only: a bar on every page and `/dev/post` (people, next deliv
 notice outbox, a button that seeds three people). Its routes end in `.dev.ts` and its page is
 added in `$development`, so a production build contains none of it. Keep it that way.
 
+Notices: the release queues one `notices` row per person per mail day, and `dispatchNotices`
+sends them through a `Notifier` (`layers/post/server/notify/`; email is the only one). The flag
+email takes no data but the brand, so it cannot name a sender or count letters. A send is at
+most once; a failed one is retried on later runs, never repeated as a reminder. Resend reports
+bounces to `POST /api/webhooks/resend` (404 until `NUXT_POST_RESEND_WEBHOOK_SECRET` is set): a
+hard bounce of a notice returns that day's unopened letters to their senders.
+
 ---
 
 ## Where things are documented

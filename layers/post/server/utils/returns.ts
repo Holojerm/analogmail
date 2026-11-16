@@ -2,7 +2,7 @@
 // the correspondence, or their address hard-bounced) goes back through the
 // post and arrives with its author's next release, like any other mail.
 
-import { and, eq } from 'drizzle-orm'
+import { and, eq, isNull, or } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { nextMailDay } from '../../shared/utils/mail-days'
@@ -20,20 +20,27 @@ import { releaseStateOf, type PostDb } from './release-run'
  *
  * `authorId` is null once the author has deleted their account; the letter
  * is then withheld from the recipient and goes nowhere.
+ *
+ * `fromMailbox` also takes a letter that was delivered but never opened. It
+ * is for a bounced notice only: the letter reached a mailbox nobody was told
+ * about. An opened letter is never taken back.
  */
 export async function returnToSender(
   db: PostDb,
   deliveryId: string,
   authorId: string | null,
   now: Date,
+  options: { fromMailbox?: boolean } = {},
 ): Promise<boolean> {
   const { deliveries, postalProfiles } = tables
   const isLetter = and(eq(deliveries.id, deliveryId), eq(deliveries.kind, 'letter'))
+  const inTransit = eq(deliveries.state, 'in_transit')
+  const unopened = and(eq(deliveries.state, 'delivered'), isNull(deliveries.openedAt))
 
   const [claimed] = await db
     .update(deliveries)
     .set({ state: 'returned' })
-    .where(and(isLetter, eq(deliveries.state, 'in_transit')))
+    .where(and(isLetter, options.fromMailbox ? or(inTransit, unopened) : inTransit))
     .returning({ letterId: deliveries.letterId })
   const [returned] = claimed
     ? [claimed]

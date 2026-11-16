@@ -1,0 +1,1 @@
+ALTER TABLE `deliveries` ADD `mail_date` text;

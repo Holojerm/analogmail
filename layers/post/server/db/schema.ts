@@ -68,7 +68,7 @@ export const postalProfiles = sqliteTable(
 // (a letter going back to its author); `state` is 'in_transit', 'delivered'
 // or 'returned'.
 //
-// `deliveredAt` and `openedAt` exist for the recipient's own mailbox. No
+// `deliveredAt`, `mailDate` and `openedAt` exist for the recipient's own mailbox. No
 // query may return them, or anything derived from them, to anyone else.
 export const deliveries = sqliteTable(
   'deliveries',
@@ -83,6 +83,9 @@ export const deliveries = sqliteTable(
     transitDays: integer('transit_days').notNull(),
     state: text('state').notNull().default('in_transit'),
     deliveredAt: integer('delivered_at', { mode: 'timestamp' }),
+    // The release it arrived with, 'YYYY-MM-DD' on the recipient's calendar.
+    // Ties a letter to that day's notice, so a bounced notice returns it.
+    mailDate: text('mail_date'),
     openedAt: integer('opened_at', { mode: 'timestamp' }),
     ...timestamps,
   },
@@ -106,7 +109,7 @@ export const notices = sqliteTable(
     // 'YYYY-MM-DD' on the recipient's calendar.
     mailDate: text('mail_date').notNull(),
     channel: text('channel').notNull().default('email'),
-    // 'pending', 'sent', 'failed' or 'bounced'.
+    // 'pending', 'sending', 'sent', 'failed' or 'bounced'.
     state: text('state').notNull().default('pending'),
     attempts: integer('attempts').notNull().default(0),
     sentAt: integer('sent_at', { mode: 'timestamp' }),
