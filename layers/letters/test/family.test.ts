@@ -19,6 +19,7 @@ import { saveDraft } from '../server/utils/drafts'
 import {
   closeFamily,
   createFamily,
+  familiesForRoom,
   getFamily,
   leaveFamily,
   listFamilies,
@@ -335,5 +336,22 @@ describe('the organiser', () => {
     expect(await planSeal(db, 'ann', toFamily, FRIDAY)).toBe('closed')
     expect(await closeFamily(db, 'ann', familyId, FRIDAY)).toBe('not-organiser')
     expect(await renameFamily(db, 'ann', familyId, 'Again', FRIDAY)).toBe('not-organiser')
+  })
+})
+
+describe('what the family room is told', () => {
+  it('is who is in a family now, whether it is closed, and who organises it', async () => {
+    await join('bob')
+    await join('cal')
+    expect(await familiesForRoom(db, 'bob', familyId)).toEqual([
+      { id: familyId, name: expect.any(String), closed: false, organiser: false },
+    ])
+    expect((await familiesForRoom(db, 'ann'))[0]).toMatchObject({ organiser: true })
+    expect(await familiesForRoom(db, 'eve', familyId)).toEqual([])
+
+    await leaveFamily(db, 'cal', familyId, 'cal', FRIDAY)
+    expect(await familiesForRoom(db, 'cal')).toEqual([])
+    await closeFamily(db, 'ann', familyId, FRIDAY)
+    expect(await familiesForRoom(db, 'bob')).toMatchObject([{ closed: true }])
   })
 })

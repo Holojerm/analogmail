@@ -148,6 +148,11 @@ useSeo({ title: 'A family', description: 'A family you write with.', noindex: tr
         </p>
       </div>
 
+      <p class="text-sm text-muted">
+        <ULink :to="`/room/${family.id}`" class="underline">The family room</ULink> holds the
+        family's photos. It is shared with everyone here and is not encrypted like your letters.
+      </p>
+
       <section aria-labelledby="members-heading" class="flex flex-col gap-3">
         <h2 id="members-heading" class="text-xl text-highlighted">In this family</h2>
         <ul class="flex flex-col divide-y divide-default">
