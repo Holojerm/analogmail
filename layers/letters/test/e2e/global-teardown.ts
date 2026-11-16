@@ -19,6 +19,9 @@ export default function globalTeardown(): void {
     db.exec(`DELETE FROM letter_keys WHERE letter_id IN (${letters})`)
     db.exec(`DELETE FROM letters WHERE author_id IN (${E2E_USERS})`)
     db.exec(
+      `DELETE FROM families WHERE correspondence_id IN (SELECT correspondence_id FROM correspondence_members WHERE user_id IN (${E2E_USERS}))`,
+    )
+    db.exec(
       `DELETE FROM correspondences WHERE id IN (SELECT correspondence_id FROM correspondence_members WHERE user_id IN (${E2E_USERS}))`,
     )
     db.exec(`DELETE FROM correspondence_members WHERE user_id IN (${E2E_USERS})`)

@@ -50,6 +50,23 @@ export const correspondenceMembers = sqliteTable(
   ],
 )
 
+// A family: several people who write to all of each other at once. Its
+// members are the members of its correspondence, so a letter to the family is
+// an ordinary letter with more than one reader. Each reader's copy travels to
+// their own city and arrives on their own mail day.
+export const families = sqliteTable(
+  'families',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    // Who invites and removes. If they leave, the longest-standing member does.
+    organiserId: text('organiser_id'),
+    correspondenceId: text('correspondence_id').notNull(),
+    ...timestamps,
+  },
+  (table) => [uniqueIndex('families_correspondence_idx').on(table.correspondenceId)],
+)
+
 // The invitation is the consent to correspond this way. It carries no letter.
 export const invites = sqliteTable(
   'invites',
@@ -66,6 +83,8 @@ export const invites = sqliteTable(
     // Set when a keeper invites someone to write to a mantel they keep,
     // rather than to themself.
     mantelId: text('mantel_id'),
+    // Set when the invitation is to join a family.
+    familyId: text('family_id'),
     ...timestamps,
   },
   (table) => [
@@ -152,6 +171,7 @@ export const letterKeys = sqliteTable(
 
 export type Person = typeof people.$inferSelect
 export type Correspondence = typeof correspondences.$inferSelect
+export type Family = typeof families.$inferSelect
 export type Invite = typeof invites.$inferSelect
 export type Letter = typeof letters.$inferSelect
 export type LetterKey = typeof letterKeys.$inferSelect
