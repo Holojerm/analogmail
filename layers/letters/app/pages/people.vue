@@ -80,11 +80,9 @@ useSeo({
 
 <template>
   <div class="mx-auto flex max-w-xl flex-col gap-8 py-12">
+    <LetterNav />
     <div>
-      <div class="flex items-baseline justify-between gap-4">
-        <h1 class="text-3xl text-highlighted">People you write with</h1>
-        <UButton to="/desk" variant="link" color="neutral" class="p-0">Your desk</UButton>
-      </div>
+      <h1 class="text-3xl text-highlighted">People you write with</h1>
       <p class="mt-2 text-muted">
         Letters go between people who have agreed to write this way. Invite someone, and once they
         accept you can write to each other.
