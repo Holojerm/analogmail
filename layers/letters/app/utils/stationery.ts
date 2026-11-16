@@ -74,3 +74,16 @@ export function longDay(date: string): string {
     timeZone: 'UTC',
   })
 }
+
+/**
+ * A calendar day with its year: "June 14, 2044". An opening day can be years
+ * away, so unlike an arrival it is never shown without one.
+ */
+export function yearDay(date: string): string {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString(undefined, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
