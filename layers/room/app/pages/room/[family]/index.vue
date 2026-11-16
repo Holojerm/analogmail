@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // One family's room: its photo album. Any member adds photos and albums;
 // whoever added something, or the organiser, can change or remove it.
-import type { RoomAlbum, RoomFamily, RoomPhoto } from '../../../shared/utils/room-types'
+import type { RoomAlbum, RoomFamily, RoomPhoto } from '../../../../shared/utils/room-types'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -198,6 +198,7 @@ useSeo({ title: 'Family room', description: "A family's shared photos.", noindex
         </div>
       </header>
 
+      <RoomTabs :family-id="familyId" />
       <RoomNotice />
       <UAlert
         v-if="family.closed"

@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 const id = () =>
   text('id')
@@ -49,6 +49,27 @@ export const roomPhotos = sqliteTable(
     index('room_photos_family_idx').on(table.familyId, table.createdAt),
     index('room_photos_album_idx').on(table.albumId, table.createdAt),
     index('room_photos_uploader_idx').on(table.uploadedBy),
+  ],
+)
+
+// Where a person says they are, said to one family. Someone in two families
+// tells each one separately. It is a city they chose from the list, never a
+// position from their device.
+export const roomCheckins = sqliteTable(
+  'room_checkins',
+  {
+    id: id(),
+    familyId: text('family_id').notNull(),
+    userId: text('user_id').notNull(),
+    cityName: text('city_name').notNull(),
+    country: text('country').notNull(),
+    lat: real('lat').notNull(),
+    lng: real('lng').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    index('room_checkins_family_idx').on(table.familyId, table.userId, table.createdAt),
+    index('room_checkins_user_idx').on(table.userId),
   ],
 )
 

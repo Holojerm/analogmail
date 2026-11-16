@@ -27,7 +27,7 @@ declare module '#server/utils/extensions' {
 }
 
 export function registerRoomExtensions(store: Pick<RoomStore, 'remove'> = roomStore): void {
-  const { roomPhotos, roomAlbums } = tables
+  const { roomPhotos, roomAlbums, roomCheckins } = tables
   const mine = (userId: string) => eq(roomPhotos.uploadedBy, userId)
 
   registerAccountContributor({
@@ -53,6 +53,7 @@ export function registerRoomExtensions(store: Pick<RoomStore, 'remove'> = roomSt
     deletionStatements: (db, userId) => [
       db.delete(roomPhotos).where(mine(userId)),
       db.update(roomAlbums).set({ createdBy: null }).where(eq(roomAlbums.createdBy, userId)),
+      db.delete(roomCheckins).where(eq(roomCheckins.userId, userId)),
     ],
     async exportSection(db, userId) {
       const rows = await db
