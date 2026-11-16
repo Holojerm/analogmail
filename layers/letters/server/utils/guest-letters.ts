@@ -16,8 +16,10 @@ import { isKeeper } from '#layers/keys/server/utils/mantels'
 import { base64url } from '#server/utils/hash'
 
 import { GUEST_LETTERS_MAX, type GuestLinkView } from '../../shared/utils/guest'
-import { mantelToday } from './kept-mantel'
+import { photoStorageKey } from '../../shared/utils/letter-photo'
+import { isSealedOn, mantelToday } from './kept-mantel'
 import type { LettersDb } from './people'
+import type { PhotoStore } from './photos'
 import { OPENS_ON_MAX_YEARS } from './posting'
 
 async function activeLink(db: LettersDb, mantelId: string) {
@@ -163,16 +165,25 @@ export type PostGuestLetterResult =
   | { status: 'posted'; opensOn: string }
   | { status: 'unknown' | 'closed' | 'exists' }
 
+/** A guest's photo: a sealed file, like any letter's, that the server cannot open. */
+export interface GuestPhoto {
+  store: PhotoStore
+  id: string
+  bytes: Uint8Array
+}
+
 /**
  * Takes a guest's letter: ciphertext and its key wrapped to the mantel. It is
  * final at once (there is nobody to recall it), sealed until the link's
- * opening day, and due on the mantel's next mail day.
+ * opening day, and due on the mantel's next mail day. Its photo, if it has
+ * one, is stored with it or not at all.
  */
 export async function postGuestLetter(
   db: LettersDb,
   linkId: string,
   letter: { id: string; ciphertext: string; wrappedKey: string },
   now: Date,
+  photo?: GuestPhoto,
 ): Promise<PostGuestLetterResult> {
   const { letters, letterKeys, deliveries } = tables
   const open = await openLink(db, linkId, now)
@@ -186,36 +197,82 @@ export async function postGuestLetter(
   if (taken) return { status: 'exists' }
 
   const today = await mantelToday(db, link.mantelId, now)
-  await db.batch([
-    db.insert(letters).values({
-      id: letter.id,
-      correspondenceId: link.correspondenceId,
-      authorId: null,
-      origin: 'guest',
-      guestLinkId: link.id,
-      sealedAt: now,
-      pickupAt: now,
-      postmarkDate: today,
-      opensOn: link.opensOn,
-      ciphertext: letter.ciphertext,
-      createdAt: now,
-      updatedAt: now,
-    }),
-    db.insert(letterKeys).values({
-      letterId: letter.id,
-      userId: link.mantelId,
-      wrappedKey: letter.wrappedKey,
-      createdAt: now,
-    }),
-    db.insert(deliveries).values({
-      letterId: letter.id,
-      recipientId: link.mantelId,
-      kind: 'letter',
-      earliestDate: today,
-      promisedDate: today,
-      transitDays: 0,
-      createdAt: now,
-    }),
-  ])
+  const photoKey = photo ? photoStorageKey(letter.id, photo.id) : null
+  if (photo && photoKey) await photo.store.put(photoKey, photo.bytes)
+  try {
+    await db.batch([
+      db.insert(letters).values({
+        id: letter.id,
+        correspondenceId: link.correspondenceId,
+        authorId: null,
+        origin: 'guest',
+        guestLinkId: link.id,
+        sealedAt: now,
+        pickupAt: now,
+        postmarkDate: today,
+        opensOn: link.opensOn,
+        ciphertext: letter.ciphertext,
+        photoKey,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      db.insert(letterKeys).values({
+        letterId: letter.id,
+        userId: link.mantelId,
+        wrappedKey: letter.wrappedKey,
+        createdAt: now,
+      }),
+      db.insert(deliveries).values({
+        letterId: letter.id,
+        recipientId: link.mantelId,
+        kind: 'letter',
+        earliestDate: today,
+        promisedDate: today,
+        transitDays: 0,
+        createdAt: now,
+      }),
+    ])
+  } catch (error) {
+    // No letter, so no photo: a file nothing names would never be deleted.
+    if (photo && photoKey) await photo.store.remove([photoKey])
+    throw error
+  }
   return { status: 'posted', opensOn: link.opensOn }
+}
+
+export type RemoveGuestLetterResult = 'removed' | 'not-keeper' | 'not-found' | 'sealed'
+
+/**
+ * A keeper takes a guest's letter off the mantel for good: the letter, its
+ * key and its photo. Only a guest's letter, since nobody answers for it, and
+ * only once its day has come, because until then no keeper can know what it
+ * says.
+ */
+export async function removeGuestLetter(
+  db: LettersDb,
+  store: PhotoStore,
+  keeperId: string,
+  mantelId: string,
+  letterId: string,
+  now: Date,
+): Promise<RemoveGuestLetterResult> {
+  const { letters, letterKeys, deliveries, guestLinks } = tables
+  if (!(await isKeeper(db, keeperId, mantelId))) return 'not-keeper'
+  const [row] = await db
+    .select({ opensOn: letters.opensOn, photoKey: letters.photoKey })
+    .from(letters)
+    .innerJoin(guestLinks, eq(guestLinks.id, letters.guestLinkId))
+    .where(
+      and(eq(letters.id, letterId), eq(letters.origin, 'guest'), eq(guestLinks.mantelId, mantelId)),
+    )
+    .limit(1)
+  if (!row) return 'not-found'
+  if (isSealedOn(row.opensOn, await mantelToday(db, mantelId, now))) return 'sealed'
+  await db.batch([
+    db.delete(deliveries).where(eq(deliveries.letterId, letterId)),
+    db.delete(letterKeys).where(eq(letterKeys.letterId, letterId)),
+    db.delete(letters).where(eq(letters.id, letterId)),
+  ])
+  if (row.photoKey) await store.remove([row.photoKey])
+  return 'removed'
 }

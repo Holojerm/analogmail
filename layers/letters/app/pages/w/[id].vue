@@ -3,7 +3,7 @@
 // couple, with no account. The letter is encrypted here to the mantel's key.
 // That key is checked against the fingerprint in the link's fragment first,
 // which the browser never sent to us, so a key swapped on the way shows.
-import type { GuestLinkView } from '../../../shared/utils/guest'
+import { packGuestPhotoLetter, type GuestLinkView } from '../../../shared/utils/guest'
 import {
   DEFAULT_STATIONERY,
   LETTER_BODY_MAX,
@@ -15,7 +15,12 @@ import {
   richTextLength,
   type RichDoc,
 } from '../../../shared/utils/rich-text'
+import { PHOTO_BYTES_MAX } from '../../../shared/utils/letter-photo'
+import type { HeldPhoto } from '../../components/Letters/GuestPhoto.vue'
+import { guestCopy } from '../../utils/guest-copy'
 import { encryptLetter, newContentKey, wrapContentKey } from '../../utils/letter-crypto'
+import { encryptPhoto } from '../../utils/photo-crypto'
+import { saveFile } from '../../utils/save-file'
 
 const route = useRoute()
 const link = String(route.params.id)
@@ -26,6 +31,9 @@ const state = ref<'loading' | 'open' | 'closed' | 'mismatch' | 'sent'>('loading'
 const mantel = ref<Open | null>(null)
 const content = ref<RichDoc>(emptyRichDoc())
 const from = ref('')
+const photo = ref<HeldPhoto | null>(null)
+// What was sent, kept in memory so the guest can save the only copy they get.
+const sent = shallowRef<{ doc: LetterDoc; photo: ArrayBuffer | null } | null>(null)
 const sending = ref(false)
 const failure = ref<string | null>(null)
 
@@ -78,25 +86,39 @@ async function send() {
   try {
     const id = crypto.randomUUID()
     const key = newContentKey()
+    const held = photo.value
+    const photoId = held ? crypto.randomUUID() : null
     const doc: LetterDoc = {
       v: 2,
       content: content.value,
       stationery: { ...DEFAULT_STATIONERY },
       from: from.value.trim(),
+      ...(held && photoId
+        ? { photo: { id: photoId, width: held.width, height: held.height, alt: held.alt.trim() } }
+        : {}),
     }
-    await $fetch('/api/letters/guest/post', {
-      method: 'POST',
-      body: {
-        link,
-        id,
-        ciphertext: await encryptLetter(key, id, JSON.stringify(doc)),
-        wrappedKey: await wrapContentKey(to.publicKey, key, {
-          letterId: id,
-          readerId: to.mantelId,
-        }),
-        turnstileToken: challenge.token.value || undefined,
-      },
-    })
+    const letter = {
+      link,
+      id,
+      ciphertext: await encryptLetter(key, id, JSON.stringify(doc)),
+      wrappedKey: await wrapContentKey(to.publicKey, key, { letterId: id, readerId: to.mantelId }),
+      turnstileToken: challenge.token.value || undefined,
+    }
+    if (held && photoId) {
+      const sealed = await encryptPhoto(key, { letterId: id, photoId }, held.image)
+      if (sealed.length > PHOTO_BYTES_MAX) {
+        failure.value = 'That photo is too large to send. Remove it or choose another.'
+        return
+      }
+      await $fetch('/api/letters/guest/post-photo', {
+        method: 'POST',
+        headers: { 'content-type': 'application/octet-stream' },
+        body: packGuestPhotoLetter({ ...letter, photoId }, sealed),
+      })
+    } else {
+      await $fetch('/api/letters/guest/post', { method: 'POST', body: letter })
+    }
+    sent.value = { doc, photo: held?.image ?? null }
     state.value = 'sent'
   } catch (error) {
     failure.value =
@@ -106,6 +128,17 @@ async function send() {
   } finally {
     sending.value = false
   }
+}
+
+function keepCopy() {
+  if (!sent.value || !mantel.value) return
+  const copy = guestCopy(
+    mantel.value.mantelName,
+    mantel.value.opensOn,
+    sent.value.doc,
+    sent.value.photo,
+  )
+  saveFile(copy.blob, copy.name)
 }
 
 const heading = computed(() => {
@@ -150,6 +183,15 @@ useSeo({
         Nobody can read it before then, {{ mantel.mantelName }} included. There is nothing more to
         do: no account was made, and you will not hear from us.
       </p>
+      <div v-if="sent" class="flex flex-col items-start gap-2">
+        <UButton variant="outline" color="neutral" icon="i-lucide-download" @click="keepCopy">
+          Save a copy
+        </UButton>
+        <p class="text-sm text-muted">
+          This is the only chance to keep one. It is saved to this device as it was written, not
+          encrypted, and we cannot send it to you later.
+        </p>
+      </div>
     </template>
 
     <template v-else-if="mantel">
@@ -187,6 +229,8 @@ useSeo({
           />
         </UFormField>
       </div>
+
+      <LettersGuestPhoto v-model="photo" />
 
       <NuxtTurnstile
         v-if="challenge.required"

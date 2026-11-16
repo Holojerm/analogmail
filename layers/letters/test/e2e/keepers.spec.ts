@@ -2,9 +2,17 @@
 // recovery code is shown once, and a second keeper is seated only after the
 // two people have the same fingerprint on their screens.
 
+import { readFile } from 'node:fs/promises'
+
 import { expect, test } from '../../../../test/e2e/fixtures'
 
 import { device, makePair, open } from './helpers'
+
+// A 1 × 1 PNG.
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
 
 test('a kept mantel: opened, its code shown once, a second keeper seated', async ({
   browser,
@@ -163,16 +171,33 @@ test('a wedding guest writes from the card, with no account', async ({ browser, 
   await expect(guest.getByRole('heading', { name: 'A letter to Maya and Theo' })).toBeVisible()
   await guest.getByLabel('Your letter').fill('May your house be loud and your table long.')
   await guest.getByLabel('Signed').fill('Aunt Rosa')
+  await guest
+    .getByLabel('Add a photo')
+    .setInputFiles({ name: 'table.png', mimeType: 'image/png', buffer: PNG })
+  await guest.getByLabel('Describe the photo').fill('The long table')
   const posted = guest.waitForRequest((request) =>
-    request.url().endsWith('/api/letters/guest/post'),
+    request.url().endsWith('/api/letters/guest/post-photo'),
   )
   await guest.getByRole('button', { name: 'Seal and send' }).click()
-  const sent = (await posted).postData() ?? ''
+  const sent = (await posted).postDataBuffer()?.toString('latin1') ?? ''
   expect(sent).toContain('"ciphertext":"v1.')
   expect(sent).not.toContain('Rosa')
   expect(sent).not.toContain('table long')
+  expect(sent).not.toContain('The long table')
+  expect(sent).not.toContain('JFIF')
   await expect(guest.getByRole('heading', { name: 'Sealed' })).toBeVisible()
   await expect(guest.getByText(/^It opens on /)).toBeVisible()
+
+  // ── The only copy the guest will ever have is made on their device ─────────
+  const saving = guest.waitForEvent('download')
+  await guest.getByRole('button', { name: 'Save a copy' }).click()
+  const download = await saving
+  expect(download.suggestedFilename()).toBe('Letter to Maya and Theo.zip')
+  const copy = (await readFile(await download.path())).toString('latin1')
+  expect(copy).toContain('letter.txt')
+  expect(copy).toContain('photo.jpg')
+  expect(copy).toContain('May your house be loud and your table long.')
+  expect(copy).toContain('Aunt Rosa')
   expect(
     (await (await guest.request.get('/api/_auth/session')).json()) as object,
   ).not.toHaveProperty('user')

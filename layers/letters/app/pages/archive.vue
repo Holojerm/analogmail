@@ -3,6 +3,7 @@
 // this device from the letters you sent and the ones you have opened.
 import { fileSafe, type ArchiveShelf } from '../../shared/utils/archive'
 import { buildArchive } from '../utils/archive-build'
+import { saveFile } from '../utils/save-file'
 
 definePageMeta({ middleware: ['auth', 'keys'] })
 
@@ -23,17 +24,6 @@ function today(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
 }
 
-function save(blob: Blob, name: string) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = name
-  document.body.append(link)
-  link.click()
-  link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 60_000)
-}
-
 async function keep(shelf: ArchiveShelf) {
   working.value = shelf.correspondenceId
   outcome.value = null
@@ -51,7 +41,7 @@ async function keep(shelf: ArchiveShelf) {
       }
       return
     }
-    save(built.blob, `Dear Mantel ${fileSafe(title(shelf))} ${day}.zip`)
+    saveFile(built.blob, `Dear Mantel ${fileSafe(title(shelf))} ${day}.zip`)
     outcome.value = {
       id: shelf.correspondenceId,
       text:

@@ -45,7 +45,7 @@ export async function preparePhoto(file: Blob): Promise<Prepared | null> {
 }
 
 // A data: address rather than a blob: one, which the content policy refuses.
-const asDataUrl = (image: ArrayBuffer) =>
+export const photoDataUrl = (image: ArrayBuffer) =>
   new Promise<string | null>((resolve) => {
     const reader = new FileReader()
     reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null)
@@ -68,7 +68,7 @@ export async function uploadLetterPhoto(
   const id = crypto.randomUUID()
   const sealed = await encryptPhoto(contentKey, { letterId, photoId: id }, prepared.image)
   if (sealed.length > PHOTO_BYTES_MAX) return { ok: false, reason: 'too-large' }
-  const url = await asDataUrl(prepared.image)
+  const url = await photoDataUrl(prepared.image)
   if (!url) return { ok: false, reason: 'unreadable' }
   try {
     await $fetch('/api/letters/drafts/photo', {
@@ -113,7 +113,7 @@ export async function loadLetterPhoto(
       query: mantelId ? { mantel: mantelId } : undefined,
     })
     const image = await decryptPhoto(contentKey, { letterId, photoId: photo.id }, sealed)
-    return image ? await asDataUrl(image) : null
+    return image ? await photoDataUrl(image) : null
   } catch {
     return null
   }

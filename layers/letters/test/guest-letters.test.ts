@@ -14,10 +14,18 @@ import {
   createGuestLink,
   guestLinkFor,
   postGuestLetter,
+  removeGuestLetter,
   viewGuestLink,
 } from '../server/utils/guest-letters'
-import { listKeptMantel, openKeptLetter } from '../server/utils/kept-mantel'
-import { guestLetterSchema, guestLinkIdSchema } from '../shared/utils/guest'
+import { listKeptMantel, openKeptLetter, readKeptPhoto } from '../server/utils/kept-mantel'
+import type { PhotoStore } from '../server/utils/photos'
+import {
+  guestLetterSchema,
+  guestLinkIdSchema,
+  guestPhotoLetterSchema,
+  packGuestPhotoLetter,
+  unpackGuestPhotoLetter,
+} from '../shared/utils/guest'
 
 const db = drizzle(env.DB, { schema })
 const {
@@ -52,6 +60,18 @@ const letter = (n: number) => ({
   ciphertext: CIPHERTEXT,
   wrappedKey: 'key-for-the-mantel',
 })
+
+const PHOTO = '99999999-0000-4000-8000-000000000009'
+const SEALED_PHOTO = new Uint8Array([1, ...new Array(40).fill(7)])
+function bucket() {
+  const files = new Map<string, Uint8Array>()
+  const store: PhotoStore = {
+    put: async (key, bytes) => void files.set(key, bytes),
+    get: async (key) => (files.get(key)?.buffer as ArrayBuffer | undefined) ?? null,
+    remove: async (keys) => keys.forEach((key) => files.delete(key)),
+  }
+  return { files, store }
+}
 
 async function link(): Promise<string> {
   const made = await createGuestLink(db, 'maya', { mantelId: WEDDING, ...DATES }, NOW)
@@ -211,5 +231,116 @@ describe("the link's limits", () => {
     expect((await postGuestLetter(db, second, letter(3), NOW)).status).toBe('posted')
     expect(await db.select().from(letters)).toHaveLength(2)
     expect(await db.select().from(correspondences)).toHaveLength(1)
+  })
+})
+
+describe("a guest's photo", () => {
+  const anniversary = new Date('2027-11-14T18:00:00Z')
+
+  it('is stored with the letter and opens with it, not before', async () => {
+    const id = await link()
+    const { files, store } = bucket()
+    const photo = { store, id: PHOTO, bytes: SEALED_PHOTO }
+    expect((await postGuestLetter(db, id, letter(1), NOW, photo)).status).toBe('posted')
+
+    const key = `letters/${letter(1).id}/${PHOTO}`
+    expect([...files.keys()]).toEqual([key])
+    expect((await db.select().from(letters))[0]?.photoKey).toBe(key)
+
+    for (let day = 17; day <= 19; day += 1) {
+      await runRelease(db, new Date(`2026-11-${day}T16:30:00Z`))
+    }
+    const later = new Date('2026-11-20T18:00:00Z')
+    expect(await readKeptPhoto(db, store, 'maya', WEDDING, letter(1).id, later)).toBeNull()
+    expect(await readKeptPhoto(db, store, 'eve', WEDDING, letter(1).id, anniversary)).toBeNull()
+    expect(
+      await readKeptPhoto(db, store, 'maya', WEDDING, letter(1).id, anniversary),
+    ).not.toBeNull()
+    expect(await openKeptLetter(db, 'maya', WEDDING, letter(1).id, anniversary)).toMatchObject({
+      hasPhoto: true,
+      guest: true,
+    })
+  })
+
+  it('is not kept when the letter is refused', async () => {
+    const id = await link()
+    const { files, store } = bucket()
+    await postGuestLetter(db, id, letter(1), NOW)
+    const again = await postGuestLetter(db, id, letter(1), NOW, {
+      store,
+      id: PHOTO,
+      bytes: SEALED_PHOTO,
+    })
+    expect(again.status).toBe('exists')
+    expect(files.size).toBe(0)
+  })
+
+  it('needs its id named beside the letter, and travels with it in one body', () => {
+    const sent = {
+      link: 'A'.repeat(22),
+      ...letter(1),
+      wrappedKey: `v1.${'A'.repeat(87)}.${'B'.repeat(16)}.${'C'.repeat(64)}`,
+    }
+    expect(guestPhotoLetterSchema.safeParse(sent).success).toBe(false)
+    const named = { ...sent, photoId: PHOTO }
+    expect(guestPhotoLetterSchema.safeParse(named).success).toBe(true)
+
+    const packed = packGuestPhotoLetter(named, SEALED_PHOTO)
+    const unpacked = unpackGuestPhotoLetter(packed)
+    expect(unpacked?.letter).toEqual(named)
+    expect([...unpacked!.photo]).toEqual([...SEALED_PHOTO])
+    // A view into a larger buffer unpacks the same.
+    const padded = new Uint8Array(packed.length + 8)
+    padded.set(packed, 8)
+    expect(unpackGuestPhotoLetter(padded.subarray(8))?.letter).toEqual(named)
+
+    expect(unpackGuestPhotoLetter(new Uint8Array([0, 0]))).toBeNull()
+    expect(unpackGuestPhotoLetter(new Uint8Array([0, 0, 0, 0, 1]))).toBeNull()
+    expect(unpackGuestPhotoLetter(new Uint8Array([0, 0, 0, 9, 1]))).toBeNull()
+    expect(unpackGuestPhotoLetter(new Uint8Array([0, 0, 0, 1, 123]))).toBeNull()
+  })
+})
+
+describe("removing a guest's letter", () => {
+  const anniversary = new Date('2027-11-14T18:00:00Z')
+
+  it('is for a keeper, once the letter has opened, and takes the photo with it', async () => {
+    const id = await link()
+    const { files, store } = bucket()
+    await postGuestLetter(db, id, letter(1), NOW, { store, id: PHOTO, bytes: SEALED_PHOTO })
+    await postGuestLetter(db, id, letter(2), NOW)
+    const remove = (who: string, at: Date) =>
+      removeGuestLetter(db, store, who, WEDDING, letter(1).id, at)
+
+    expect(await remove('eve', anniversary)).toBe('not-keeper')
+    expect(await remove('maya', NOW)).toBe('sealed')
+    expect(files.size).toBe(1)
+    expect(await remove('maya', anniversary)).toBe('removed')
+    expect(files.size).toBe(0)
+    expect((await db.select().from(letters)).map((row) => row.id)).toEqual([letter(2).id])
+    expect(await db.select().from(letterKeys)).toHaveLength(1)
+    expect(await db.select().from(deliveries)).toHaveLength(1)
+    expect(await remove('maya', anniversary)).toBe('not-found')
+  })
+
+  it("never removes a member's letter, or a letter on another mantel", async () => {
+    const id = await link()
+    const { store } = bucket()
+    await postGuestLetter(db, id, letter(1), NOW)
+    await db
+      .update(letters)
+      .set({ origin: 'member' })
+      .where(eq(letters.id, letter(1).id))
+    expect(await removeGuestLetter(db, store, 'maya', WEDDING, letter(1).id, anniversary)).toBe(
+      'not-found',
+    )
+    await db
+      .update(letters)
+      .set({ origin: 'guest' })
+      .where(eq(letters.id, letter(1).id))
+    expect(await removeGuestLetter(db, store, 'maya', CHILD, letter(1).id, anniversary)).toBe(
+      'not-found',
+    )
+    expect(await db.select().from(letters)).toHaveLength(1)
   })
 })

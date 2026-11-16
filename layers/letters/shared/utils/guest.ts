@@ -3,6 +3,7 @@
 import { z } from 'zod'
 
 import { letterCiphertextSchema, letterIdSchema, letterKeySchema } from './letter-doc'
+import { photoIdSchema } from './letter-photo'
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 
@@ -27,6 +28,44 @@ export const guestLetterSchema = z.object({
   wrappedKey: letterKeySchema,
   turnstileToken: z.string().max(2048).optional(),
 })
+
+export type GuestLetter = z.infer<typeof guestLetterSchema>
+
+/** The same, for a letter that carries a photo: which sealed file is its photo. */
+export const guestPhotoLetterSchema = guestLetterSchema.extend({ photoId: photoIdSchema })
+
+// A letter with a photo travels as one body: four bytes giving the length of
+// the letter's JSON, that JSON, then the sealed photo. One request, so a
+// letter never arrives without the photo it names.
+const HEAD_BYTES = 4
+
+export function packGuestPhotoLetter(
+  letter: z.infer<typeof guestPhotoLetterSchema>,
+  photo: Uint8Array,
+): Uint8Array<ArrayBuffer> {
+  const json = new TextEncoder().encode(JSON.stringify(letter))
+  const packed = new Uint8Array(HEAD_BYTES + json.length + photo.length)
+  new DataView(packed.buffer).setUint32(0, json.length)
+  packed.set(json, HEAD_BYTES)
+  packed.set(photo, HEAD_BYTES + json.length)
+  return packed
+}
+
+/** Null when the body is not that shape. The letter inside is not yet checked. */
+export function unpackGuestPhotoLetter(
+  packed: Uint8Array,
+): { letter: unknown; photo: Uint8Array } | null {
+  if (packed.length < HEAD_BYTES) return null
+  const length = new DataView(packed.buffer, packed.byteOffset, HEAD_BYTES).getUint32(0)
+  const end = HEAD_BYTES + length
+  if (length === 0 || end > packed.length) return null
+  try {
+    const letter: unknown = JSON.parse(new TextDecoder().decode(packed.subarray(HEAD_BYTES, end)))
+    return { letter, photo: packed.subarray(end) }
+  } catch {
+    return null
+  }
+}
 
 /** What anyone holding a write link is told. */
 export type GuestLinkView =
