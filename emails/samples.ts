@@ -32,6 +32,12 @@ export const SAMPLES: Record<string, EmailSample> = {
     mantelName: 'Leo',
   },
   'mail-arrived': { ...brand },
+  'mantel-recovery': {
+    ...brand,
+    mantelName: 'Leo',
+    readyDate: 'December 16, 2026',
+    url: `${brand.appUrl}/mantels/4b0f6c1e-0d3a-4c1f-9e57-1f2f6b6f0a11`,
+  },
   'magic-link': {
     ...brand,
     url: `${brand.appUrl}/auth/confirm?token=2f9c1d`,
