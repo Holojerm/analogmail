@@ -3,7 +3,7 @@
   "slug": "dearmantel",
   "name": "Dear Mantel",
   "stage": "unreleased",
-  "urls": { "prod": "https://dearmantel.jeremy-ettlinger.workers.dev" },
+  "urls": { "prod": "https://dearmantel.com" },
   "workers": ["dearmantel"],
   "bindings": {
     "d1": [{ "name": "dearmantel-db", "id": "2849245e-64da-46a3-b2cd-659db234d10f" }],
