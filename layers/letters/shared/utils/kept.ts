@@ -27,4 +27,6 @@ export type KeptLetter =
       /** The letter's key, wrapped to the mantel's public key. */
       wrappedKey: string
       hasPhoto: boolean
+      /** Written from a write link. A keeper may take such a letter off the mantel. */
+      guest: boolean
     }

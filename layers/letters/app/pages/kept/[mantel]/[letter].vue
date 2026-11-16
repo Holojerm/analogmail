@@ -55,6 +55,26 @@ onMounted(async () => {
   }
 })
 
+// A guest's letter has nobody to answer for it, so a keeper may remove one.
+const canRemove = computed(() =>
+  Boolean(opened.value && !opened.value.sealed && opened.value.guest),
+)
+const confirming = ref(false)
+const removing = ref(false)
+
+async function remove() {
+  removing.value = true
+  try {
+    await $fetch('/api/letters/kept/remove', { method: 'POST', body: { mantelId, letterId } })
+    await navigateTo(`/mantels/${mantelId}`)
+  } catch {
+    failure.value = 'The letter was not removed. Try again.'
+    confirming.value = false
+  } finally {
+    removing.value = false
+  }
+}
+
 const heading = computed(() => {
   const letter = opened.value
   if (letter && !letter.sealed && letter.name) return `To ${mantelName.value}, from ${letter.name}`
@@ -92,9 +112,25 @@ useSeo({ title: 'A letter', description: 'A letter on a mantel you keep.', noind
         description="Nobody can open this letter before that day, its keepers included."
       />
       <LetterPaper v-if="doc" :doc="doc" :photo-url="photoUrl" />
-      <UButton variant="ghost" color="neutral" class="self-start" :to="`/mantels/${mantelId}`">
-        Back to the mantel
-      </UButton>
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <UButton variant="ghost" color="neutral" :to="`/mantels/${mantelId}`">
+          Back to the mantel
+        </UButton>
+        <UButton v-if="canRemove" variant="ghost" color="error" @click="confirming = true">
+          Remove this letter
+        </UButton>
+      </div>
+
+      <UModal
+        v-model:open="confirming"
+        title="Remove this letter?"
+        description="It is deleted for every keeper of this mantel, with its photo, and cannot be brought back. The guest who wrote it is not told."
+      >
+        <template #footer>
+          <UButton variant="ghost" color="neutral" @click="confirming = false">Keep it</UButton>
+          <UButton color="error" :loading="removing" @click="remove">Remove for good</UButton>
+        </template>
+      </UModal>
     </template>
   </div>
 </template>

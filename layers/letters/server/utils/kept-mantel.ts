@@ -120,6 +120,7 @@ export async function openKeptLetter(
     ciphertext: row.ciphertext,
     wrappedKey: key.wrappedKey,
     hasPhoto: Boolean(row.photoKey),
+    guest: row.origin === 'guest',
   }
 }
 
