@@ -126,8 +126,9 @@ useSeo({
       >
         <h2 id="say-heading" class="text-xl text-highlighted">Say where you are</h2>
         <p class="text-sm text-muted">
-          Pick a city. Only this family sees it, it shows until you say somewhere else, and nobody
-          is ever reminded to update it. We never read your device's location.
+          Pick a city. Only this family sees it. It shows here until you say somewhere else, and in
+          the gazette for the month you said it. Nobody is ever reminded to update it, and we never
+          read your device's location.
         </p>
         <UFormField label="Your city now" name="where-city" help="Start typing and pick it.">
           <UInput v-model="query" autocomplete="off" size="lg" class="w-full" />

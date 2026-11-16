@@ -119,6 +119,14 @@ test('a family room: photos added, shared, and closed to those who leave', async
   expect(
     (await ann.getByTestId('map').locator('path').nth(1).getAttribute('d'))!.length,
   ).toBeGreaterThan(1000)
+
+  // ── The gazette: this month's is not out until the month is over ───────────
+  await ann.getByRole('link', { name: 'Gazette' }).click()
+  await expect(ann.getByText('There is no gazette yet.')).toBeVisible()
+  const thisMonth = new Date().toISOString().slice(0, 7)
+  expect((await ann.request.get(`/api/room/${familyId}/issues/${thisMonth}`)).status()).toBe(404)
+  await open(ann, `/room/${familyId}/gazette/${thisMonth}`)
+  await expect(ann.getByText('There is no issue for that time.')).toBeVisible()
   await open(ann, `/room/${familyId}`)
 
   // ── He leaves the family: the room and its pictures close to him ───────────
