@@ -60,6 +60,10 @@ export const mantels = sqliteTable('mantels', {
   scheme: integer('scheme').notNull().default(1),
   createdBy: text('created_by'),
   closedAt: integer('closed_at', { mode: 'timestamp' }),
+  // SHA-256 (hex) of a value only the recovery code can produce. Whoever
+  // presents that value holds the code: it finds the mantel and proves the
+  // claim, and a leak of this column gives neither.
+  recoveryProofHash: text('recovery_proof_hash'),
   ...timestamps,
 })
 
@@ -147,6 +151,28 @@ export const mantelVotes = sqliteTable(
     ...timestamps,
   },
   (table) => [uniqueIndex('mantel_votes_voter_idx').on(table.proposalId, table.userId)],
+)
+
+// The recovery code used by someone who does not keep the mantel. It stands in
+// for keepers who cannot answer, so it does not take effect at once: every
+// keeper is told, and any of them can cancel it before `readyAt`.
+export const mantelRecoveries = sqliteTable(
+  'mantel_recoveries',
+  {
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    mantelId: text('mantel_id').notNull(),
+    claimantId: text('claimant_id').notNull(),
+    // The mantel's key, wrapped to the claimant in their own browser.
+    wrapped: text('wrapped').notNull(),
+    readyAt: integer('ready_at', { mode: 'timestamp' }).notNull(),
+    cancelledAt: integer('cancelled_at', { mode: 'timestamp' }),
+    cancelledBy: text('cancelled_by'),
+    completedAt: integer('completed_at', { mode: 'timestamp' }),
+    ...timestamps,
+  },
+  (table) => [index('mantel_recoveries_mantel_idx').on(table.mantelId)],
 )
 
 export type Mantel = typeof mantels.$inferSelect

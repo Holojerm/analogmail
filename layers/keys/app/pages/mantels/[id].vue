@@ -33,6 +33,7 @@ interface MantelView {
   wrappedKey: string | null
   keepers: Keeper[]
   proposals: Proposal[]
+  recoveries: { id: string; name: string | null; readyAt: string }[]
 }
 interface Seat {
   subjectId: string
@@ -117,6 +118,10 @@ const proposeRemoval = (keeperId: string) =>
   )
 const act = (id: string, action: 'vote' | 'withdraw') =>
   run(() => $fetch('/api/mantels/proposals/act', { method: 'POST', body: { id, action } }))
+const cancelRecovery = (id: string) =>
+  run(() => $fetch('/api/mantels/recover/act', { method: 'POST', body: { id, action: 'cancel' } }))
+const day = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
 const grant = (id: string) =>
   run(async () => {
     const seat = seats[id]
@@ -151,7 +156,8 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         variant="subtle"
         icon="i-lucide-key-round"
         title="This device cannot open this mantel"
-        description="Your copy of its key did not open here. Another keeper can give you a new copy."
+        description="Your copy of its key did not open here. Another keeper can give you a new copy, or you can use the mantel's printed recovery code."
+        :actions="[{ label: 'Use the recovery code', to: '/mantels/recover' }]"
       />
       <UAlert
         v-else-if="mantel.keepers.length === 1"
@@ -160,6 +166,17 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         icon="i-lucide-user-plus"
         title="This mantel has one keeper"
         description="If you lose your own key, only the printed recovery code can open its letters. Ask someone to keep it with you."
+      />
+
+      <UAlert
+        v-for="claim in mantel.recoveries"
+        :key="claim.id"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-key-round"
+        title="This mantel's recovery code was used"
+        :description="`${claim.name ?? 'Someone'} used the printed code and will become a keeper on ${day(claim.readyAt)} unless a keeper cancels it. If you did not expect this, cancel it.`"
+        :actions="[{ label: 'Cancel it', onClick: () => cancelRecovery(claim.id) }]"
       />
 
       <LettersKeptMantel :mantel-id="mantel.id" :name="mantel.name" />

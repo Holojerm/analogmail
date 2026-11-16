@@ -22,7 +22,15 @@ test('a kept mantel: opened, its code shown once, a second keeper seated', async
   await ann.getByRole('button', { name: 'Open the mantel' }).click()
   const sent = (await created).postDataJSON() as Record<string, string>
   expect(Object.keys(sent).toSorted()).toEqual(
-    ['id', 'keeperWrap', 'kind', 'name', 'publicKey', 'recoveryWrap'].toSorted(),
+    [
+      'id',
+      'keeperWrap',
+      'kind',
+      'name',
+      'publicKey',
+      'recoveryProofHash',
+      'recoveryWrap',
+    ].toSorted(),
   )
   expect(sent.keeperWrap).toMatch(/^v1\./)
   expect(sent.recoveryWrap).toMatch(/^v1\./)
@@ -145,7 +153,8 @@ test('a wedding guest writes from the card, with no account', async ({ browser, 
   expect(address.hash).toMatch(/^#[A-Za-z0-9_-]{22}$/)
 
   // ── A guest, signed out, on their own phone ────────────────────────────────
-  const guest = await device(browser, baseURL!)
+  // Guests are limited per address per hour; a fresh one keeps reruns honest.
+  const guest = await device(browser, baseURL!, `198.51.100.${1 + Math.floor(Math.random() * 250)}`)
   await open(guest, `${address.pathname}#not-the-printed-fingerprint`)
   await expect(guest.getByText('This link does not match its card')).toBeVisible()
   await expect(guest.getByLabel('Your letter')).toHaveCount(0)
@@ -174,5 +183,56 @@ test('a wedding guest writes from the card, with no account', async ({ browser, 
   await expect(ann.getByText('Nothing has arrived yet.')).toBeVisible()
 
   await guest.context().close()
+  await close()
+})
+
+test("a mantel's recovery code: a keeper is restored at once, anyone else waits", async ({
+  browser,
+  baseURL,
+}) => {
+  test.setTimeout(180_000)
+  const { ann, bob, close } = await makePair(browser, baseURL!)
+
+  await open(ann, '/mantels/new')
+  await ann.getByLabel('Whose mantel is it?').fill('Leo')
+  await ann.getByRole('button', { name: 'Open the mantel' }).click()
+  const code = (await ann.getByTestId('recovery-code').innerText()).trim()
+  expect(code).toMatch(/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/)
+  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
+  const mantelPath = new URL(ann.url()).pathname
+
+  // ── A wrong code opens nothing; the code itself is never sent ──────────────
+  await open(bob, '/mantels/recover')
+  await bob.getByLabel('Recovery code').fill('0000-0000-0000-0000-0000-0000-0000-0000')
+  await bob.getByRole('button', { name: 'Use the code' }).click()
+  await expect(bob.getByText('That code does not open a mantel.')).toBeVisible()
+
+  const found = bob.waitForRequest((request) => request.url().endsWith('/api/mantels/recover/find'))
+  await bob.getByLabel('Recovery code').fill(code.toLowerCase())
+  await bob.getByRole('button', { name: 'Use the code' }).click()
+  expect((await found).postData() ?? '').not.toContain(code.replaceAll('-', '').toLowerCase())
+  await expect(bob.getByText(/You will keep Leo's mantel from /)).toBeVisible()
+  await open(bob, '/mantels')
+  await expect(bob.getByText('You keep no mantels.')).toBeVisible()
+  await expect(bob.getByRole('button', { name: 'Become a keeper' })).toHaveCount(0)
+
+  // ── The keeper is shown it and cancels ─────────────────────────────────────
+  await open(ann, mantelPath)
+  await expect(ann.getByText("This mantel's recovery code was used")).toBeVisible()
+  await ann.getByRole('button', { name: 'Cancel it' }).click()
+  await expect(ann.getByText("This mantel's recovery code was used")).toHaveCount(0)
+  await open(bob, '/mantels')
+  await expect(bob.getByText('Recovery codes you used')).toHaveCount(0)
+
+  // ── The keeper herself uses it: her access comes back at once ──────────────
+  await open(ann, '/mantels/recover')
+  await ann.getByLabel('Recovery code').fill(code)
+  await ann.getByRole('button', { name: 'Use the code' }).click()
+  await expect(ann.getByText("This device can open Leo's mantel again")).toBeVisible()
+  await ann.getByRole('link', { name: 'Open the mantel' }).click()
+  await expect(ann.getByText('This device cannot open this mantel')).toHaveCount(0)
+
   await close()
 })

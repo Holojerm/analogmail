@@ -51,11 +51,11 @@ let pairs = 0
  * rate-limit bucket, and a spec's sign-ups would spend the budget the other
  * sign-in specs run on; a forwarded address gives each device its own.
  */
-export async function device(browser: Browser, baseURL: string): Promise<Page> {
+export async function device(browser: Browser, baseURL: string, address?: string): Promise<Page> {
   network += 1
   const context = await browser.newContext({
     baseURL,
-    extraHTTPHeaders: { 'x-forwarded-for': `203.0.113.${network}` },
+    extraHTTPHeaders: { 'x-forwarded-for': address ?? `203.0.113.${network}` },
   })
   return context.newPage()
 }
