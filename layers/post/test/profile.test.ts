@@ -99,6 +99,9 @@ describe('a postal profile', () => {
       timeZone: 'Asia/Tokyo',
       mailDays: 63,
       deliveryHour: 10,
+      pendingMailDays: null,
+      pendingDeliveryHour: null,
+      pendingFrom: null,
     })
   })
 

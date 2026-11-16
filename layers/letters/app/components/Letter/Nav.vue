@@ -6,6 +6,7 @@ const links = [
   { label: 'Mantel', to: '/mantel' },
   { label: 'Desk', to: '/desk' },
   { label: 'People', to: '/people' },
+  { label: 'Post', to: '/settings/post' },
 ]
 </script>
 
