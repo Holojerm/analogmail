@@ -16,6 +16,9 @@
 
 name = "dearmantel"
 compatibility_date = "2025-09-01"
+# Explicit because a [[routes]] entry (the custom domain below) flips wrangler's
+# default to false. Kept on so the workers.dev address keeps answering.
+workers_dev = true
 # `queue_consumer_wait_for_wait_until` is not decoration — it PINS today's
 # default, and the email consumer's correctness rests on it.
 #
@@ -168,6 +171,15 @@ head_sampling_rate = 1
 [triggers]
 crons = ["0 4 * * *", "*/15 * * * *"]
 
+# ─── Custom domain ───────────────────────────────────────────────────────────
+# `custom_domain = true` makes wrangler create and own the apex DNS record and
+# its certificate, so every deploy re-asserts the binding. Keep in step with
+# NUXT_PUBLIC_APP_URL below and `urls.prod` in fleet.json. Passkeys are bound to
+# this host: changing it later strands every passkey made here.
+[[routes]]
+pattern = "dearmantel.com"
+custom_domain = true
+
 [vars]
 NUXT_PUBLIC_APP_NAME = "Dear Mantel"
 # The one-sentence description: meta description, /llms.txt and schema.org.
@@ -182,7 +194,7 @@ NUXT_EMAIL_QUEUE_NAME = "dearmantel-email"
 # Canonical public origin, no trailing slash. Emails, sitemap.xml, robots.txt
 # and og: tags build absolute links from this — a webhook has no request to
 # infer it from. Set it to your real domain before the first production deploy.
-NUXT_PUBLIC_APP_URL = "https://dearmantel.jeremy-ettlinger.workers.dev"
+NUXT_PUBLIC_APP_URL = "https://dearmantel.com"
 # Named on /terms and /privacy, and used as Reply-To on transactional email.
 NUXT_PUBLIC_SUPPORT_EMAIL = "support@example.com"
 NUXT_PUBLIC_LEGAL_ENTITY = "Jeremy Ettlinger"
