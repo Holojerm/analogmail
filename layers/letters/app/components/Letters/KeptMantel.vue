@@ -209,6 +209,12 @@ function describe(letter: KeptItem): string {
         </li>
       </ul>
 
+      <LettersKeptArchive
+        v-if="letters.some((letter) => letter.opened && !letter.sealed)"
+        :mantel-id="mantelId"
+        :name="name"
+      />
+
       <h3 class="mt-4 text-lg text-highlighted">Who writes to {{ name }}</h3>
       <p class="text-sm text-muted">
         Its keepers can write from here. Ask grandparents, godparents or friends to write too: each

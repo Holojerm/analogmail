@@ -31,7 +31,8 @@ export async function mantelToday(db: LettersDb, mantelId: string, now: Date): P
 export const isSealedOn = (opensOn: string | null, today: string) =>
   Boolean(opensOn) && today < opensOn!
 
-async function arrived(db: LettersDb, mantelId: string, letterId?: string) {
+/** Every letter delivered to a kept mantel, newest first, or one of them. */
+export async function arrivedOnMantel(db: LettersDb, mantelId: string, letterId?: string) {
   const { deliveries, letters, people, users } = tables
   return db
     .select({
@@ -71,7 +72,7 @@ export async function listKeptMantel(
 ): Promise<KeptItem[] | null> {
   if (!(await isKeeper(db, keeperId, mantelId))) return null
   const today = await mantelToday(db, mantelId, now)
-  return (await arrived(db, mantelId)).map((row) => ({
+  return (await arrivedOnMantel(db, mantelId)).map((row) => ({
     letterId: row.letterId,
     name: row.chosen ?? row.account ?? null,
     postmark: row.postmark,
@@ -96,7 +97,7 @@ export async function openKeptLetter(
 ): Promise<KeptLetter | null> {
   const { deliveries, letterKeys } = tables
   if (!(await isKeeper(db, keeperId, mantelId))) return null
-  const [row] = await arrived(db, mantelId, letterId)
+  const [row] = await arrivedOnMantel(db, mantelId, letterId)
   if (!row) return null
   if (row.opensOn && isSealedOn(row.opensOn, await mantelToday(db, mantelId, now))) {
     return { sealed: true, letterId, postmark: row.postmark, opensOn: row.opensOn }
@@ -135,7 +136,7 @@ export async function readKeptPhoto(
   now: Date,
 ): Promise<ArrayBuffer | null> {
   if (!(await isKeeper(db, keeperId, mantelId))) return null
-  const [row] = await arrived(db, mantelId, letterId)
+  const [row] = await arrivedOnMantel(db, mantelId, letterId)
   if (!row?.photoKey) return null
   if (isSealedOn(row.opensOn, await mantelToday(db, mantelId, now))) return null
   return store.get(row.photoKey)
