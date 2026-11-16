@@ -9,12 +9,36 @@ and is read on demand.
 
 ## What this is
 
-Analog Mail: digital letters between friends that arrive on a postal rhythm, so people can
-write less often without it feeling rude. A fork of `Holojerm/nuxt-cf-template`. Licence is
-FSL-1.1-MIT (see `NOTICE.md`); do not accept outside contributions. Read the full plan, with
-every product decision and the build order, before any product work. It lives outside the repo:
+**Dear Mantel** (dearmantel.com): "Letters for family and friends, slowly." Letters that arrive
+on a postal rhythm, so people can write less often without it feeling rude. One product with
+several kinds of mantel, all sharing invites, the postal calendar, end-to-end encryption,
+notices and print:
 
-- `~/code/analogmail-plan.md` <!-- refs-check-ignore -->
+| Kind | What it is | State |
+| --- | --- | --- |
+| Pair | Letters between two friends. The free tier | Built |
+| Family mantel | Letters to a whole family, plus an optional family room (photos, check-ins, map, e-ink screen) that is **not** encrypted | Planned |
+| Child's mantel | Letters to someone who cannot read yet, sealed until a date or until handover; two guardians hold the key | Planned |
+| Anniversary letters | Wedding guests write to a couple from a QR card; the letters open on the first anniversary | Planned |
+
+A fork of `Holojerm/nuxt-cf-template`. Licence is FSL-1.1-MIT (see `NOTICE.md`); do not accept
+outside contributions. Read the full plan, with every product decision, the designs for the
+planned kinds and the build order, before any product work. It lives outside the repo:
+
+- `~/code/dearmantel-plan.md` <!-- refs-check-ignore -->
+
+The product was first called Analog Mail; nothing carries that name any more.
+
+**Brand and naming.**
+
+- "Dear Mantel" is the product: brand, wordmark, app name, page titles, the legal name in terms
+  and privacy.
+- "mantel", lowercase and possessive, is a person's place for letters: "your mantel", "the
+  family mantel", "Leo's mantel opens in 2044".
+- Nothing a user sees says "inbox" or "mailbox": pages, emails, errors, alt text. Identifiers in
+  code are not user-facing, but new ones say `mantel`.
+- The notice reads "Something arrived on your mantel."
+- Technical names are `dearmantel`.
 
 
 **Rules the code must never break.** They are the product, not preferences:
@@ -31,13 +55,43 @@ every product decision and the build order, before any product work. It lives ou
 - A letter belongs to its recipient and survives the sender deleting their account.
 - Not gamified: no streaks, couriers, tracking maps or nudges to write.
 
+These hold for every kind of mantel. The planned kinds add more, in force from the first line
+of code for each:
+
+- Family room data is never mixed into letter data. The room has its own layer, tables and
+  storage prefix; no room table refers to a letter, and no letter code reads the room. The room
+  is not end-to-end encrypted, and every room page and upload step says so in plain words.
+  Letters stay encrypted, within a family too.
+- A sealed letter's ciphertext, photo and keys are served to no one before its opening date,
+  guardians included. Opening is not post: it is no release and raises no notice.
+- The private key of a child's or anniversary mantel exists only as copies wrapped to its
+  keepers and to its recovery code. The server never holds it, and there is no escrow.
+- A child's mantel belongs to the child. No guardian action or account deletion removes its
+  letters. Custody changes (adding or removing a guardian, the seal, handover, closing) need
+  more than half of the guardians to agree; no guardian can remove another alone.
+- A guest writes without an account only by encrypting in the browser to the mantel's public
+  key, checked against the fingerprint in the link's fragment. The guest's name is inside the
+  ciphertext.
+- Letter text leaves the browser unencrypted for one reason: the reader's own print order,
+  after a consent step that names the print partner. The server never writes it to storage,
+  logs or a queue in readable form: a print file is staged as ciphertext under a one-time key
+  the server does not store. Print providers sit behind the `PrintProvider` interface.
+- A screen or any other integration reads at most one boolean per person ("something on your
+  mantel"), never content, senders, counts or which mantel. It is off until that person turns
+  it on for themself. It goes up at their release and down at their local midnight, and it
+  never reacts to opening: the code behind it does not read `opened_at`.
+- The family map shows people's cities. It never shows a letter or anything in transit. The
+  room sends no check-in reminders and has no way for one member to remind another.
+
 **Where product code goes.** Fork-owned layers, never template-owned paths:
 
 | Layer | Holds |
 | --- | --- |
 | `layers/post` | Calendar, transit, the release task, notices, the `Notifier` interface, the dev clock |
-| `layers/letters` | Invites, correspondences, letters, mailbox, writing desk, stationery |
-| `layers/keys` | Key generation and wrapping, recovery code, browser crypto |
+| `layers/letters` | Invites, correspondences, letters, the mantel page, writing desk, stationery, seals |
+| `layers/keys` | Account and mantel keys, wrapping, recovery codes, browser crypto |
+| `layers/print` (planned) | The `PrintProvider` interface, the first provider, the consent step, order records, book layout |
+| `layers/room` (future) | The family room: photos, check-ins, map, screen, gazette, almanac. Never imports from or joins to `layers/letters` |
 | `layers/credentials`, `layers/feedback` | Vendored from the template (`bun run layers:pull`), pinned in `layers.lock.json` |
 
 Scheduling functions are pure, live in `layers/post/shared/`, and take `now` as an argument;
