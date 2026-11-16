@@ -13,9 +13,17 @@ import { registerKeysExtensions } from '#layers/keys/server/utils/keys-extension
 import { clearNoticeAudienceForTest } from '#layers/post/server/utils/notice-audience'
 import { runRelease } from '#layers/post/server/utils/release-run'
 
+import { acceptInvite } from '../server/utils/accept-invite'
 import { listPeople, openMantelCorrespondence } from '../server/utils/correspondences'
 import { ownLetter, saveDraft } from '../server/utils/drafts'
-import { listKeptMantel, openKeptLetter, readKeptPhoto } from '../server/utils/kept-mantel'
+import { inviteEmail } from '../server/utils/invite-email'
+import { createInvite, viewInvite } from '../server/utils/invites'
+import {
+  listKeptMantel,
+  listWriters,
+  openKeptLetter,
+  readKeptPhoto,
+} from '../server/utils/kept-mantel'
 import { openLetter, listMantel } from '../server/utils/mantel'
 import { attachPhoto, type PhotoStore } from '../server/utils/photos'
 import { listDesk, planSeal, recallLetter, sealLetter } from '../server/utils/posting'
@@ -34,6 +42,7 @@ const {
   letters,
   letterKeys,
   deliveries,
+  invites,
 } = schema
 
 const store: PhotoStore = {
@@ -89,6 +98,7 @@ beforeEach(async () => {
     deliveries,
     letterKeys,
     letters,
+    invites,
     correspondenceMembers,
     correspondences,
     mantelKeepers,
@@ -105,7 +115,10 @@ beforeEach(async () => {
     await db.insert(userKeys).values({ userId: id, publicKey: `public-key-of-${id}` })
     await db.insert(postalProfiles).values({ userId: id, ...CHICAGO })
   }
-  await db.insert(people).values({ userId: 'ann', displayName: 'Ann Lee' })
+  await db.insert(people).values([
+    { userId: 'ann', displayName: 'Ann Lee' },
+    { userId: 'eve', displayName: 'Granny Eve' },
+  ])
   await db.insert(mantels).values({ id: LEO, kind: 'child', name: 'Leo', publicKey: 'leo-key' })
   await db.insert(mantelKeepers).values([
     { mantelId: LEO, userId: 'ann', role: 'guardian' },
@@ -283,5 +296,104 @@ describe('a photo on a kept mantel', () => {
     expect(await readKeptPhoto(db, store, 'eve', LEO, OPEN, FRIDAY)).toBeNull()
     const file = await readKeptPhoto(db, store, 'bob', LEO, OPEN, FRIDAY)
     expect(file && new Uint8Array(file)[0]).toBe(7)
+  })
+})
+
+describe('inviting a writer', () => {
+  const ann = { id: 'ann', email: 'ann@example.com' }
+
+  it('is for keepers, and the invitation names the mantel', async () => {
+    expect(
+      await createInvite(db, { id: 'eve', email: 'eve@example.com' }, 'x@example.com', MONDAY, LEO),
+    ).toEqual({ status: 'not-keeper' })
+
+    const invite = await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)
+    if (invite.status !== 'created') throw new Error(invite.status)
+    expect(invite.mantelName).toBe('Leo')
+    expect(await viewInvite(db, invite.token, MONDAY)).toMatchObject({
+      status: 'open',
+      inviterName: 'Ann Lee',
+      mantelName: 'Leo',
+    })
+    // A keeper may also invite the same person to write to themself.
+    expect((await createInvite(db, ann, 'eve@example.com', MONDAY)).status).toBe('created')
+    expect((await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)).status).toBe('pending')
+  })
+
+  it('makes a correspondence with the mantel, not with the keeper', async () => {
+    const invite = await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)
+    if (invite.status !== 'created') throw new Error(invite.status)
+    const accepted = await acceptInvite(db, invite.token, 'eve', MONDAY)
+    if (accepted.status !== 'accepted') throw new Error(accepted.status)
+
+    expect((await listPeople(db, 'eve', MONDAY)).people).toMatchObject([{ name: 'Leo' }])
+    expect((await listPeople(db, 'ann', MONDAY)).people.map((person) => person.name)).toEqual([
+      'Leo',
+    ])
+    expect(await planSeal(db, 'eve', accepted.correspondenceId, MONDAY)).toMatchObject({
+      recipientId: LEO,
+      toMantel: true,
+    })
+    expect((await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)).status).toBe(
+      'already-writing',
+    )
+  })
+
+  it('lets a writer write and seal, and read nothing on the mantel', async () => {
+    const invite = await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)
+    if (invite.status !== 'created') throw new Error(invite.status)
+    const accepted = await acceptInvite(db, invite.token, 'eve', MONDAY)
+    if (accepted.status !== 'accepted') throw new Error(accepted.status)
+    await saveDraft(
+      db,
+      'eve',
+      {
+        id: OPEN,
+        correspondenceId: accepted.correspondenceId,
+        ciphertext: CIPHERTEXT,
+        wrappedKey: 'key-for-eve',
+      },
+      MONDAY,
+    )
+    expect((await sealLetter(db, 'eve', OPEN, 'key-for-leo', MONDAY, BIRTHDAY)).status).toBe(
+      'sealed',
+    )
+    await deliver()
+
+    expect(await listKeptMantel(db, 'eve', LEO, FRIDAY)).toBeNull()
+    expect(await openKeptLetter(db, 'eve', LEO, OPEN, FRIDAY)).toBeNull()
+    expect((await listKeptMantel(db, 'bob', LEO, FRIDAY))![0]).toMatchObject({
+      name: 'Granny Eve',
+      sealed: true,
+    })
+  })
+
+  it('shows keepers who writes and who has been asked', async () => {
+    const asked = await createInvite(db, ann, 'new@example.com', MONDAY, LEO)
+    if (asked.status !== 'created') throw new Error(asked.status)
+    const invite = await createInvite(db, ann, 'eve@example.com', MONDAY, LEO)
+    if (invite.status !== 'created') throw new Error(invite.status)
+    await acceptInvite(db, invite.token, 'eve', MONDAY)
+
+    expect(await listWriters(db, 'eve', LEO, MONDAY)).toBeNull()
+    const view = (await listWriters(db, 'bob', LEO, MONDAY))!
+    expect(view.writers.map((writer) => writer.name).toSorted()).toEqual(['Ann Lee', 'Granny Eve'])
+    expect(view.invited).toMatchObject([{ email: 'new@example.com' }])
+  })
+
+  it('sends its own email, which uses the mantel name only if it is safe to print', () => {
+    const brand = { appName: 'Dear Mantel', appUrl: 'https://dearmantel.com' }
+    const mail = inviteEmail(brand, { inviterName: 'Ann Lee', token: 'tok', mantelName: 'Leo' })
+    expect(mail.subject).toBe('Ann Lee asks you to write to Leo')
+    expect(mail.text).toContain('keeps a mantel for Leo')
+    expect(mail.text).toContain('/invite/tok')
+
+    const odd = inviteEmail(brand, {
+      inviterName: 'Ann Lee',
+      token: 'tok',
+      mantelName: 'visit evil.example now',
+    })
+    expect(odd.subject).toBe('Ann Lee asks you to write to someone dear to them')
+    expect(odd.html).not.toContain('evil.example')
   })
 })

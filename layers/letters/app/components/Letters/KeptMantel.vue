@@ -17,6 +17,10 @@ interface City {
 
 const post = ref<{ city: string; country: string } | null>(null)
 const letters = ref<KeptItem[]>([])
+const writers = ref<{ userId: string; name: string }[]>([])
+const invited = ref<{ id: string; email: string }[]>([])
+const writerEmail = ref('')
+const inviteLink = ref<string | null>(null)
 const loaded = ref(false)
 const failure = ref<string | null>(null)
 const busy = ref(false)
@@ -28,12 +32,16 @@ const message = (error: unknown) =>
 
 async function load() {
   try {
-    const view = await $fetch<{ post: typeof post.value; letters: KeptItem[] }>(
-      '/api/letters/kept/list',
-      { method: 'POST', body: { mantelId: props.mantelId } },
-    )
+    const view = await $fetch<{
+      post: typeof post.value
+      letters: KeptItem[]
+      writers: typeof writers.value
+      invited: typeof invited.value
+    }>('/api/letters/kept/list', { method: 'POST', body: { mantelId: props.mantelId } })
     post.value = view.post
     letters.value = view.letters
+    writers.value = view.writers
+    invited.value = view.invited
   } catch (error) {
     failure.value = message(error)
   } finally {
@@ -87,6 +95,25 @@ async function write() {
     await navigateTo({ path: '/write', query: { to: made.correspondenceId } })
   } catch (error) {
     failure.value = message(error)
+    busy.value = false
+  }
+}
+
+async function invite() {
+  busy.value = true
+  failure.value = null
+  inviteLink.value = null
+  try {
+    const sent = await $fetch<{ link: string }>('/api/letters/invites', {
+      method: 'POST',
+      body: { email: writerEmail.value, mantelId: props.mantelId },
+    })
+    inviteLink.value = sent.link
+    writerEmail.value = ''
+    await load()
+  } catch (error) {
+    failure.value = message(error)
+  } finally {
     busy.value = false
   }
 }
@@ -165,6 +192,34 @@ function describe(letter: KeptItem): string {
           <UIcon v-else name="i-lucide-lock" class="size-5 text-dimmed" aria-hidden="true" />
         </li>
       </ul>
+
+      <h3 class="mt-4 text-lg text-highlighted">Who writes to {{ name }}</h3>
+      <p class="text-sm text-muted">
+        Its keepers can write from here. Ask grandparents, godparents or friends to write too: each
+        gets their own invitation, and none of them can read what the others wrote.
+      </p>
+      <ul v-if="writers.length || invited.length" class="flex flex-col divide-y divide-default">
+        <li v-for="writer in writers" :key="writer.userId" class="py-2 text-highlighted">
+          {{ writer.name }}
+        </li>
+        <li v-for="waiting in invited" :key="waiting.id" class="py-2 text-muted">
+          {{ waiting.email }} · invited
+        </li>
+      </ul>
+      <form class="flex flex-col gap-3" @submit.prevent="invite">
+        <UFormField label="Invite a writer by email" name="writer-email">
+          <UInput v-model="writerEmail" type="email" size="lg" class="w-full" autocomplete="off" />
+        </UFormField>
+        <UButton type="submit" class="self-start" :loading="busy" :disabled="!writerEmail.trim()">
+          Send invitation
+        </UButton>
+      </form>
+      <p v-if="inviteLink" class="text-sm text-muted">
+        Sent. You can also pass this link on yourself:
+        <span class="break-all text-default" data-testid="writer-invite-link">{{
+          inviteLink
+        }}</span>
+      </p>
     </template>
   </section>
 </template>
