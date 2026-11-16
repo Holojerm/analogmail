@@ -17,12 +17,14 @@ const bodySchema = z.object({
   correspondenceId: z.string().min(1).max(64),
   ciphertext: letterCiphertextSchema,
   wrappedKey: letterKeySchema,
+  inReplyTo: letterIdSchema.nullish(),
 })
 
 const REFUSALS = {
   'not-yours': [404, 'That letter is not yours.'],
   sealed: [409, 'That letter is sealed. Recall it to change it.'],
   closed: [409, 'You no longer write with this person.'],
+  'not-received': [400, 'That is not a letter you can reply to.'],
 } as const
 
 export default defineEventHandler(async (event) => {
