@@ -5,6 +5,8 @@
 // its arrival day shown, recalled before pickup, delivered days later on the
 // recipient's mail day, read there, and answered.
 
+import { readFile } from 'node:fs/promises'
+
 import { expect, test } from '../../../../test/e2e/fixtures'
 
 import { makePair, open } from './helpers'
@@ -126,6 +128,23 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
     await bob.waitForURL('**/desk')
     await bob.goto('/mantel', { waitUntil: 'networkidle' })
     await expect(bob.getByText('Unopened')).toHaveCount(0)
+
+    // ── He keeps a copy: made on his device, readable without Dear Mantel ────
+    await bob.getByRole('link', { name: 'Keep a copy of your letters' }).click()
+    await bob.waitForURL('**/archive')
+    await expect(bob.getByText('2 letters')).toBeVisible()
+    const saving = bob.waitForEvent('download')
+    await bob.getByRole('button', { name: 'Save a copy of your letters with Ann Tester' }).click()
+    const download = await saving
+    expect(download.suggestedFilename()).toMatch(/^Dear Mantel Ann Tester \d{4}-\d{2}-\d{2}\.zip$/)
+    await expect(bob.getByText('Saved 2 letters.')).toBeVisible()
+    const archive = (await readFile(await download.path())).toString('latin1')
+    expect(archive.startsWith('PK')).toBe(true)
+    for (const part of ['README.txt', 'letters.html', 'from Ann Tester.txt', 'to Ann Tester.txt']) {
+      expect(archive).toContain(part)
+    }
+    expect(archive).toContain(`${TEXT} Bring the dog.`)
+    expect(archive).toMatch(/photos\/001 \d{4}-\d{2}-\d{2} from Ann Tester\.jpg/)
 
     // ── Ann is told nothing: her desk has only what the postmark allows ──────
     await ann.goto('/desk', { waitUntil: 'networkidle' })

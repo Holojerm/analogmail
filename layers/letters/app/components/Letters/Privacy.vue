@@ -35,6 +35,12 @@
       public so the first can be checked.
     </p>
     <p>
+      <strong class="text-highlighted">Keeping a copy.</strong> You can save your letters to your
+      own device at any time, from the page called Keep a copy. The copy is put together in your
+      browser and is not encrypted, so it is yours to look after. Making it shows us nothing we
+      could not already see.
+    </p>
+    <p>
       <strong class="text-highlighted">Invitations.</strong> When you invite someone, we send one
       email to the address you give and keep that address until they accept or 30 days pass, then
       delete it.

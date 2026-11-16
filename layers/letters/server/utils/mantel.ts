@@ -8,7 +8,7 @@ import * as tables from '@nuxthub/db/schema'
 import type { MantelItem, OpenedLetter } from '../../shared/utils/mantel'
 import type { LettersDb } from './people'
 
-async function displayNames(db: LettersDb, ids: string[]): Promise<Map<string, string>> {
+export async function displayNames(db: LettersDb, ids: string[]): Promise<Map<string, string>> {
   const { users, people } = tables
   const names = new Map<string, string>()
   for (const id of new Set(ids)) {
