@@ -13,6 +13,8 @@ import { openCorrespondenceBetween } from './correspondences'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 
 import { recipientIdentity } from './recipients'
+import { otherMembers } from './drafts'
+import { canInviteToFamily } from './families'
 import { getDisplayName, type LettersDb } from './people'
 
 export function newInviteToken(): string {
@@ -29,8 +31,19 @@ export type CreateInviteResult =
       expiresAt: Date
       inviterName: string
       mantelName: string | null
+      familyName: string | null
     }
-  | { status: 'self' | 'needs-name' | 'already-writing' | 'pending' | 'too-many' | 'not-keeper' }
+  | {
+      status:
+        | 'self'
+        | 'needs-name'
+        | 'already-writing'
+        | 'pending'
+        | 'too-many'
+        | 'not-keeper'
+        | 'not-organiser'
+        | 'family-full'
+    }
 
 /**
  * Makes an invitation to `email`. The answer never says whether that address
@@ -44,6 +57,8 @@ export async function createInvite(
   now: Date,
   /** A mantel the inviter keeps: the invitation is then to write to it. */
   mantelId: string | null = null,
+  /** A family the inviter organises: the invitation is then to join it. */
+  familyId: string | null = null,
 ): Promise<CreateInviteResult> {
   const address = normalizeEmail(email)
   if (address === normalizeEmail(inviter.email)) return { status: 'self' }
@@ -51,6 +66,9 @@ export async function createInvite(
   if (mantelId && (!mantel?.mantel || !(await isKeeper(db, inviter.id, mantelId)))) {
     return { status: 'not-keeper' }
   }
+  const family = familyId ? await canInviteToFamily(db, inviter.id, familyId) : null
+  if (family === 'not-organiser') return { status: 'not-organiser' }
+  if (family === 'full') return { status: 'family-full' }
 
   const inviterName = await getDisplayName(db, inviter.id)
   if (!inviterName) return { status: 'needs-name' }
@@ -61,7 +79,11 @@ export async function createInvite(
     isNull(invites.acceptedAt),
     gt(invites.expiresAt, now),
   )
-  const sameKind = mantelId ? eq(invites.mantelId, mantelId) : isNull(invites.mantelId)
+  const sameKind = familyId
+    ? eq(invites.familyId, familyId)
+    : mantelId
+      ? eq(invites.mantelId, mantelId)
+      : and(isNull(invites.mantelId), isNull(invites.familyId))
   const [waiting] = await db
     .select({ id: invites.id })
     .from(invites)
@@ -74,8 +96,11 @@ export async function createInvite(
     .from(users)
     .where(eq(users.email, address))
     .limit(1)
-  if (existing && (await openCorrespondenceBetween(db, mantelId ?? inviter.id, existing.id))) {
-    return { status: 'already-writing' }
+  if (existing) {
+    const already = family
+      ? ((await otherMembers(db, family.correspondenceId, inviter.id)) ?? []).includes(existing.id)
+      : await openCorrespondenceBetween(db, mantelId ?? inviter.id, existing.id)
+    if (already) return { status: 'already-writing' }
   }
 
   const [total] = await db.select({ n: count() }).from(invites).where(open)
@@ -91,6 +116,7 @@ export async function createInvite(
       tokenHash: await hashInviteToken(token),
       expiresAt,
       mantelId,
+      familyId,
       createdAt: now,
     })
     .returning({ id: invites.id })
@@ -101,7 +127,17 @@ export async function createInvite(
     expiresAt,
     inviterName,
     mantelName: mantel?.name ?? null,
+    familyName: family?.name ?? null,
   }
+}
+
+async function familyNameOf(db: LettersDb, familyId: string): Promise<string | null> {
+  const [family] = await db
+    .select({ name: tables.families.name })
+    .from(tables.families)
+    .where(eq(tables.families.id, familyId))
+    .limit(1)
+  return family?.name ?? null
 }
 
 export async function findInviteRow(db: LettersDb, token: string) {
@@ -125,6 +161,7 @@ export async function viewInvite(db: LettersDb, token: string, now: Date): Promi
     inviterName,
     expiresAt: row.expiresAt.toISOString(),
     mantelName: row.mantelId ? (mantel?.name ?? null) : undefined,
+    familyName: row.familyId ? await familyNameOf(db, row.familyId) : undefined,
   }
 }
 
