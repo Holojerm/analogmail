@@ -135,8 +135,13 @@ The release tells a mantel's keepers through `registerNoticeAudience` (never a n
 mantel id). Keepers read through `kept-mantel.ts` only, which holds both gates: nothing before
 delivery, and for a letter with `opensOn` nothing (text, photo, key) before that day on the
 mantel's calendar, to keepers too. Opening is not post: no release, no notice, any weekday. Any
-new way to read a mantel's letters (export, print) must go through the same gate. Today only
-keepers write to a mantel; inviting other writers is not built.
+new way to read a mantel's letters (export, print) must go through the same gate. Keepers
+write from the mantel's page. Anyone else writes after a keeper invites them: the same
+invitation as between two people, with `invites.mantelId` set, its own email
+(`mantel-invite`), and acceptance making a correspondence with the mantel rather than with
+the keeper. A writer who is not a keeper reads nothing on the mantel, and no writer sees
+another's letters. A mantel's name is printed in that email only when it would pass as a
+display name (`mailableMantelName`).
 
 A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
 hour (`/welcome`). Those guards cover the landing page and letter pages only; account and

@@ -4,7 +4,7 @@
 // keepers included. The seal is this code withholding the letter plus a key
 // the server never has.
 
-import { and, desc, eq, isNull } from 'drizzle-orm'
+import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { isKeeper } from '#layers/keys/server/utils/mantels'
@@ -134,4 +134,39 @@ export async function readKeptPhoto(
   if (!row?.photoKey) return null
   if (isSealedOn(row.opensOn, await mantelToday(db, mantelId, now))) return null
   return store.get(row.photoKey)
+}
+
+/**
+ * Who writes to a kept mantel, and the invitations its keepers have waiting.
+ * Null for anyone who does not keep it.
+ */
+export async function listWriters(db: LettersDb, keeperId: string, mantelId: string, now: Date) {
+  const { correspondences, correspondenceMembers: members, invites, people, users } = tables
+  if (!(await isKeeper(db, keeperId, mantelId))) return null
+  const writers = await db
+    .select({ userId: members.userId, chosen: people.displayName, account: users.name })
+    .from(members)
+    .innerJoin(correspondences, eq(correspondences.id, members.correspondenceId))
+    .innerJoin(users, eq(users.id, members.userId))
+    .leftJoin(people, eq(people.userId, members.userId))
+    .where(
+      and(
+        eq(correspondences.mantelId, mantelId),
+        isNull(correspondences.closedAt),
+        isNull(members.leftAt),
+        ne(members.userId, mantelId),
+      ),
+    )
+  const waiting = await db
+    .select({ id: invites.id, email: invites.inviteeEmail, expiresAt: invites.expiresAt })
+    .from(invites)
+    .where(
+      and(eq(invites.mantelId, mantelId), isNull(invites.acceptedAt), gt(invites.expiresAt, now)),
+    )
+  return {
+    writers: writers.map((row) => ({ userId: row.userId, name: row.chosen ?? row.account })),
+    invited: waiting
+      .filter((row) => row.email)
+      .map((row) => ({ id: row.id, email: row.email!, expiresAt: row.expiresAt.toISOString() })),
+  }
 }
