@@ -15,7 +15,7 @@ import type { LettersDb } from './people'
 import type { PhotoStore } from './photos'
 
 /** Today's date where the mantel's post arrives. */
-async function mantelToday(db: LettersDb, mantelId: string, now: Date): Promise<string> {
+export async function mantelToday(db: LettersDb, mantelId: string, now: Date): Promise<string> {
   const { postalProfiles } = tables
   const [profile] = await db
     .select({ timeZone: postalProfiles.timeZone })
@@ -39,6 +39,7 @@ async function arrived(db: LettersDb, mantelId: string, letterId?: string) {
       arrivedOn: deliveries.mailDate,
       openedAt: deliveries.openedAt,
       opensOn: letters.opensOn,
+      origin: letters.origin,
       ciphertext: letters.ciphertext,
       photoKey: letters.photoKey,
       chosen: people.displayName,
@@ -76,6 +77,7 @@ export async function listKeptMantel(
     opened: Boolean(row.openedAt),
     opensOn: row.opensOn,
     sealed: isSealedOn(row.opensOn, today),
+    guest: row.origin === 'guest',
   }))
 }
 

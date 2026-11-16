@@ -175,7 +175,9 @@ function describe(letter: KeptItem): string {
         >
           <div class="min-w-0">
             <p class="text-highlighted">
-              {{ letter.name ? `From ${letter.name}` : 'A letter' }}
+              {{
+                letter.name ? `From ${letter.name}` : letter.guest ? 'A guest letter' : 'A letter'
+              }}
             </p>
             <p class="text-sm text-muted">{{ describe(letter) }}</p>
           </div>
