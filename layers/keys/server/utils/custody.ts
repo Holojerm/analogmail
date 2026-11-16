@@ -314,3 +314,73 @@ export async function withdrawProposal(
     .where(and(eq(mantelProposals.id, proposalId), isNull(mantelProposals.outcome)))
   return true
 }
+
+/** Seats offered to this person's address that they can still take or decline. */
+export async function offersFor(db: KeysDb, userId: string, now: Date) {
+  const { mantelProposals, mantels, users } = tables
+  const [user] = await db
+    .select({ email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+  if (!user) return []
+  const rows = await db
+    .select({
+      id: mantelProposals.id,
+      mantelName: mantels.name,
+      kind: mantels.kind,
+      role: mantelProposals.role,
+      acceptedAt: mantelProposals.acceptedAt,
+      expiresAt: mantelProposals.expiresAt,
+    })
+    .from(mantelProposals)
+    .innerJoin(mantels, eq(mantels.id, mantelProposals.mantelId))
+    .where(
+      and(
+        eq(mantelProposals.kind, 'add_keeper'),
+        eq(mantelProposals.subjectEmail, normalizeEmail(user.email)),
+        isNull(mantelProposals.outcome),
+      ),
+    )
+  return rows
+    .filter((row) => row.expiresAt > now)
+    .map(({ expiresAt: _expiresAt, acceptedAt, ...row }) => ({
+      ...row,
+      accepted: Boolean(acceptedAt),
+    }))
+}
+
+/** A mantel's open proposals, as one of its keepers sees them. */
+export async function proposalsOf(db: KeysDb, keeperId: string, mantelId: string, now: Date) {
+  const { mantelProposals, mantelVotes } = tables
+  const keepers = await keepersOf(db, mantelId)
+  const keeperIds = keepers.map((keeper) => keeper.userId)
+  if (!keeperIds.includes(keeperId)) return []
+  const open = await db
+    .select()
+    .from(mantelProposals)
+    .where(and(eq(mantelProposals.mantelId, mantelId), isNull(mantelProposals.outcome)))
+  const proposals = []
+  for (const proposal of open.filter((row) => row.expiresAt > now)) {
+    const votes = await db
+      .select({ userId: mantelVotes.userId })
+      .from(mantelVotes)
+      .where(eq(mantelVotes.proposalId, proposal.id))
+    const counted = votes.filter((vote) => keeperIds.includes(vote.userId))
+    proposals.push({
+      id: proposal.id,
+      kind: proposal.kind as 'add_keeper' | 'remove_keeper',
+      // A keeper typed this address, so keepers may see it.
+      email: proposal.subjectEmail,
+      subjectId: proposal.subjectId,
+      role: proposal.role,
+      mine: proposal.proposedBy === keeperId,
+      voted: counted.some((vote) => vote.userId === keeperId),
+      votes: counted.length,
+      keepers: keeperIds.length,
+      carried: carries(counted.length, keeperIds.length),
+      accepted: Boolean(proposal.acceptedAt),
+    })
+  }
+  return proposals
+}
