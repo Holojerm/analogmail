@@ -28,6 +28,7 @@ export async function acceptInvite(
   const { invites, correspondences, correspondenceMembers: members, postalProfiles } = tables
   const invite = await findInviteRow(db, token)
   if (!invite) return { status: 'unknown' }
+  // A keeper's own way to write to their mantel is the mantel's page.
   if (invite.inviterId === accepterId) return { status: 'own' }
   if (invite.acceptedAt && invite.acceptedBy !== accepterId) return { status: 'used' }
   if (invite.correspondenceId) {
@@ -53,14 +54,19 @@ export async function acceptInvite(
     if (claimed.length === 0) return acceptInvite(db, token, accepterId, now)
   }
 
-  const existing = await openCorrespondenceBetween(db, invite.inviterId, accepterId)
+  // To the inviter, or to the mantel they keep, which is a member under its
+  // own id.
+  const other = invite.mantelId ?? invite.inviterId
+  const existing = await openCorrespondenceBetween(db, other, accepterId)
   const correspondenceId = existing ?? crypto.randomUUID()
   const statements: BatchItem<'sqlite'>[] = existing
     ? []
     : [
-        db.insert(correspondences).values({ id: correspondenceId, createdAt: now }),
+        db
+          .insert(correspondences)
+          .values({ id: correspondenceId, mantelId: invite.mantelId, createdAt: now }),
         db.insert(members).values([
-          { correspondenceId, userId: invite.inviterId, createdAt: now },
+          { correspondenceId, userId: other, createdAt: now },
           { correspondenceId, userId: accepterId, createdAt: now },
         ]),
       ]
