@@ -1,6 +1,8 @@
 // The signed-in person's postal profile, fetched once and shared.
 
 export interface PostalProfile {
+  /** The city's id in the city list, for a page that offers "the city I live in". */
+  cityId: number | null
   cityName: string
   country: string
   timeZone: string

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // Where an invitation link lands. Anyone holding the link sees who sent it;
-// accepting needs an account, a name and a city.
+// accepting needs an account, a name and a city. Someone who presses the
+// button without an account is brought back here when they have one, and the
+// invitation is then accepted for them: they have already said yes.
 import type { InviteView } from '../../../shared/utils/invites'
 
 const route = useRoute()
 const token = String(route.params.token)
 const { loggedIn } = useUserSession()
+const { accept: acceptAndGo } = useAcceptInvite()
 
 const invite = ref<InviteView | null>(null)
 const name = ref<string | null>(null)
@@ -46,11 +49,14 @@ onMounted(async () => {
       method: 'POST',
       body: { token },
     })
+    const kept = pendingInvite()
+    const saidYes = kept?.token === token && kept.accepting
     if (invite.value.status !== 'open') forgetInvite()
-    else if (!loggedIn.value) rememberInvite(token)
+    else if (!loggedIn.value) remember(false)
     if (loggedIn.value) {
       name.value = (await $fetch<{ name: string | null }>('/api/letters/name')).name
       if (!name.value) needs.value = 'name'
+      else if (saidYes && invite.value.status === 'open') return await accept()
     }
   } catch {
     failure.value = 'Could not load this invitation. Try again.'
@@ -59,27 +65,27 @@ onMounted(async () => {
   }
 })
 
+/** Kept in this browser across sign-up; `accepting` once a button was pressed. */
+const remember = (accepting: boolean) =>
+  rememberInvite({ token, sender: invite.value?.inviterName ?? null, accepting })
+
 async function accept() {
   pending.value = true
   failure.value = null
-  try {
-    await $fetch('/api/letters/invites/accept', { method: 'POST', body: { token } })
+  const refusal = await acceptAndGo(
+    { token },
+    { sender: sender.value, mantelName: mantelName.value, familyName: familyName.value },
+  )
+  pending.value = false
+  if (!refusal) return forgetInvite()
+  if (refusal.reason === 'needs-name') needs.value = 'name'
+  else if (refusal.reason === 'needs-city') {
+    // The welcome page ends on /people, which brings them back here.
+    remember(true)
+    needs.value = 'city'
+  } else {
     forgetInvite()
-    await navigateTo('/people')
-  } catch (error) {
-    const data = (error as { data?: { message?: string; data?: { reason?: string } } }).data
-    const reason = data?.data?.reason
-    if (reason === 'needs-name') needs.value = 'name'
-    else if (reason === 'needs-city') {
-      // Sign-up ends on /people, which brings them back here.
-      rememberInvite(token)
-      needs.value = 'city'
-    } else {
-      forgetInvite()
-      failure.value = data?.message ?? 'Could not accept this invitation.'
-    }
-  } finally {
-    pending.value = false
+    failure.value = refusal.message
   }
 }
 
@@ -137,8 +143,17 @@ useSeo({
         />
 
         <div v-if="!loggedIn" class="flex flex-col gap-3">
-          <UButton to="/auth/sign-up" size="lg" block>Create an account to accept</UButton>
-          <UButton :to="signInPath" size="lg" block variant="outline" color="neutral">
+          <UButton to="/auth/sign-up" size="lg" block @click="remember(true)">
+            Create an account to accept
+          </UButton>
+          <UButton
+            :to="signInPath"
+            size="lg"
+            block
+            variant="outline"
+            color="neutral"
+            @click="remember(true)"
+          >
             I already have an account
           </UButton>
         </div>

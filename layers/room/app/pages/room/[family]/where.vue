@@ -58,8 +58,19 @@ async function act(request: () => Promise<unknown>) {
     busy.value = false
   }
 }
-const say = (city: City) =>
+const say = (city: Pick<City, 'id'>) =>
   act(() => $fetch(`${base}/checkins`, { method: 'POST', body: { cityId: city.id } }))
+
+// The city their post arrives in, offered as one press: most people are at
+// home, and typing the same city twice is a poor welcome. Nothing is said
+// until they press it.
+const postal = usePostalProfile()
+const home = ref<{ id: number; name: string } | null>(null)
+onMounted(async () => {
+  const profile = await postal.load().catch(() => null)
+  if (profile?.cityId) home.value = { id: profile.cityId, name: profile.cityName }
+})
+const offerHome = computed(() => home.value && mine.value?.city !== home.value.name)
 const forget = () => act(() => $fetch(`${base}/checkins/forget`, { method: 'POST' }))
 
 const since = (at: string) =>
@@ -128,7 +139,21 @@ useSeo({
           the gazette for the month you said it. Nobody is ever reminded to update it, and we never
           read your device's location.
         </p>
-        <UFormField label="Your city now" name="where-city" help="Start typing and pick it.">
+        <UButton
+          v-if="offerHome && home"
+          variant="outline"
+          color="neutral"
+          class="self-start"
+          :loading="busy"
+          @click="say(home)"
+        >
+          I am in {{ home.name }}
+        </UButton>
+        <UFormField
+          :label="offerHome ? 'Or another city' : 'Your city now'"
+          name="where-city"
+          help="Start typing and pick it."
+        >
           <UInput v-model="query" autocomplete="off" size="lg" class="w-full" />
           <ul v-if="options.length" class="mt-2 flex flex-col divide-y divide-default">
             <li v-for="city in options" :key="city.id">

@@ -1,7 +1,11 @@
 <script setup lang="ts">
-// The last step of sign-up: where mail arrives, on which days, at what hour.
+// The last step of sign-up: where mail arrives. Mail days and the hour start
+// as every weekday at ten and stay folded away, because a new person has no
+// reason yet to prefer anything else and can change both in settings. Other
+// layers add what they need asked here too (./../../utils/welcome-fields.ts).
 import { ALL_MAIL_DAYS, mailDaysFromWeekdays } from '../../../shared/utils/mail-days'
 import type { CityOption } from '../../composables/usePostalProfile'
+import type { WelcomeFieldHandle } from '../../utils/welcome-fields'
 
 definePageMeta({ middleware: 'auth' })
 
@@ -28,6 +32,9 @@ const days = ref(WEEKDAYS.map((day) => day.value))
 const hour = ref(10)
 const pending = ref(false)
 const failure = ref<string | null>(null)
+const choosingDays = ref(false)
+const extraFields = welcomeFields()
+const extras = useTemplateRef<WelcomeFieldHandle[]>('extras')
 
 const place = (option: CityOption) =>
   [option.name, option.region, option.country].filter(Boolean).join(', ')
@@ -55,13 +62,28 @@ const mailDays = computed(() =>
     ? ALL_MAIL_DAYS
     : mailDaysFromWeekdays(days.value.map(Number)),
 )
-const ready = computed(() => Boolean(city.value) && days.value.length > 0)
+const ready = computed(
+  () =>
+    Boolean(city.value) &&
+    days.value.length > 0 &&
+    // A field still loading has not been answered.
+    (extras.value ?? []).length === extraFields.length &&
+    (extras.value ?? []).every((extra) => extra.ready),
+)
+const rhythm = computed(() => {
+  const chosen = WEEKDAYS.filter((day) => days.value.includes(day.value)).map((day) => day.label)
+  const when = chosen.length === WEEKDAYS.length ? 'Monday to Saturday' : chosen.join(', ')
+  return `${when}, at ${HOURS.find((option) => option.value === hour.value)?.label}`
+})
 
 async function submit() {
   if (!city.value) return
   pending.value = true
   failure.value = null
   try {
+    for (const extra of extras.value ?? []) {
+      if (!(await extra.save())) return
+    }
     await postal.create({
       cityId: city.value.id,
       mailDays: mailDays.value,
@@ -82,7 +104,7 @@ onMounted(async () => {
 
 useSeo({
   title: 'Where your mail arrives',
-  description: 'Choose your city, your mail days and your delivery hour.',
+  description: 'Choose your city. Your mail days and delivery hour can be changed too.',
   noindex: true,
 })
 </script>
@@ -99,6 +121,13 @@ useSeo({
 
     <UCard>
       <form class="flex flex-col gap-6" @submit.prevent="submit">
+        <component
+          :is="field.component"
+          v-for="field in extraFields"
+          :key="field.id"
+          ref="extras"
+        />
+
         <UFormField label="Your city" name="city" help="Start typing and pick it from the list.">
           <UInput
             v-model="query"
@@ -122,17 +151,23 @@ useSeo({
           </ul>
         </UFormField>
 
-        <UFormField
-          label="Mail days"
-          name="days"
-          help="The days post arrives on your mantel. There is no post on Sunday."
-        >
-          <UCheckboxGroup v-model="days" :items="WEEKDAYS" />
-        </UFormField>
+        <template v-if="choosingDays">
+          <UFormField
+            label="Mail days"
+            name="days"
+            help="The days post arrives on your mantel. There is no post on Sunday."
+          >
+            <UCheckboxGroup v-model="days" :items="WEEKDAYS" />
+          </UFormField>
 
-        <UFormField label="Delivery hour" name="hour" help="Your local time.">
-          <USelect v-model="hour" :items="HOURS" size="lg" class="w-full" />
-        </UFormField>
+          <UFormField label="Delivery hour" name="hour" help="Your local time.">
+            <USelect v-model="hour" :items="HOURS" size="lg" class="w-full" />
+          </UFormField>
+        </template>
+        <p v-else class="text-sm text-muted">
+          Post will come {{ rhythm }}, your time.
+          <UButton variant="link" class="p-0" @click="choosingDays = true">Change</UButton>
+        </p>
 
         <UAlert
           v-if="failure"

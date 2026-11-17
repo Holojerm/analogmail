@@ -1,13 +1,18 @@
 // POST /api/letters/invites/accept — accept an invitation. This is the consent.
+// By its link (`token`), or, for the person it was sent to, by its `id`.
 
 import { db } from '@nuxthub/db'
 import { z } from 'zod'
 
 import { postNow } from '#layers/post/server/utils/clock'
 
-import { acceptInvite } from '../../../utils/accept-invite'
+import type { AcceptedInvite } from '../../../../shared/utils/invites'
+import { acceptInvite, acceptInviteSentTo } from '../../../utils/accept-invite'
 
-const bodySchema = z.object({ token: z.string().min(20).max(100) })
+const bodySchema = z.union([
+  z.object({ token: z.string().min(20).max(100) }),
+  z.object({ id: z.string().uuid() }),
+])
 
 const REFUSALS = {
   unknown: [404, 'This invitation does not exist.'],
@@ -18,7 +23,7 @@ const REFUSALS = {
   'needs-city': [409, 'Choose your city first.'],
 } as const
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<AcceptedInvite> => {
   const { user } = await requireUserSession(event)
   await rateLimit(event, {
     name: 'letters-accept',
@@ -26,12 +31,20 @@ export default defineEventHandler(async (event) => {
     windowSeconds: 60,
     identifier: user.id,
   })
-  const { token } = await readValidatedBody(event, bodySchema.parse)
+  const body = await readValidatedBody(event, bodySchema.parse)
 
-  const result = await acceptInvite(db, token, user.id, await postNow())
+  const now = await postNow()
+  const result =
+    'token' in body
+      ? await acceptInvite(db, body.token, user.id, now)
+      : await acceptInviteSentTo(db, body.id, user, now)
   if (result.status !== 'accepted') {
     const [statusCode, message] = REFUSALS[result.status]
     throw createError({ statusCode, message, data: { reason: result.status } })
   }
-  return { correspondenceId: result.correspondenceId }
+  return {
+    correspondenceId: result.correspondenceId,
+    kind: result.kind,
+    familyId: result.familyId,
+  }
 })

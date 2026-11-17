@@ -44,6 +44,8 @@ export async function getProfile(db: PostDb, userId: string) {
   const { postalProfiles } = tables
   const [profile] = await db
     .select({
+      // Null on a profile made before the city list was kept by id.
+      cityId: postalProfiles.cityId,
       cityName: postalProfiles.cityName,
       country: postalProfiles.country,
       timeZone: postalProfiles.timeZone,

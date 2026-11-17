@@ -14,7 +14,10 @@ const year = new Date().getFullYear()
 // Writing is quiet: on a phone the bar of places gives way to the paper and
 // the keyboard.
 const writing = computed(() => route.path === '/write' || route.path.startsWith('/w/'))
-const bar = computed(() => loggedIn.value && !writing.value)
+// A new account has two pages to finish before any place has something in
+// it; until then the places would only lead back to those pages.
+const settingUp = computed(() => route.path.startsWith('/welcome'))
+const bar = computed(() => loggedIn.value && !writing.value && !settingUp.value)
 // A "Sign in" button on the sign-in page would link to the page it is on.
 const signingIn = computed(() => route.path.startsWith('/auth/'))
 </script>
@@ -48,7 +51,7 @@ const signingIn = computed(() => route.path.startsWith('/auth/'))
           </NuxtLink>
 
           <div v-if="loggedIn" class="flex items-center gap-4">
-            <HousePlaces class="hidden sm:flex" />
+            <HousePlaces v-if="!settingUp" class="hidden sm:flex" />
             <HouseMenu />
           </div>
           <UButton
@@ -69,6 +72,7 @@ const signingIn = computed(() => route.path.startsWith('/auth/'))
          position. `main` is only ever focused programmatically, and a ring
          around the whole page reads as a rendering bug. design-check-ignore -->
     <UContainer id="main" as="main" tabindex="-1" class="flex-1 focus:outline-none">
+      <LettersSignUpSteps />
       <slot />
     </UContainer>
 

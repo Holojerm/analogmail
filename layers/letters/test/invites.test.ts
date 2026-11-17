@@ -10,10 +10,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import * as schema from '~~/server/db/schema'
 import { getAccountContributors, clearExtensionsForTest } from '#server/utils/extensions'
 
-import { acceptInvite } from '../server/utils/accept-invite'
+import { acceptInvite, acceptInviteSentTo } from '../server/utils/accept-invite'
 import { listPeople, openCorrespondenceBetween } from '../server/utils/correspondences'
 import { inviteEmail, inviteSubject } from '../server/utils/invite-email'
-import { createInvite, hashInviteToken, viewInvite, withdrawInvite } from '../server/utils/invites'
+import {
+  createInvite,
+  hashInviteToken,
+  listInvitesSentTo,
+  viewInvite,
+  withdrawInvite,
+} from '../server/utils/invites'
 import { purgeExpiredInvites, registerLettersExtensions } from '../server/utils/letters-extensions'
 import { getDisplayName, setDisplayName } from '../server/utils/people'
 import { displayNameSchema, INVITE_TTL_MS, MAX_OPEN_INVITES } from '../shared/utils/invites'
@@ -135,7 +141,7 @@ describe('accepting', () => {
     await settle('bob', 'Bob')
 
     const result = await acceptInvite(db, token, 'bob', later(DAY))
-    expect(result.status).toBe('accepted')
+    expect(result).toMatchObject({ status: 'accepted', kind: 'person', familyId: null })
 
     const members = await db.select().from(correspondenceMembers)
     expect(members.map((m) => m.userId).sort()).toEqual(['ann', 'bob'])
@@ -186,6 +192,37 @@ describe('accepting', () => {
       'unknown',
     )
     expect(await db.select().from(correspondences)).toHaveLength(0)
+  })
+
+  it('shows an invitation to the person it was sent to, who can accept it without the link', async () => {
+    const { id } = await invited()
+    await settle('bob', 'Bob')
+    const cy = { id: 'cy', email: 'cy@example.com' }
+
+    // Only the addressee sees it, and never the sender.
+    expect(await listInvitesSentTo(db, cy, NOW)).toEqual([])
+    expect(await listInvitesSentTo(db, ann, NOW)).toEqual([])
+    expect(await listInvitesSentTo(db, { id: 'bob', email: ' Bob@Example.com ' }, NOW)).toEqual([
+      {
+        id,
+        kind: 'person',
+        inviterName: 'Ann Lee',
+        mantelName: null,
+        familyName: null,
+        expiresAt: later(INVITE_TTL_MS).toISOString(),
+      },
+    ])
+    expect(await listInvitesSentTo(db, bob, later(INVITE_TTL_MS))).toEqual([])
+
+    // Someone else cannot accept it by its id, even knowing the id.
+    await settle('cy', 'Cy')
+    expect((await acceptInviteSentTo(db, id, cy, NOW)).status).toBe('unknown')
+    const first = await acceptInviteSentTo(db, id, bob, NOW)
+    expect(first).toMatchObject({ status: 'accepted', kind: 'person' })
+    // Safe to repeat although the address is gone from the row by now.
+    expect(await acceptInviteSentTo(db, id, bob, NOW)).toEqual(first)
+    expect(await listInvitesSentTo(db, bob, NOW)).toEqual([])
+    expect(await db.select().from(correspondences)).toHaveLength(1)
   })
 
   it('reuses the correspondence two people already share', async () => {

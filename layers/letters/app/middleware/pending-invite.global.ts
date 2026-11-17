@@ -6,9 +6,9 @@
 export default defineNuxtRouteMiddleware((to) => {
   if (import.meta.server || to.path !== '/people') return
   if (!useUserSession().loggedIn.value) return
-  const token = pendingInvite()
-  if (!token) return
-  const target = `/invite/${encodeURIComponent(token)}`
+  const invite = pendingInvite()
+  if (!invite) return
+  const target = `/invite/${encodeURIComponent(invite.token)}`
   if (useNuxtApp().isHydrating) {
     onNuxtReady(() => navigateTo(target))
     return
