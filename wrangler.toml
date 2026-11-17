@@ -202,7 +202,7 @@ NUXT_EMAIL_QUEUE_NAME = "dearmantel-email"
 # infer it from. Set it to your real domain before the first production deploy.
 NUXT_PUBLIC_APP_URL = "https://dearmantel.com"
 # Named on /terms and /privacy, and used as Reply-To on transactional email.
-NUXT_PUBLIC_SUPPORT_EMAIL = "support@example.com"
+NUXT_PUBLIC_SUPPORT_EMAIL = "support@dearmantel.com"
 NUXT_PUBLIC_LEGAL_ENTITY = "Jeremy Ettlinger"
 # Cloudflare Turnstile site key (public by design — it names the widget, it
 # authorises nothing). Empty = no widget renders and no challenge script loads.
@@ -335,7 +335,7 @@ NUXT_EMAIL_QUEUE_NAME = "dearmantel-email-preview"
 # canonical tags and sitemap entries are built from, so pointing it at the
 # stable preview origin keeps them from claiming to be production.
 NUXT_PUBLIC_APP_URL = "https://dearmantel-preview.jeremy-ettlinger.workers.dev"
-NUXT_PUBLIC_SUPPORT_EMAIL = "support@example.com"
+NUXT_PUBLIC_SUPPORT_EMAIL = "support@dearmantel.com"
 NUXT_PUBLIC_LEGAL_ENTITY = "Jeremy Ettlinger"
 # The point of the whole block, from an SEO angle: robots.txt disallows
 # everything, every page renders noindex, and sitemap.xml and llms.txt go empty.

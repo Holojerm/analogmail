@@ -19,5 +19,9 @@
     "activation": { "event": "user_activated", "withinDays": 7 },
     "retention": { "event": "$pageview", "window": "weekly" }
   },
-  "secrets": ["NUXT_SESSION_PASSWORD"]
+  "secrets": [
+    "NUXT_SESSION_PASSWORD",
+    "NUXT_RESEND_API_KEY",
+    "NUXT_POST_RESEND_WEBHOOK_SECRET"
+  ]
 }
