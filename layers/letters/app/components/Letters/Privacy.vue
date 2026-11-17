@@ -24,7 +24,9 @@
     <p>
       <strong class="text-highlighted">Your keys.</strong> Your private key is made on your device.
       We keep copies of it locked under your password, your passkeys and your recovery code, none of
-      which we have. If you lose all of those, we can restore your account by email, but nobody can
+      which we have. A password can be guessed, though: someone who stole our database could try
+      passwords against the locked copy, slowly, so a long password that you use nowhere else is
+      what protects it. If you lose all three, we can restore your account by email, but nobody can
       restore the letters.
     </p>
     <p>

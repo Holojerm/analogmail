@@ -34,10 +34,13 @@ export function useMantelKeys() {
     return id
   }
 
+  // Worked out from the key this device holds, never asked of the server: a
+  // mantel's key wrapped to a public key the server chose would be the
+  // server's to open.
   async function myPublicKey(): Promise<string> {
-    const stored = await $fetch<{ keys: { publicKey: string } | null }>('/api/keys')
-    if (!stored.keys) throw new Error('This account has no keys')
-    return stored.keys.publicKey
+    const privateKey = await keys.privateKey()
+    if (!privateKey) throw new Error('This device does not hold your key')
+    return publicKeyOf(privateKey)
   }
 
   /** This keeper's copy of the mantel's private key, opened. Null if this device cannot. */

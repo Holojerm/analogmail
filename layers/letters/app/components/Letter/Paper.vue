@@ -11,8 +11,10 @@ defineProps<{
 </script>
 
 <template>
+  <!-- `ph-no-capture`: if analytics is ever switched on, autocapture and
+       session replay skip this element. A decrypted letter is never recorded. -->
   <article
-    class="rounded-sm border border-default px-6 py-8 sm:px-10 sm:py-12"
+    class="ph-no-capture rounded-sm border border-default px-6 py-8 sm:px-10 sm:py-12"
     :class="stationeryClass(doc.stationery)"
   >
     <LetterRichText :doc="doc.content" />

@@ -43,6 +43,19 @@ export function importPrivateKey(pkcs8: Uint8Array<ArrayBuffer>): Promise<Crypto
   return crypto.subtle.importKey('pkcs8', pkcs8, CURVE, true, ['deriveBits'])
 }
 
+/**
+ * The public half of a private key, worked out on this device (SPKI,
+ * base64url). The server's copy of an account's public key is a claim. What a
+ * device wraps to itself is wrapped to this, never to what the server says:
+ * otherwise a swapped row would have a mantel's key, or a letter's, wrapped to
+ * someone else.
+ */
+export async function publicKeyOf(privateKey: CryptoKey): Promise<string> {
+  const { kty, crv, x, y } = await crypto.subtle.exportKey('jwk', privateKey)
+  const publicKey = await crypto.subtle.importKey('jwk', { kty, crv, x, y }, CURVE, true, [])
+  return toBase64Url(new Uint8Array(await crypto.subtle.exportKey('spki', publicKey)))
+}
+
 export async function exportPrivateKey(key: CryptoKey): Promise<Uint8Array<ArrayBuffer>> {
   return new Uint8Array(await crypto.subtle.exportKey('pkcs8', key))
 }
