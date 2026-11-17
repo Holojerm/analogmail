@@ -52,6 +52,7 @@
     "deploy:ci": "bun run db:migrate:remote && wrangler --cwd .output deploy && bun run deploy:smoke",
     "build:preview": "CLOUDFLARE_ENV=preview nuxt build",
     "deploy:preview": "CLOUDFLARE_ENV=preview nuxt build && wrangler --cwd .output deploy",
+    "mcp:check": "bun run scripts/check-mcp.ts",
     "migrations:check": "bun run scripts/check-migrations.ts",
     "deploy:smoke": "bun run scripts/deploy-smoke.ts"
   },

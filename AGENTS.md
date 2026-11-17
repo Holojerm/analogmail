@@ -488,6 +488,7 @@ bun run seo:check     # Fail on pages that bypass useSeo() or aren't declared pu
 bun run fleet:check   # Fail when fleet.json stops matching wrangler.toml (names, binding ids, crons)
 bun run crons:check   # Fail when [triggers] crons and nitro.scheduledTasks disagree, or a task has no file
 bun run methods:check # Fail when a get/head/delete server route reads a request body (hangs on Workers)
+bun run mcp:check     # The template's MCP listing gate. This app has no mcp/ worker, so it passes with nothing to check
 bun run test:a11y     # Playwright/Chromium browser suites: axe over every public route
                       # (light + dark) AND the Content-Security-Policy spec (test/csp/)
 bun typecheck         # TypeScript type checking
@@ -501,7 +502,7 @@ bun seed              # Seed dev DB via bun:sqlite (writes to .data/db/sqlite.db
 bun run rename <name> # Rewrite the `my-app` placeholder across wrangler.toml, package.json,
                       # .mcp.json.example and fleet.json — every occurrence, in one go
 bun run ci            # Every gate, concurrently (scripts/ci.ts): format (writes; checks in CI), email:build, lint,
-                      # design/brand/seo/fleet/crons/methods, migrations:check (schema.ts vs migrations, expand-only),
+                      # design/brand/seo/fleet/crons/methods/mcp, migrations:check (schema.ts vs migrations, expand-only),
                       # typecheck, test, build. Workers Builds runs this on non-production branches (the PR
                       # gate; production builds run typecheck + build only). NO browser suites: that image cannot
                       # launch Chromium (see Gotchas). CI_SERIAL=1 runs the gates one at a time.
