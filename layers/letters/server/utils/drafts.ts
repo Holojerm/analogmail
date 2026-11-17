@@ -4,7 +4,10 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
+import { isKeeper } from '#layers/keys/server/utils/mantels'
+
 import { hasReceived } from './mantel'
+import { newsMantelOf } from './news'
 import type { LettersDb } from './people'
 import type { PhotoStore } from './photos'
 
@@ -73,8 +76,14 @@ export async function saveDraft(
       .where(and(eq(letters.id, draft.id), isNull(letters.sealedAt)))
     return 'saved'
   }
-  // Open, with someone to write to: a family of one has nobody yet.
-  if (!(await otherMembers(db, draft.correspondenceId, authorId))?.length) return 'closed'
+  const news = await newsMantelOf(db, draft.correspondenceId)
+  if (news) {
+    // News is written by the child's keepers and answered by nobody.
+    if (!(await isKeeper(db, authorId, news.mantelId)) || draft.inReplyTo) return 'closed'
+  } else if (!(await otherMembers(db, draft.correspondenceId, authorId))?.length) {
+    // Open, with someone to write to: a family of one has nobody yet.
+    return 'closed'
+  }
   if (draft.inReplyTo) {
     // A reply answers a letter that has arrived, in the same correspondence.
     const [answered] = await db

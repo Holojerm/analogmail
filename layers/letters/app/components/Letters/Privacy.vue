@@ -63,6 +63,15 @@
       join: earlier letters were never locked to their key, and we cannot change that for them.
     </p>
     <p>
+      <strong class="text-highlighted">News of a child.</strong> The people who keep a child's
+      mantel can send a letter of news to the people they have invited to read it. It is a letter
+      like any other: encrypted, with a separate copy of its key for each reader, and for the
+      child's mantel when the writer chooses. We can see who reads a child's news and when a letter
+      of it is sent, never what it says. The readers are shown only to the mantel's keepers: nobody
+      who gets the news is told who else does. A reader can stop at any time, and so can a keeper
+      stop them; copies still on their way to that person are then deleted.
+    </p>
+    <p>
       <strong class="text-highlighted">Mantels kept for someone else.</strong> A child's mantel, or
       a couple's, has a key of its own. Its keepers each hold a copy, locked to their own key, and
       one more copy is locked under a printed recovery code. We hold none that we can open. When

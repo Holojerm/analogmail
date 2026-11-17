@@ -85,6 +85,9 @@ export const invites = sqliteTable(
     mantelId: text('mantel_id'),
     // Set when the invitation is to join a family.
     familyId: text('family_id'),
+    // With `mantelId`: the invitation is to read the child's news, not to
+    // write to the mantel.
+    news: integer('news', { mode: 'boolean' }).notNull().default(false),
     ...timestamps,
   },
   (table) => [
@@ -92,6 +95,14 @@ export const invites = sqliteTable(
     index('invites_expires_idx').on(table.expiresAt),
   ],
 )
+
+// News of a child: the one correspondence its keepers write in and the people
+// they invited read from. Who reads it is that correspondence's members.
+export const mantelNews = sqliteTable('mantel_news', {
+  mantelId: text('mantel_id').primaryKey(),
+  correspondenceId: text('correspondence_id').notNull().unique(),
+  ...timestamps,
+})
 
 // A draft until sealed. Everything a reader would recognise as the letter
 // (text, stationery, signature, the photo's id and description) is inside

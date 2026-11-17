@@ -140,6 +140,7 @@ The words are part of the design. Most of what makes this product feel slow is h
 | people you write with | friends list, contacts, followers |
 | family, family room | group, team, workspace, channel |
 | keeper (of a child's mantel) | admin, owner, manager |
+| news of Leo; the people who get it | newsletter, updates, feed, subscribers, followers |
 | encrypted / not encrypted | secure, safe, protected, military-grade |
 | keep a copy | export, download your data, backup |
 

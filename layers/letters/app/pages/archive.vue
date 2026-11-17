@@ -15,7 +15,8 @@ const working = ref<string | null>(null)
 const progress = ref('')
 const outcome = ref<{ id: string; text: string; failed: boolean } | null>(null)
 
-const title = (shelf: ArchiveShelf) => shelf.name || 'Someone who has left'
+const title = (shelf: ArchiveShelf) =>
+  shelf.kind === 'news' ? `news of ${shelf.name}` : shelf.name || 'Someone who has left'
 const count = (n: number) => `${n} ${n === 1 ? 'letter' : 'letters'}`
 
 function today(): string {

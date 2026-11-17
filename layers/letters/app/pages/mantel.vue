@@ -24,6 +24,9 @@ const kept = computed(() => keeping.value?.mantels ?? [])
 const asked = computed(() => (keeping.value?.offers ?? []).length > 0)
 
 function title(item: MantelItem): string {
+  if (item.news) {
+    return item.kind === 'return' ? `Returned: your news of ${item.news}` : `News of ${item.news}`
+  }
   if (item.kind === 'return') {
     return item.name ? `Returned: your letter to ${item.name}` : 'Returned: your letter'
   }

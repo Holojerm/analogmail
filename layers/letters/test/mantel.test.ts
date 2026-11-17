@@ -110,6 +110,7 @@ describe('after delivery', () => {
         correspondenceId: 'pair',
         kind: 'letter',
         name: 'Ann Lee',
+        news: null,
         postmark: '2026-11-16',
         arrivedOn: '2026-11-20',
         opened: false,

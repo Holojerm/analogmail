@@ -18,6 +18,8 @@ const bodySchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullish(),
+  /** News of a child only: also send a copy to the child's mantel. */
+  withChild: z.boolean().optional(),
 })
 
 const REFUSALS = {
@@ -26,6 +28,7 @@ const REFUSALS = {
   closed: [409, 'You no longer write with this person.'],
   'sender-needs-city': [409, 'Choose your city first.'],
   'recipient-not-ready': [409, 'They have not finished setting up yet.'],
+  'no-readers': [409, 'Nobody gets this news yet. Invite someone, or keep a copy for the child.'],
   'cannot-seal-until': [400, 'That is not a day this letter can be sealed until.'],
   'readers-changed': [409, 'Who reads this letter has changed. Look again, then seal it.'],
 } as const
@@ -46,6 +49,7 @@ export default defineEventHandler(async (event) => {
     body.wrappedKeys,
     await postNow(),
     body.opensOn ?? null,
+    body.withChild ?? false,
   )
   if (result.status !== 'sealed') {
     const [statusCode, message] = REFUSALS[result.status]

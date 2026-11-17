@@ -31,6 +31,13 @@ export const SAMPLES: Record<string, EmailSample> = {
     expiresDays: 30,
     mantelName: 'Leo',
   },
+  'news-invite': {
+    ...brand,
+    inviterName: 'Ada Lovelace',
+    url: `${brand.appUrl}/invite/3q2-8wZk1fYb7Jm4Xc9RtLpNv6HsQeUa0DgKoIiTyBw`,
+    expiresDays: 30,
+    mantelName: 'Leo',
+  },
   'family-invite': {
     ...brand,
     inviterName: 'Ada Lovelace',

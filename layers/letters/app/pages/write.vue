@@ -32,6 +32,8 @@ interface SealPlan {
   toFamily: boolean
   /** A kept mantel: the letter may be sealed until a day. */
   toMantel: boolean
+  /** The child's name when this is news of them. */
+  news: string | null
   zone: string
   pickupAt: string
   arrives: string
@@ -55,6 +57,8 @@ const plan = ref<SealPlan | null>(null)
 const confirming = ref(false)
 const sealing = ref(false)
 const opensOn = ref('')
+// News of a child: whether the child's own mantel gets a copy of this letter.
+const withChild = ref(true)
 const inReplyTo = ref<string | null>(null)
 const answered = ref<ReadLetter | null>(null)
 const photo = ref<LetterPhoto | undefined>()
@@ -81,7 +85,7 @@ async function loadPlan() {
   try {
     plan.value = await $fetch<SealPlan>('/api/letters/seal-plan', {
       method: 'POST',
-      body: { correspondenceId: correspondenceId.value },
+      body: { correspondenceId: correspondenceId.value, withChild: withChild.value },
     })
   } catch (error) {
     plan.value = null
@@ -220,6 +224,7 @@ async function seal() {
           ),
         ),
         opensOn: plan.value.toMantel && opensOn.value ? opensOn.value : null,
+        withChild: withChild.value,
       },
     })
     await sendOff.play()
@@ -246,7 +251,13 @@ useSeo({
   <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
     <LetterSendOff v-if="sendOff.playing.value" />
     <h1 class="text-3xl text-highlighted">
-      {{ plan ? `A letter to ${plan.recipientName}` : 'A letter' }}
+      {{
+        plan?.news
+          ? `News of ${plan.news}`
+          : plan
+            ? `A letter to ${plan.recipientName}`
+            : 'A letter'
+      }}
     </h1>
 
     <p v-if="loading" class="text-muted" role="status">Opening…</p>
@@ -334,7 +345,16 @@ useSeo({
 
         <UCard v-if="confirming && plan">
           <div class="flex flex-col gap-4">
-            <template v-if="plan.toFamily">
+            <!-- News of a child: who it goes to is the writer's to see, and the
+                 child's own copy is theirs to choose. -->
+            <UCheckbox
+              v-if="plan.news"
+              v-model="withChild"
+              :label="`Put a copy on ${plan.news}'s mantel too`"
+              description="For them to find when the mantel is theirs."
+              @update:model-value="loadPlan"
+            />
+            <template v-if="plan.toFamily || plan.news">
               <p class="text-highlighted">
                 It will be collected {{ pickupTime(plan.pickupAt, plan.zone) }}. Each of them gets
                 their own copy, on their own post:
