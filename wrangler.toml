@@ -208,14 +208,12 @@ NUXT_PUBLIC_LEGAL_ENTITY = "Jeremy Ettlinger"
 # authorises nothing). Empty = no widget renders and no challenge script loads.
 # Its partner, NUXT_TURNSTILE_SECRET_KEY, is a secret — see the list below.
 #
-# Ships EMPTY on purpose. Set it together with the secret, never alone: a site
-# key whose secret is unset is the one bad state the template warns about —
-# the widget renders, nothing verifies it, and server/utils/turnstile.ts logs
-# `turnstile_half_configured`. Shipping a site key here meant every fork went
-# to production in exactly that state until someone noticed the log line.
+# The widget "Dear Mantel" (dearmantel.com only). It goes with the secret,
+# never alone: a site key whose secret is unset renders a widget nothing
+# verifies, and server/utils/turnstile.ts logs `turnstile_half_configured`.
 # To try it locally, Cloudflare's always-passes test pair is site key
 # 1x00000000000000000000AA and secret 1x0000000000000000000000000000000AA.
-NUXT_PUBLIC_TURNSTILE_SITE_KEY = ""
+NUXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAGElO5nio-ZGQKJ5"
 # PostHog project token — public by design; it ships in the client bundle and
 # authorises nothing but ingestion. Events travel through the app's own
 # /ingest reverse proxy, so no *.posthog.com origin is added to the CSP.
