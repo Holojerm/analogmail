@@ -18,6 +18,13 @@ const { data: notificationPrefs, refresh: refreshNotificationPrefs } = await use
   '/api/account/notifications',
 )
 const notificationPending = ref<string | null>(null)
+// Dear Mantel sends no tips and no product mail (its promise is "no nudges"),
+// so the template's switches for them are not shown: a switch for mail that
+// never comes would say otherwise.
+const SENT_HERE = ['welcome']
+const emailSwitches = computed(() =>
+  (notificationPrefs.value?.preferences ?? []).filter((pref) => SENT_HERE.includes(pref.eventType)),
+)
 
 async function toggleNotification(eventType: string, enabled: boolean): Promise<void> {
   notificationPending.value = eventType
@@ -181,7 +188,7 @@ useSeo({
              next to the control with a real <label>), so this doesn't also
              need a UFormField wrapper — that would just double up the label. -->
         <USwitch
-          v-for="pref in notificationPrefs?.preferences ?? []"
+          v-for="pref in emailSwitches"
           :key="pref.eventType"
           :model-value="pref.enabled"
           :label="pref.label"
