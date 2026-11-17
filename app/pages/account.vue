@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Everything a customer needs to do to themselves, in one page: email
-// preferences, signing out, and taking or deleting their data.
+// Everything a customer needs to do to themselves, in one page: signing out,
+// sign-in, and taking or deleting their data.
 
 definePageMeta({ middleware: 'auth' })
 
@@ -9,34 +9,10 @@ const { signOut, pending: signOutPending } = useSignOut()
 const toast = useToast()
 const config = useRuntimeConfig()
 
-// ── Email preferences ───────────────────────────────────────────────────────
-// One row per optional event type (welcome/onboarding today; product-update
-// mail a later wave adds). Security email never shows
-// up here — there is nothing to toggle, and a switch that silently didn't
-// work would be worse than no switch (server/api/account/notifications.get.ts).
-const { data: notificationPrefs, refresh: refreshNotificationPrefs } = await useFetch(
-  '/api/account/notifications',
-)
-const notificationPending = ref<string | null>(null)
-// Dear Mantel sends no tips and no product mail (its promise is "no nudges"),
-// so the template's switches for them are not shown: a switch for mail that
-// never comes would say otherwise.
-const SENT_HERE = ['welcome']
-const emailSwitches = computed(() =>
-  (notificationPrefs.value?.preferences ?? []).filter((pref) => SENT_HERE.includes(pref.eventType)),
-)
-
-async function toggleNotification(eventType: string, enabled: boolean): Promise<void> {
-  notificationPending.value = eventType
-  try {
-    await $fetch('/api/account/notifications', { method: 'PUT', body: { eventType, enabled } })
-    await refreshNotificationPrefs()
-  } catch {
-    toast.add({ title: 'Could not update that preference', color: 'error' })
-  } finally {
-    notificationPending.value = null
-  }
-}
+// No "Email preferences" section: the template's switches are for tips and
+// product mail, which Dear Mantel never sends ("no nudges"), and for the
+// welcome email, which has gone before this page can be reached. Every email
+// left is one a person needs.
 
 // No `?unsubscribed=` toast here any more: an email footer's unsubscribe link
 // now lands on /unsubscribe, which is public and shows its own confirmation.
@@ -175,33 +151,6 @@ useSeo({
           </UButton>
         </div>
       </template>
-    </UCard>
-
-    <!-- Email preferences -->
-    <UCard>
-      <template #header>
-        <h2 class="text-xl text-highlighted">Email preferences</h2>
-      </template>
-
-      <div class="flex flex-col gap-4">
-        <!-- USwitch carries its own label/description (Nuxt UI renders both
-             next to the control with a real <label>), so this doesn't also
-             need a UFormField wrapper — that would just double up the label. -->
-        <USwitch
-          v-for="pref in emailSwitches"
-          :key="pref.eventType"
-          :model-value="pref.enabled"
-          :label="pref.label"
-          :description="pref.description"
-          :loading="notificationPending === pref.eventType"
-          @update:model-value="(value) => toggleNotification(pref.eventType, Boolean(value))"
-        />
-
-        <p class="text-sm text-muted">
-          Security email can't be turned off — it covers things like sign-in links and account
-          access.
-        </p>
-      </div>
     </UCard>
 
     <UCard>
