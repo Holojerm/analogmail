@@ -103,8 +103,9 @@ export async function buildArchive(
 ): Promise<ArchiveResult> {
   const who = shelf.name || 'someone who has left'
   const title =
-    { family: `Letters in ${who}`, kept: `Letters to ${who}` }[shelf.kind as string] ??
-    `Letters with ${who}`
+    { family: `Letters in ${who}`, kept: `Letters to ${who}`, news: `News of ${who}` }[
+      shelf.kind as string
+    ] ?? `Letters with ${who}`
   const files: ZipFile[] = []
   const page: ArchivePageLetter[] = []
   let skipped = 0

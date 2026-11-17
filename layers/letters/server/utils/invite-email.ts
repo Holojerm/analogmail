@@ -16,6 +16,7 @@ export function inviteEmail(
     token: string
     mantelName?: string | null
     familyName?: string | null
+    news?: boolean
   },
 ): EmailContent {
   if (invite.familyName) {
@@ -27,6 +28,20 @@ export function inviteEmail(
         inviterName: invite.inviterName,
         // A family's name is held to the display-name rule when it is made.
         familyName: invite.familyName,
+        url: inviteLink(brand.appUrl, invite.token),
+        expiresDays: INVITE_TTL_DAYS,
+      },
+    )
+  }
+  if (invite.mantelName && invite.news) {
+    const mantelName = mailableMantelName(invite.mantelName)
+    return composeEmail(
+      'news-invite',
+      `${invite.inviterName} would like to send you news of ${mantelName}`,
+      brand,
+      {
+        inviterName: invite.inviterName,
+        mantelName,
         url: inviteLink(brand.appUrl, invite.token),
         expiresDays: INVITE_TTL_DAYS,
       },

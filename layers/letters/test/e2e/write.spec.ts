@@ -251,3 +251,108 @@ test('a kept mantel takes letters, and a sealed one stays sealed', async ({ brow
 
   await close()
 })
+
+const NEWS = 'Leo walked today. Four steps, from the sofa to the dog.'
+
+test('news of a child: asked for, sent, read, and not answered', async ({ browser, baseURL }) => {
+  test.setTimeout(180_000)
+  const { ann, bob, close } = await makePair(browser, baseURL!)
+
+  // ── Ann opens Leo's mantel and asks Bob to read his news ───────────────────
+  await open(ann, '/mantels/new')
+  await ann.getByLabel('Whose mantel is it?').fill('Leo')
+  await ann.getByRole('button', { name: 'Open the mantel' }).click()
+  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
+  const mantelId = new URL(ann.url()).pathname.split('/').pop()!
+  await ann.getByLabel("The mantel's city").fill('Chicago')
+  await ann
+    .getByRole('button', { name: /^Chicago/ })
+    .first()
+    .click()
+  await expect(ann.getByText(/Its post arrives in Chicago/)).toBeVisible()
+  await expect(
+    ann.getByText('Nobody yet, apart from the people who keep this mantel.'),
+  ).toBeVisible()
+  const session = (await (await bob.request.get('/api/_auth/session')).json()) as {
+    user: { id: string; email: string }
+  }
+  await ann.getByLabel('Ask someone to read it').fill(session.user.email)
+  await ann.getByRole('button', { name: 'Send the invitation' }).click()
+  const link = new URL((await ann.getByTestId('news-invite-link').innerText()).trim())
+
+  // ── Bob accepts: it is news to read, not someone to write to ───────────────
+  await open(bob, link.pathname)
+  await expect(
+    bob.getByRole('heading', { name: 'Ann Tester would like to send you news of Leo' }),
+  ).toBeVisible()
+  await bob.getByRole('button', { name: 'Accept the invitation' }).click()
+  await bob.waitForURL('**/people')
+  await expect(bob.getByText('News of Leo')).toBeVisible()
+  await expect(bob.getByRole('link', { name: 'Write to Leo' })).toHaveCount(0)
+
+  // ── Ann writes the news; Leo's own mantel gets a copy unless she says not ──
+  await open(ann, `/mantels/${mantelId}`)
+  await expect(ann.getByRole('button', { name: 'Stop sending news to Bob Tester' })).toBeVisible()
+  await ann.getByRole('link', { name: 'Write news of Leo' }).click()
+  await ann.waitForURL('**/write?to=*')
+  await expect(ann.getByRole('heading', { name: 'News of Leo' })).toBeVisible()
+  const newsId = new URL(ann.url()).searchParams.get('to')!
+  await ann.getByLabel('Your letter').fill(NEWS)
+  await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
+  await ann.getByRole('button', { name: 'Seal the letter' }).click()
+  await expect(ann.getByLabel("Put a copy on Leo's mantel too")).toBeChecked()
+  await expect(ann.getByText('Bob Tester · arrives')).toBeVisible()
+  await expect(ann.getByText('Leo · arrives')).toBeVisible()
+  await ann.getByRole('button', { name: 'Seal and post' }).click()
+  await ann.waitForURL('**/desk')
+  await expect(ann.getByText('To everyone who gets news of Leo')).toBeVisible()
+
+  try {
+    // ── It comes to Bob like any letter, days later ──────────────────────────
+    for (let day = 0; day < 6; day += 1) {
+      await ann.request.post('/api/dev/clock', {
+        data: { action: 'mail-day', userId: session.user.id },
+      })
+      await bob.goto('/mantel', { waitUntil: 'networkidle' })
+      if ((await bob.getByText('News of Leo').count()) > 0) break
+    }
+    await bob.getByRole('link', { name: /News of Leo/ }).click()
+    await expect(bob.getByText(NEWS)).toBeVisible()
+    // Set in capitals by CSS, so the case is not the text's.
+    await expect(bob.getByText(/from ann tester\s+·\s+postmarked/i)).toBeVisible()
+    await expect(bob.getByRole('link', { name: 'Reply' })).toHaveCount(0)
+
+    // ── He cannot write in it, or learn who else reads it ────────────────────
+    expect(
+      (
+        await bob.request.post('/api/letters/seal-plan', { data: { correspondenceId: newsId } })
+      ).status(),
+    ).toBe(409)
+    expect(
+      (await bob.request.post('/api/letters/news/readers', { data: { mantelId } })).status(),
+    ).toBe(404)
+
+    // ── Leo's copy is on his mantel, where Ann keeps it ───────────────────────
+    for (let day = 0; day < 6; day += 1) {
+      await ann.request.post('/api/dev/clock', { data: { action: 'mail-day', userId: mantelId } })
+      await open(ann, `/mantels/${mantelId}`)
+      if ((await ann.getByText(/^From Ann Tester$/).count()) > 0) break
+    }
+    await expect(ann.getByText(/^From Ann Tester$/)).toHaveCount(1)
+  } finally {
+    await ann.request.post('/api/dev/clock', { data: { action: 'reset' } })
+  }
+
+  // ── Bob stops getting it ───────────────────────────────────────────────────
+  await open(bob, '/people')
+  await bob.getByRole('button', { name: 'Stop getting news of Leo' }).click()
+  await expect(bob.getByText('News you get')).toHaveCount(0)
+  await open(ann, `/mantels/${mantelId}`)
+  await expect(
+    ann.getByText('Nobody yet, apart from the people who keep this mantel.'),
+  ).toBeVisible()
+
+  await close()
+})

@@ -30,7 +30,10 @@ export default defineEventHandler(async (event) => {
     windowSeconds: 3600,
     identifier: user.id,
   })
-  const { email, mantelId, familyId } = await readValidatedBody(event, inviteInputSchema.parse)
+  const { email, mantelId, familyId, news } = await readValidatedBody(
+    event,
+    inviteInputSchema.parse,
+  )
 
   const result = await createInvite(
     db,
@@ -39,6 +42,7 @@ export default defineEventHandler(async (event) => {
     await postNow(),
     mantelId ?? null,
     familyId ?? null,
+    Boolean(mantelId && news),
   )
   if (result.status !== 'created') {
     throw createError({

@@ -80,6 +80,11 @@ of code for each:
   mantel"), never content, senders, counts or which mantel. It is off until that person turns
   it on for themself. It goes up at their release and down at their local midnight, and it
   never reacts to opening: the code behind it does not read `opened_at`.
+- News of a child is written only by the mantel's current keepers and read only by people a
+  keeper invited, one single-use invitation each. A reader cannot write in it or reply to it.
+  Who reads it is served to keepers alone: no route, page, email or export tells one reader
+  about another. The child's mantel gets a copy only when the letter's writer says so. It is
+  never sealed until a day.
 - The family map shows people's cities. It never shows a letter or anything in transit. The
   room sends no check-in reminders and has no way for one member to remind another.
 
@@ -146,6 +151,17 @@ invitation as between two people, with `invites.mantelId` set, its own email
 the keeper. A writer who is not a keeper reads nothing on the mantel, and no writer sees
 another's letters. A mantel's name is printed in that email only when it would pass as a
 display name (`mailableMantelName`).
+
+News of a child (`layers/letters/server/utils/news.ts`): each child's mantel can have one
+news correspondence (`mantel_news`), named in no other table. Its members are the keepers, whom
+`seatKeepers` adds before anything is planned, and the readers, who join by accepting an
+invitation with `invites.news` set. `planSeal` and `saveDraft` refuse anyone who is not a
+keeper, so a reader's membership is no way to write, and `openLetter` gives news no reply. The
+mantel is not a member: `planSeal(…, withChild)` adds it as a reader for one letter, and
+`sealLetter` must be passed the same choice the browser wrapped keys for. `listNewsReaders` is
+the only place the readers are listed and it is keeper-gated. A reader who stops or is stopped
+has their copies in transit deleted (`endReading`), not returned. Keepers manage it from the
+mantel's page (`LettersMantelNews`); a reader sees "News you get" on `/people` (`PeopleNews`).
 
 Guest letters (`layers/letters/server/utils/guest-letters.ts`): an anniversary mantel can
 have one write link, `/w/<id>#<fingerprint>`. The id is the only secret in the path; the

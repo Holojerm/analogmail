@@ -179,6 +179,11 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
       />
 
       <LettersKeptMantel :mantel-id="mantel.id" :name="mantel.name" />
+      <LettersMantelNews
+        v-if="mantel.kind === 'child'"
+        :mantel-id="mantel.id"
+        :name="mantel.name"
+      />
       <LettersGuestLink
         v-if="mantel.kind === 'anniversary'"
         :mantel-id="mantel.id"

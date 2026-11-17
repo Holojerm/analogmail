@@ -1,6 +1,7 @@
 // Correspondences: who writes with whom.
 
 import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/sqlite-core'
 import * as tables from '@nuxthub/db/schema'
 
 import type { OpenInviteView, PersonView } from '../../shared/utils/invites'
@@ -62,9 +63,9 @@ export async function openMantelCorrespondence(
 }
 
 export interface CorrespondenceLabel {
-  /** The other person, the kept mantel, or the family. */
+  /** The other person, the kept mantel, the family, or the child whose news it is. */
   name: string
-  kind: 'person' | 'mantel' | 'family'
+  kind: 'person' | 'mantel' | 'family' | 'news'
   since: Date
 }
 
@@ -84,7 +85,9 @@ export async function correspondenceLabels(
     users,
     mantels,
     families,
+    mantelNews,
   } = tables
+  const newsMantels = alias(mantels, 'news_mantels')
   const labels = new Map<string, CorrespondenceLabel>()
   if (correspondenceIds && correspondenceIds.length === 0) return labels
   const mine = db
@@ -100,10 +103,13 @@ export async function correspondenceLabels(
       chosen: people.displayName,
       account: users.name,
       mantel: mantels.name,
+      news: newsMantels.name,
     })
     .from(members)
     .innerJoin(correspondences, eq(correspondences.id, members.correspondenceId))
     .leftJoin(families, eq(families.correspondenceId, correspondences.id))
+    .leftJoin(mantelNews, eq(mantelNews.correspondenceId, correspondences.id))
+    .leftJoin(newsMantels, eq(newsMantels.id, mantelNews.mantelId))
     // The other side is a person, or a kept mantel under its own id.
     .leftJoin(users, eq(users.id, members.userId))
     .leftJoin(people, eq(people.userId, members.userId))
@@ -114,8 +120,8 @@ export async function correspondenceLabels(
     if (correspondenceIds && !correspondenceIds.includes(row.correspondenceId)) continue
     if (labels.has(row.correspondenceId)) continue
     labels.set(row.correspondenceId, {
-      name: row.family ?? row.chosen ?? row.account ?? row.mantel ?? '',
-      kind: row.family ? 'family' : row.mantelId ? 'mantel' : 'person',
+      name: row.family ?? row.news ?? row.chosen ?? row.account ?? row.mantel ?? '',
+      kind: row.family ? 'family' : row.news ? 'news' : row.mantelId ? 'mantel' : 'person',
       since: row.since,
     })
   }
@@ -158,7 +164,8 @@ export async function listPeople(
 
   return {
     people: [...labels.entries()]
-      .filter(([, label]) => label.kind !== 'family')
+      // A family and a child's news are each listed on a page of their own.
+      .filter(([, label]) => label.kind !== 'family' && label.kind !== 'news')
       .map(([correspondenceId, label]) => ({
         correspondenceId,
         name: label.name,

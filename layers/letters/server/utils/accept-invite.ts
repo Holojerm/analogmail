@@ -7,6 +7,7 @@ import * as tables from '@nuxthub/db/schema'
 import { openCorrespondenceBetween } from './correspondences'
 import { joinFamily } from './families'
 import { findInviteRow } from './invites'
+import { joinNews } from './news'
 import { getDisplayName, type LettersDb } from './people'
 
 export type AcceptResult =
@@ -58,6 +59,14 @@ export async function acceptInvite(
   if (invite.familyId) {
     // Joining a family adds a member to its one correspondence.
     const joined = await joinFamily(db, accepterId, invite.familyId, now)
+    if (joined === 'gone' || joined === 'full') return { status: 'expired' }
+    await db.update(invites).set({ correspondenceId: joined }).where(eq(invites.id, invite.id))
+    return { status: 'accepted', correspondenceId: joined }
+  }
+
+  if (invite.mantelId && invite.news) {
+    // Reading a child's news adds a reader to its one correspondence.
+    const joined = await joinNews(db, accepterId, invite.mantelId, now)
     if (joined === 'gone' || joined === 'full') return { status: 'expired' }
     await db.update(invites).set({ correspondenceId: joined }).where(eq(invites.id, invite.id))
     return { status: 'accepted', correspondenceId: joined }

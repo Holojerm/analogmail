@@ -249,6 +249,7 @@ useSeo({
       </ul>
     </section>
 
+    <PeopleNews v-if="name" />
     <PeopleFamilies v-if="name" />
   </div>
 </template>
