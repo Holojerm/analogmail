@@ -4,7 +4,7 @@
 
 import { expect, test, uniqueEmail } from '../../../../test/e2e/fixtures'
 
-import { finishSignUp, open } from './helpers'
+import { device, finishSignUp, open } from './helpers'
 
 test('an invitation: sent, opened signed out, accepted after sign-up', async ({
   page,
@@ -23,11 +23,12 @@ test('an invitation: sent, opened signed out, accepted after sign-up', async ({
 
   // ── Ann signs up, chooses her name and invites Bob ─────────────────────────
   await open(page, '/auth/sign-up')
-  await finishSignUp(page, ann)
+  await expect(page.getByTestId('sign-up-steps')).toHaveText('Step 1 of 4')
+  await finishSignUp(page, ann, 'Ann Tester')
   await page.waitForURL('**/people', { timeout: 15_000 })
   await expect(page.getByText('Nobody yet.')).toBeVisible()
-  await page.getByLabel('Your name').fill('Ann Tester')
-  await page.getByRole('button', { name: 'Save name' }).click()
+  // Her name was asked with her city, so the invitation form is already here.
+  await expect(page.getByText('You write as Ann Tester.')).toBeVisible()
   await page.getByLabel('Their email').fill(bob)
   await page.getByRole('button', { name: 'Send invitation' }).click()
   const link = new URL((await page.getByTestId('invite-link').innerText()).trim())
@@ -46,13 +47,22 @@ test('an invitation: sent, opened signed out, accepted after sign-up', async ({
   ).toBeVisible()
   await other.getByRole('link', { name: 'Create an account to accept' }).click()
   await other.waitForURL('**/auth/sign-up')
-  await finishSignUp(other, bob)
+  // Every step says what it is for.
+  await expect(other.getByTestId('sign-up-steps')).toHaveText(
+    'Step 1 of 4, to accept the invitation from Ann Tester',
+  )
+  await finishSignUp(other, bob, 'Bob Tester')
 
-  // Sign-up ends on the people page, which leads back to the invitation.
-  await other.waitForURL(`**${link.pathname}`, { timeout: 15_000 })
-  await other.getByLabel('Your name').fill('Bob Tester')
-  await other.getByRole('button', { name: 'Save and accept' }).click()
-  await other.waitForURL('**/people', { timeout: 15_000 })
+  // He pressed the button before he had an account, so the invitation is
+  // accepted for him: sign-up ends on a sheet of paper addressed to Ann.
+  await other.waitForURL('**/write?to=*', { timeout: 15_000 })
+  await expect(other.getByRole('heading', { name: 'A letter to Ann Tester' })).toBeVisible()
+  await expect(other.getByTestId('welcome-note')).toContainText(
+    'You and Ann Tester can write to each other now.',
+  )
+  await expect(other.getByTestId('arrival-line')).toContainText('Sealed today, it arrives')
+  await expect(other.getByTestId('sign-up-steps')).toHaveCount(0)
+  await open(other, '/people')
   await expect(other.getByText('Ann Tester')).toBeVisible()
 
   // ── Both now see each other; the invitation is spent ───────────────────────
@@ -63,4 +73,48 @@ test('an invitation: sent, opened signed out, accepted after sign-up', async ({
   await open(other, link.pathname)
   await expect(other.getByText('It has already been accepted.')).toBeVisible()
   await context.close()
+})
+
+test('an invitation finds the person it was sent to, without the link', async ({
+  browser,
+  baseURL,
+}) => {
+  test.setTimeout(180_000)
+  const ann = await device(browser, baseURL!)
+  const cy = await device(browser, baseURL!)
+  await ann.request.post('/api/dev/seed')
+  const cyEmail = uniqueEmail('elsewhere')
+
+  await open(ann, '/auth/sign-up')
+  await finishSignUp(ann, uniqueEmail('asker'), 'Ann Tester')
+  await ann.waitForURL('**/people', { timeout: 15_000 })
+  await ann.getByLabel('Their email').fill(cyEmail)
+  await ann.getByRole('button', { name: 'Send invitation' }).click()
+  await expect(ann.getByTestId('invite-link')).toBeVisible()
+
+  // ── Ann's empty mantel says what she is waiting for ────────────────────────
+  await open(ann, '/mantel')
+  await expect(ann.getByTestId('mantel-beginning')).toContainText(
+    'You can write as soon as they accept.',
+  )
+
+  // ── Cy signs up on a device that never opened the link ─────────────────────
+  await open(cy, '/auth/sign-up')
+  await expect(cy.getByTestId('sign-up-steps')).toHaveText('Step 1 of 4')
+  await finishSignUp(cy, cyEmail, 'Cy Tester')
+  await cy.waitForURL('**/people', { timeout: 15_000 })
+  await expect(cy.getByRole('heading', { name: 'An invitation for you' })).toBeVisible()
+  await expect(cy.getByText('Ann Tester would like to write to you')).toBeVisible()
+  await cy.getByRole('button', { name: 'Accept' }).click()
+  await cy.waitForURL('**/write?to=*', { timeout: 15_000 })
+  await expect(cy.getByRole('heading', { name: 'A letter to Ann Tester' })).toBeVisible()
+
+  // ── It is spent, and her mantel now offers the letter ──────────────────────
+  await open(cy, '/people')
+  await expect(cy.getByRole('heading', { name: 'An invitation for you' })).toHaveCount(0)
+  await open(ann, '/mantel')
+  await expect(ann.getByRole('link', { name: 'Write to Cy Tester' })).toBeVisible()
+
+  await ann.context().close()
+  await cy.context().close()
 })

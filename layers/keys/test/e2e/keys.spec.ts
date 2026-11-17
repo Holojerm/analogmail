@@ -75,7 +75,7 @@ test('keys: sign-up, a second device, and recovery after a reset by email', asyn
   await expect(page.getByRole('heading', { name: 'Sign-in' })).toBeVisible()
 
   await open(page, '/welcome/recovery-code')
-  await page.getByLabel('I have written my recovery code down').check()
+  await page.getByLabel('I have kept my recovery code somewhere safe').check()
   await page.getByRole('button', { name: 'Continue' }).click()
   // No city chosen yet, so the landing page leads to that next.
   await page.waitForURL((url) => url.pathname === '/welcome', { timeout: 15_000 })

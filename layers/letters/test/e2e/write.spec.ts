@@ -173,7 +173,7 @@ test('a kept mantel takes letters, and a sealed one stays sealed', async ({ brow
   await open(ann, '/mantels/new')
   await ann.getByLabel('Whose mantel is it?').fill('Leo')
   await ann.getByRole('button', { name: 'Open the mantel' }).click()
-  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
   const mantelId = new URL(ann.url()).pathname.split('/').pop()!
@@ -262,7 +262,7 @@ test('news of a child: asked for, sent, read, and not answered', async ({ browse
   await open(ann, '/mantels/new')
   await ann.getByLabel('Whose mantel is it?').fill('Leo')
   await ann.getByRole('button', { name: 'Open the mantel' }).click()
-  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
   const mantelId = new URL(ann.url()).pathname.split('/').pop()!
@@ -288,7 +288,10 @@ test('news of a child: asked for, sent, read, and not answered', async ({ browse
     bob.getByRole('heading', { name: 'Ann Tester would like to send you news of Leo' }),
   ).toBeVisible()
   await bob.getByRole('button', { name: 'Accept the invitation' }).click()
-  await bob.waitForURL('**/people')
+  // Nothing to do but wait: he lands on his mantel, told what will come.
+  await bob.waitForURL('**/mantel')
+  await expect(bob.getByTestId('welcome-note')).toContainText('News of Leo will come here')
+  await open(bob, '/people')
   await expect(bob.getByText('News of Leo')).toBeVisible()
   await expect(bob.getByRole('link', { name: 'Write to Leo' })).toHaveCount(0)
 

@@ -43,6 +43,8 @@ useSeo({
 <template>
   <div class="mx-auto flex max-w-xl flex-col gap-10 py-8 sm:py-12">
     <h1 class="text-3xl text-highlighted">Your mantel</h1>
+    <WelcomeNote />
+    <PeopleInvitedBy />
 
     <section aria-labelledby="shelf-heading" class="flex flex-col gap-4">
       <h2 id="shelf-heading" class="font-sans text-sm tracking-normal text-muted">
@@ -102,9 +104,7 @@ useSeo({
         <p class="text-muted">
           Letters take a few days, and come in the morning on your mail days.
         </p>
-        <UButton to="/people" variant="outline" color="neutral" class="self-start">
-          Write to someone
-        </UButton>
+        <LettersMantelBeginning />
       </div>
       <p v-else-if="waiting.length === 0" class="font-serif text-lg text-toned">
         Nothing is waiting to be opened.

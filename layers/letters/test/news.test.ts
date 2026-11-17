@@ -159,6 +159,8 @@ describe('a child’s news', () => {
     expect(await acceptInvite(db, made.token, 'eve', MONDAY)).toEqual({
       status: 'accepted',
       correspondenceId: news,
+      kind: 'news',
+      familyId: null,
     })
     // Not someone a non-keeper can ask, and not a second time while one waits.
     expect(

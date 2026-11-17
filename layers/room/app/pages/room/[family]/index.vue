@@ -164,6 +164,7 @@ useSeo({ title: 'Family room', description: "A family's shared photos.", noindex
     />
 
     <template v-else>
+      <WelcomeNote />
       <header class="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p class="text-sm text-muted">The room of {{ family.name }}</p>
