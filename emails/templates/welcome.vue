@@ -1,9 +1,8 @@
 <!-- Sent once, when an account is first made. It says the two things a new
-     person most needs to hear: what to keep, and what to expect. No name in
-     the greeting: at this point the account has only an email address. -->
+     person most needs to hear: what to keep, and what to expect. -->
 <template>
   <EmailLayout heading="Welcome to {{appName}}">
-    <EmailParagraph>Your account is ready.</EmailParagraph>
+    <EmailParagraph>Hi <Raw>{{name}}</Raw>, your account is ready.</EmailParagraph>
     <EmailParagraph>
       Keep two things safe: your password, and the recovery code you wrote down when you signed up.
       We hold neither. If you lose both, we can give you back your account, but nobody can open your

@@ -1,6 +1,6 @@
 Welcome to {{appName}}
 
-Your account is ready.
+Hi {{name}}, your account is ready.
 
 Keep two things safe: your password, and the recovery code you wrote down when you signed up. We hold neither. If you lose both, we can give you back your account, but nobody can open your letters.
 
