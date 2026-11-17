@@ -20,9 +20,10 @@ import {
   exportPrivateKey,
   generateAccountKeys,
   importPrivateKey,
+  publicKeyOf,
+  type WrapContext,
   unwrapPrivateKey,
   wrapPrivateKey,
-  type WrapContext,
 } from './key-crypto'
 import type { DeviceKey } from './key-store'
 
@@ -127,13 +128,14 @@ export async function applyUnlock(
     (passkey && (await open(secrets.passkey!.prf, passkey)))
   if (!privateKey) return { status: 'locked' }
 
-  if (!device) {
-    await backend.saveDevice({
-      userId,
-      publicKey: stored.publicKey,
-      privateKey: await importPrivateKey(privateKey),
-    })
-  }
+  // The key this device opened must be the other half of the public key the
+  // server gives for the account. If the server's row was swapped, nothing is
+  // kept and nothing is wrapped to it.
+  const imported = await importPrivateKey(privateKey)
+  const publicKey = await publicKeyOf(imported)
+  if (publicKey !== stored.publicKey) return { status: 'locked' }
+
+  if (!device) await backend.saveDevice({ userId, publicKey, privateKey: imported })
 
   // The wraps are a convenience for the next device; failing to save one must
   // not undo an unlock that has already worked.

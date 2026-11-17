@@ -300,7 +300,7 @@ useSeo({
         </div>
 
         <div
-          class="flex flex-col gap-6 rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
+          class="ph-no-capture flex flex-col gap-6 rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
           :class="stationeryClass(stationery)"
         >
           <LetterEditor v-model="content" />

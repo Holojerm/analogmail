@@ -184,8 +184,9 @@ useSeo({
     <template v-else-if="state === 'sent' && mantel">
       <p class="text-highlighted">It opens on {{ yearDay(mantel.opensOn) }}.</p>
       <p class="text-muted">
-        Nobody can read it before then, {{ mantel.mantelName }} included. There is nothing more to
-        do: no account was made, and you will not hear from us.
+        Until that day it is not handed to anyone, {{ mantel.mantelName }} included: the people who
+        keep the key are not given the letter. There is nothing more to do: no account was made, and
+        you will not hear from us.
       </p>
       <div v-if="sent" class="flex flex-col items-start gap-2">
         <UButton variant="outline" color="neutral" icon="i-lucide-download" @click="keepCopy">
@@ -214,7 +215,7 @@ useSeo({
       />
 
       <div
-        class="flex flex-col gap-6 rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
+        class="ph-no-capture flex flex-col gap-6 rounded-md border border-default px-6 py-8 sm:px-10 sm:py-12"
         :class="stationeryClass(DEFAULT_STATIONERY)"
       >
         <LetterEditor v-model="content" />

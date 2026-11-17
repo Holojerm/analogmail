@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { exportPrivateKey } from '../app/utils/key-crypto'
+import { exportPrivateKey, publicKeyOf } from '../app/utils/key-crypto'
 import { openWithRecoveryCode, replaceRecoveryCode } from '../app/utils/key-recovery'
 import type { DeviceKey } from '../app/utils/key-store'
 import {
@@ -210,6 +210,24 @@ describe('a new recovery code', () => {
     const { device } = await signedUp()
 
     expect(await replaceRecoveryCode('ann', device())).toBeNull()
+  })
+})
+
+describe('a public key the server swapped', () => {
+  it('is refused: nothing is kept, and the device stays locked', async () => {
+    const { server, device } = await signedUp()
+    const other = await signedUp()
+    server.keys!.publicKey = other.server.keys!.publicKey
+    const second = device()
+
+    expect(await applyUnlock(withPassword(PASSWORD), second)).toEqual({ status: 'locked' })
+    expect(second.held()).toBeNull()
+  })
+
+  it('is not what a device wraps to: its own key gives its own public key', async () => {
+    const { server, first } = await signedUp()
+    expect(await publicKeyOf(first.held()!.privateKey)).toBe(server.keys!.publicKey)
+    expect(first.held()!.publicKey).toBe(server.keys!.publicKey)
   })
 })
 
