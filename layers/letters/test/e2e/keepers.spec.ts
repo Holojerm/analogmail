@@ -44,7 +44,7 @@ test('a kept mantel: opened, its code shown once, a second keeper seated', async
   expect(sent.recoveryWrap).toMatch(/^v1\./)
 
   await expect(ann.getByRole('heading', { name: "The mantel's recovery code" })).toBeVisible()
-  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
   await expect(ann.getByRole('heading', { name: 'Leo', exact: true })).toBeVisible()
@@ -101,7 +101,7 @@ test('a keeper asks someone to write to the mantel', async ({ browser, baseURL }
   await open(ann, '/mantels/new')
   await ann.getByLabel('Whose mantel is it?').fill('Leo')
   await ann.getByRole('button', { name: 'Open the mantel' }).click()
-  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
   await ann.getByLabel("The mantel's city").fill('Chicago')
@@ -124,9 +124,12 @@ test('a keeper asks someone to write to the mantel', async ({ browser, baseURL }
     bob.getByRole('heading', { name: 'Ann Tester asks you to write to Leo' }),
   ).toBeVisible()
   await bob.getByRole('button', { name: 'Accept the invitation' }).click()
-  await bob.waitForURL('**/people')
-  await bob.getByRole('link', { name: 'Write to Leo' }).click()
+  // Accepting leads to a sheet of paper addressed to Leo.
+  await bob.waitForURL('**/write?to=*')
   await expect(bob.getByRole('heading', { name: 'A letter to Leo' })).toBeVisible()
+  await expect(bob.getByTestId('welcome-note')).toContainText('You can write to Leo now.')
+  await open(bob, '/people')
+  await expect(bob.getByRole('link', { name: 'Write to Leo' })).toBeVisible()
   await open(bob, '/mantels')
   await expect(bob.getByText('You keep no mantels.')).toBeVisible()
 
@@ -145,7 +148,7 @@ test('a wedding guest writes from the card, with no account', async ({ browser, 
   await ann.getByLabel('Anniversary letters for a couple').check()
   await ann.getByLabel('Whose mantel is it?').fill('Maya and Theo')
   await ann.getByRole('button', { name: 'Open the mantel' }).click()
-  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
   await ann.getByLabel("The mantel's city").fill('Chicago')
@@ -228,7 +231,7 @@ test("a mantel's recovery code: a keeper is restored at once, anyone else waits"
   await ann.getByRole('button', { name: 'Open the mantel' }).click()
   const code = (await ann.getByTestId('recovery-code').innerText()).trim()
   expect(code).toMatch(/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/)
-  await ann.getByLabel('I have written my recovery code down').check()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
   const mantelPath = new URL(ann.url()).pathname

@@ -279,6 +279,12 @@ useSeo({
       </template>
 
       <template v-else-if="letterId">
+        <WelcomeNote />
+        <!-- How long the post takes, said before anything is written: the one
+             thing about this place a first letter's writer cannot guess. -->
+        <p v-if="plan && !plan.toFamily" class="text-sm text-muted" data-testid="arrival-line">
+          Sealed today, it arrives {{ longDay(plan.arrives) }}.
+        </p>
         <section v-if="answered" aria-labelledby="answered-heading" class="flex flex-col gap-3">
           <h2 id="answered-heading" class="text-sm text-muted">You are replying to</h2>
           <LetterPaper :doc="answered.doc" :photo-url="answered.photoUrl" />

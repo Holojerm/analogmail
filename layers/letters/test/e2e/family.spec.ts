@@ -31,7 +31,10 @@ test('a family: started, joined, and written to', async ({ browser, baseURL }) =
     bob.getByRole('heading', { name: 'Ann Tester invites you to The Testers' }),
   ).toBeVisible()
   await bob.getByRole('button', { name: 'Accept the invitation' }).click()
-  await bob.waitForURL('**/people')
+  // Accepting leads to the family's room.
+  await bob.waitForURL(/\/room\/[0-9a-f-]{36}$/)
+  await expect(bob.getByTestId('welcome-note')).toContainText('You are in The Testers now.')
+  await open(bob, '/people')
   await bob.getByRole('link', { name: 'Open The Testers' }).click()
   await expect(bob.getByText('Ann Tester', { exact: true })).toBeVisible()
   await expect(bob.getByText('Bob Tester (you)')).toBeVisible()

@@ -67,6 +67,30 @@ export interface InviteView {
   news?: boolean
 }
 
+/** What an invitation is to: a person, a kept mantel, a child's news, or a family. */
+export type InviteKind = 'person' | 'mantel' | 'news' | 'family'
+
+/** What accepting gives back: enough to take the person to what they accepted. */
+export interface AcceptedInvite {
+  correspondenceId: string
+  kind: InviteKind
+  familyId: string | null
+}
+
+/**
+ * An invitation sent to the signed-in person's own address that they have not
+ * accepted. It is shown to them without the link, so that finishing sign-up on
+ * another device does not lose it.
+ */
+export interface IncomingInviteView {
+  id: string
+  kind: InviteKind
+  inviterName: string
+  mantelName: string | null
+  familyName: string | null
+  expiresAt: string
+}
+
 export interface PersonView {
   correspondenceId: string
   name: string

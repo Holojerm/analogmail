@@ -172,8 +172,12 @@ transit, and is sealed until the link's `opensOn`. The two routes under
 `requireTurnstile` and rate limits per sender and per link, and the link has a closing day
 and a cap. Never add the guest's name, or anything else from inside the letter, to a row.
 
-A new account goes: recovery code (`/welcome/recovery-code`), then city, mail days and delivery
-hour (`/welcome`). Those guards cover the landing page and letter pages only; account and
+A new account goes: recovery code (`/welcome/recovery-code`), then one page for a name and a
+city (`/welcome`); mail days and the delivery hour start as every weekday at ten and sit behind
+"Change". The post owns that page and knows nothing of names: another layer adds what it needs
+asked there with `registerWelcomeField` (`layers/post/app/utils/welcome-fields.ts`), as the
+letters layer does for the name. The layout shows "Step n of 4" over the four sign-up pages
+(`LettersSignUpSteps`). Those guards cover the landing page and letter pages only; account and
 security pages must stay reachable without them. Guards that decide in the browser redirect
 after hydration, never during it. The city list is GeoNames data loaded by
 `bun run cities:import` (add `--remote` for production); it is not a migration.
@@ -193,7 +197,14 @@ or note. Only a hash of the token is stored, the address is deleted on acceptanc
 link may accept it once; accepting needs a chosen display name (`people` table) and a city.
 Display names go into email to strangers, so `displayNameSchema` refuses anything that reads
 as a link or an address: do not loosen it. Sign-up ends on `/people`, which is also where an
-invitation opened before sign-up is picked up again.
+invitation opened before sign-up is picked up again. Someone who pressed "accept" before they
+had an account has said yes: the invitation is then accepted for them. Finishing sign-up in a
+browser that never opened the link loses nothing: `/people` and the mantel list invitations
+sent to the account's own address (`GET /api/letters/invites/mine`), accepted by id, which the
+server allows only for that address. Accepting leads to the thing accepted (a sheet of paper
+for a person or a kept mantel, the room for a family, the mantel for news), with one sentence
+said once (`useWelcomeNote`, `<WelcomeNote>`). The invitation page never names the invitee, so
+do not pre-fill their address anywhere.
 
 Writing (`layers/letters`): `/write` is the desk for one letter, `/desk` lists drafts and sent
 letters. A letter is a `LetterDoc` (rich text, stationery, the signed name) encrypted in the

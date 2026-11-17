@@ -2,13 +2,18 @@
 // no letter, lasts 30 days, and whoever holds the link may accept it once.
 // The link's token is stored only as a hash.
 
-import { and, count, eq, gt, isNull } from 'drizzle-orm'
+import { and, count, eq, gt, isNull, ne, or } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { base64url, sha256Hex } from '#server/utils/hash'
 import { normalizeEmail } from '#server/utils/users'
 
-import { INVITE_TTL_MS, MAX_OPEN_INVITES, type InviteView } from '../../shared/utils/invites'
+import {
+  INVITE_TTL_MS,
+  MAX_OPEN_INVITES,
+  type IncomingInviteView,
+  type InviteView,
+} from '../../shared/utils/invites'
 import { openCorrespondenceBetween } from './correspondences'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 
@@ -158,6 +163,69 @@ export async function findInviteRow(db: LettersDb, token: string) {
     .where(eq(tables.invites.tokenHash, await hashInviteToken(token)))
     .limit(1)
   return row ?? null
+}
+
+/**
+ * An invitation by its id, for the person it was sent to: their address is on
+ * it, or they have already claimed it (the address is cleared at that moment).
+ */
+export async function findInviteSentTo(
+  db: LettersDb,
+  inviteId: string,
+  person: { id: string; email: string },
+) {
+  const { invites } = tables
+  const [row] = await db
+    .select()
+    .from(invites)
+    .where(
+      and(
+        eq(invites.id, inviteId),
+        or(
+          eq(invites.inviteeEmail, normalizeEmail(person.email)),
+          eq(invites.acceptedBy, person.id),
+        ),
+      ),
+    )
+    .limit(1)
+  return row ?? null
+}
+
+/** Invitations sent to this person's address that still stand, oldest first. */
+export async function listInvitesSentTo(
+  db: LettersDb,
+  person: { id: string; email: string },
+  now: Date,
+): Promise<IncomingInviteView[]> {
+  const { invites } = tables
+  const rows = await db
+    .select()
+    .from(invites)
+    .where(
+      and(
+        eq(invites.inviteeEmail, normalizeEmail(person.email)),
+        ne(invites.inviterId, person.id),
+        isNull(invites.acceptedAt),
+        gt(invites.expiresAt, now),
+      ),
+    )
+    .orderBy(invites.createdAt)
+  const views: IncomingInviteView[] = []
+  for (const row of rows) {
+    const inviterName = await getDisplayName(db, row.inviterId)
+    // An inviter always has a name; one who has since deleted their account does not.
+    if (!inviterName) continue
+    const mantel = row.mantelId ? await recipientIdentity(db, row.mantelId) : null
+    views.push({
+      id: row.id,
+      kind: row.familyId ? 'family' : row.mantelId ? (row.news ? 'news' : 'mantel') : 'person',
+      inviterName,
+      mantelName: mantel?.name ?? null,
+      familyName: row.familyId ? await familyNameOf(db, row.familyId) : null,
+      expiresAt: row.expiresAt.toISOString(),
+    })
+  }
+  return views
 }
 
 /** What anyone holding the link may know: who sent it and whether it still stands. */

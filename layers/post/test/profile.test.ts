@@ -94,6 +94,7 @@ describe('a postal profile', () => {
       lastReleaseDate: null,
     })
     expect(await getProfile(db, 'yuki')).toEqual({
+      cityId: expect.any(Number),
       cityName: 'Tokyo',
       country: 'JP',
       timeZone: 'Asia/Tokyo',

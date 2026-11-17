@@ -34,7 +34,9 @@ test('a family room: photos added, shared, and closed to those who leave', async
   const link = new URL((await ann.getByTestId('family-invite-link').innerText()).trim())
   await open(bob, link.pathname)
   await bob.getByRole('button', { name: 'Accept the invitation' }).click()
-  await bob.waitForURL('**/people')
+  // Accepting leads to the room.
+  await bob.waitForURL(`**/room/${familyId}`)
+  await expect(bob.getByTestId('welcome-note')).toContainText('You are in')
 
   // ── Ann adds a photo: what is sent is a JPEG the browser redrew ────────────
   await ann.getByRole('link', { name: 'The family room' }).click()
@@ -108,12 +110,11 @@ test('a family room: photos added, shared, and closed to those who leave', async
   await bob.getByRole('link', { name: 'Where everyone is' }).click()
   await expect(bob.getByText('Has not said')).toHaveCount(2)
   await expect(bob.getByTestId('map')).toHaveCount(0)
-  await bob.getByLabel('Your city now').fill('Chic')
-  await bob
-    .getByRole('button', { name: /^Chicago/ })
-    .first()
-    .click()
+  // The city his post arrives in is offered as one press; he need not type it.
+  await bob.getByRole('button', { name: 'I am in Chicago' }).click()
   await expect(bob.getByText(/^Chicago, US/)).toBeVisible()
+  await expect(bob.getByRole('button', { name: 'I am in Chicago' })).toHaveCount(0)
+  await expect(bob.getByLabel('Your city now')).toBeVisible()
   await open(ann, `/room/${familyId}/where`)
   await expect(ann.getByText(/^Chicago, US/)).toBeVisible()
   await expect(ann.getByText('Has not said')).toHaveCount(1)

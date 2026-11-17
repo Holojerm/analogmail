@@ -18,17 +18,18 @@ export async function mailedLink(page: Page, name: string): Promise<string> {
   return `${url.pathname}${url.hash}`
 }
 
-/** From the sign-up page to the end of sign-up: recovery code, then a city. */
-export async function finishSignUp(page: Page, email: string): Promise<void> {
+/** From the sign-up page to the end of sign-up: recovery code, then a name and a city. */
+export async function finishSignUp(page: Page, email: string, name: string): Promise<void> {
   await page.getByLabel('Email').fill(email)
   await page.getByRole('button', { name: 'Email me a link' }).click()
   await open(page, await mailedLink(page, 'Open the confirmation link'))
   await page.getByLabel('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Create account' }).click()
   await page.waitForURL('**/welcome/recovery-code', { timeout: 30_000 })
-  await page.getByLabel('I have written my recovery code down').check()
+  await page.getByLabel('I have kept my recovery code somewhere safe').check()
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.waitForURL((url) => url.pathname === '/welcome', { timeout: 15_000 })
+  await page.getByLabel('Your name').fill(name)
   await page.getByLabel('Your city').fill('Chicago')
   await page
     .getByRole('button', { name: /^Chicago/ })
@@ -43,7 +44,12 @@ export interface Pair {
   close: () => Promise<void>
 }
 
-let network = 30
+// Each worker process, and each run, gets its own block of addresses (from the
+// range set aside for benchmarks): two specs that both began at the same
+// address would share its sign-up budget, and so would a second run started
+// within the budget's window.
+const block = Math.floor(Math.random() * 256)
+let network = 0
 let pairs = 0
 
 /**
@@ -55,7 +61,7 @@ export async function device(browser: Browser, baseURL: string, address?: string
   network += 1
   const context = await browser.newContext({
     baseURL,
-    extraHTTPHeaders: { 'x-forwarded-for': address ?? `203.0.113.${network}` },
+    extraHTTPHeaders: { 'x-forwarded-for': address ?? `198.18.${block}.${network}` },
   })
   return context.newPage()
 }
@@ -70,10 +76,8 @@ export async function makePair(browser: Browser, baseURL: string): Promise<Pair>
   await open(ann, '/auth/sign-up')
   // Two pairs made by one worker share its run token, so each gets a number.
   pairs += 1
-  await finishSignUp(ann, uniqueEmail(`inviter${pairs}`))
+  await finishSignUp(ann, uniqueEmail(`inviter${pairs}`), 'Ann Tester')
   await ann.waitForURL('**/people', { timeout: 15_000 })
-  await ann.getByLabel('Your name').fill('Ann Tester')
-  await ann.getByRole('button', { name: 'Save name' }).click()
   const bobEmail = uniqueEmail(`invitee${pairs}`)
   await ann.getByLabel('Their email').fill(bobEmail)
   await ann.getByRole('button', { name: 'Send invitation' }).click()
@@ -82,11 +86,11 @@ export async function makePair(browser: Browser, baseURL: string): Promise<Pair>
   await open(bob, link.pathname)
   await bob.getByRole('link', { name: 'Create an account to accept' }).click()
   await bob.waitForURL('**/auth/sign-up')
-  await finishSignUp(bob, bobEmail)
-  await bob.waitForURL(`**${link.pathname}`, { timeout: 15_000 })
-  await bob.getByLabel('Your name').fill('Bob Tester')
-  await bob.getByRole('button', { name: 'Save and accept' }).click()
-  await bob.waitForURL('**/people', { timeout: 15_000 })
+  await finishSignUp(bob, bobEmail, 'Bob Tester')
+  // He said yes before he had an account, so it is accepted for him, and he
+  // lands on a sheet of paper addressed to Ann.
+  await bob.waitForURL('**/write?to=*', { timeout: 15_000 })
+  await open(bob, '/people')
   await ann.reload({ waitUntil: 'networkidle' })
 
   return {

@@ -102,6 +102,8 @@ useSeo({
       </p>
     </div>
 
+    <PeopleInvitedBy />
+
     <UCard v-if="!name || editingName">
       <PeopleNameForm :current="name" @saved="nameSaved" />
     </UCard>
