@@ -2,6 +2,8 @@
 // the account's public key, used to wrap a new letter's key for its author
 // and to open the keys of letters they can read.
 
+import { publicKeyOf } from '#layers/keys/app/utils/key-crypto'
+
 import { unwrapContentKey, wrapContentKey } from '../utils/letter-crypto'
 
 export function useLetterKeys() {
@@ -15,11 +17,14 @@ export function useLetterKeys() {
     return id
   }
 
+  // Worked out from the key this device holds, never asked of the server: a
+  // letter's key wrapped to a public key the server chose would be the
+  // server's to open.
   async function myPublicKey(): Promise<string> {
     if (publicKey) return publicKey
-    const stored = await $fetch<{ keys: { publicKey: string } | null }>('/api/keys')
-    if (!stored.keys) throw new Error('This account has no keys')
-    publicKey = stored.keys.publicKey
+    const privateKey = await keys.privateKey()
+    if (!privateKey) throw new Error('This device does not hold your key')
+    publicKey = await publicKeyOf(privateKey)
     return publicKey
   }
 

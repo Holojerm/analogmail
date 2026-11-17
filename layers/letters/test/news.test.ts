@@ -328,6 +328,32 @@ describe('a child’s news', () => {
     expect(await listArchive(db, 'eve')).toMatchObject([{ kind: 'news', name: 'Leo' }])
   })
 
+  it('stops for a keeper who is removed, unless they were also asked to read', async () => {
+    await join('eve')
+    expect((await write(FIRST, ['bob', 'eve'])).status).toBe('sealed')
+    // Bob stops keeping Leo's mantel. Nothing in custody knows about news.
+    await db
+      .update(mantelKeepers)
+      .set({ leftAt: MONDAY })
+      .where(and(eq(mantelKeepers.mantelId, LEO), eq(mantelKeepers.userId, 'bob')))
+    const plan = await planSeal(db, 'ann', news, MONDAY)
+    expect(typeof plan === 'object' && plan.recipients.map((r) => r.id)).toEqual(['eve'])
+    expect((await listNewsReaders(db, 'ann', LEO, MONDAY))?.readers).toMatchObject([
+      { userId: 'eve' },
+    ])
+    // His copy still on its way is gone with his place, and he cannot write.
+    expect((await db.select().from(deliveries)).map((copy) => copy.recipientId)).toEqual(['eve'])
+    expect(await planSeal(db, 'bob', news, MONDAY)).toBe('closed')
+    expect(await listNewsFor(db, 'bob')).toEqual([])
+    // Asked as a reader, he reads again, and stays when keepers are next brought in line.
+    await join('bob')
+    const again = await planSeal(db, 'ann', news, MONDAY)
+    expect(typeof again === 'object' && again.recipients.map((r) => r.id).toSorted()).toEqual([
+      'bob',
+      'eve',
+    ])
+  })
+
   it('stops for a reader who leaves or is removed, and drops what was on its way', async () => {
     await join('eve')
     await join('dan')

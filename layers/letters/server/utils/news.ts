@@ -7,7 +7,7 @@
 // keepers alone. The mantel is not a member: a letter's writer adds it as a
 // reader for that letter (posting.ts).
 
-import { and, eq, gt, inArray, isNull } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, isNull } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
 
 import { isKeeper, keepersOf } from '#layers/keys/server/utils/mantels'
@@ -64,9 +64,13 @@ async function seat(db: LettersDb, correspondenceId: string, userId: string, now
 }
 
 /**
- * Every current keeper is in the news, so each receives what another sends.
- * Run before anything is planned or sealed: keepers change through custody,
- * which knows nothing of news.
+ * Brings the news in line with who keeps the mantel now. Every current keeper
+ * is in it, so each receives what another sends. Someone who kept the mantel
+ * and no longer does is out of it, unless they were also asked to read: being
+ * removed as a keeper must not leave them getting the child's news.
+ *
+ * Run before anything is planned, sealed or listed: keepers change through
+ * custody, which knows nothing of news.
  */
 export async function seatKeepers(
   db: LettersDb,
@@ -74,7 +78,7 @@ export async function seatKeepers(
   correspondenceId: string,
   now: Date,
 ): Promise<void> {
-  const { correspondenceMembers: members } = tables
+  const { correspondenceMembers: members, invites } = tables
   const keepers = (await keepersOf(db, mantelId)).map((keeper) => keeper.userId)
   const seated = await db
     .select({ userId: members.userId })
@@ -82,6 +86,20 @@ export async function seatKeepers(
     .where(and(eq(members.correspondenceId, correspondenceId), isNull(members.leftAt)))
   for (const keeper of keepers) {
     if (!seated.some((row) => row.userId === keeper)) await seat(db, correspondenceId, keeper, now)
+  }
+  const others = seated.filter((row) => !keepers.includes(row.userId))
+  if (others.length === 0) return
+  // A reader is someone who accepted an invitation to this child's news.
+  const asked = await db
+    .select({ userId: invites.acceptedBy })
+    .from(invites)
+    .where(
+      and(eq(invites.mantelId, mantelId), eq(invites.news, true), isNotNull(invites.acceptedAt)),
+    )
+  for (const row of others) {
+    if (!asked.some((invite) => invite.userId === row.userId)) {
+      await endReading(db, correspondenceId, row.userId, now)
+    }
   }
 }
 

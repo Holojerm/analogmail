@@ -68,7 +68,7 @@ const describe = (alt: string | number) => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="ph-no-capture flex flex-col gap-3">
     <UAlert
       v-if="failure"
       color="error"
