@@ -12,7 +12,7 @@
   },
   "crons": ["0 4 * * *", "*/15 * * * *"],
   "deploy": "workers-builds",
-  "template": { "repo": "Holojerm/nuxt-cf-template", "syncedSha": "bb736af1dbbc8d3f35e596a4ba7b6136b8398d01" },
+  "template": { "repo": "Holojerm/nuxt-cf-template", "syncedSha": "cb1c4f1c818598469c2a3112053917ecfd8ebc02" },
   "features": { "auth": true, "billing": false, "posthog": null, "opsEvents": true },
   "product": {
     "northStar": "user_activated",
