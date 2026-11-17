@@ -50,8 +50,8 @@ id = "d3c08c2747884a2b8d0b85697c02c41a"
 binding = "BLOB"
 bucket_name = "dearmantel-blob"
 
-# Native rate limiting, the primary limiter for the auth surface.
-# server/utils/rate-limit.ts prefers this and falls back to the KV counter.
+# Native rate limiting: the first check on the auth surface.
+# server/utils/rate-limit.ts asks it first; the count that decides is in D1.
 #
 # Three constraints worth knowing before you touch the numbers:
 #
@@ -59,8 +59,8 @@ bucket_name = "dearmantel-blob"
 #     rejects the config rather than rounding, which is the good failure.
 #   * `limit` and `period` are FIXED AT DEPLOY. `limit({ key })` takes only a
 #     key — a caller cannot ask for a different budget at request time. So this
-#     one binding enforces exactly one (limit, period) pair, and every call site
-#     that wants a different pair stays on KV. That rule lives in one place:
+#     one binding checks exactly one (limit, period) pair, and every call site
+#     that wants a different pair gets no first check. That rule lives in one place:
 #     NATIVE_LIMITER in server/utils/rate-limit.ts, which must MATCH the two
 #     numbers below. test/rate-limit.test.ts probes the real binding and fails
 #     if they ever drift.
