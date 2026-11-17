@@ -17,7 +17,7 @@ export interface ArchiveShelf {
   /** The other person, the kept mantel, or the family. Empty when they have gone. */
   name: string
   /** 'kept' is a mantel as its keeper sees it: everything opened on it, not only their own. */
-  kind: 'person' | 'mantel' | 'family' | 'kept'
+  kind: 'person' | 'mantel' | 'family' | 'kept' | 'news'
   entries: ArchiveEntry[]
   /** Letters that have arrived and not been opened. Making a copy opens nothing. */
   unopened: number

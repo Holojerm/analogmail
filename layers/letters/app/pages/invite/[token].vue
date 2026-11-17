@@ -18,9 +18,14 @@ const signInPath = computed(() => `/auth/sign-in?redirect=${encodeURIComponent(r
 const sender = computed(() => invite.value?.inviterName ?? 'Someone')
 const mantelName = computed(() => invite.value?.mantelName ?? null)
 const familyName = computed(() => invite.value?.familyName ?? null)
+// With a mantel's name: the invitation is to read the child's news.
+const news = computed(() => Boolean(invite.value?.news))
 const heading = computed(() => {
   if (invite.value?.status !== 'open') return "This invitation can't be used"
   if (familyName.value) return `${sender.value} invites you to ${familyName.value}`
+  if (mantelName.value && news.value) {
+    return `${sender.value} would like to send you news of ${mantelName.value}`
+  }
   return mantelName.value
     ? `${sender.value} asks you to write to ${mantelName.value}`
     : `${sender.value} would like to write to you`
@@ -104,6 +109,12 @@ useSeo({
             A letter to {{ familyName }} goes to everyone in it at once, each copy arriving by post
             in that person's own city. Accepting puts you in it: you will read what is written from
             now on, and you can leave at any time.
+          </p>
+          <p v-else-if="mantelName && news" class="text-muted">
+            {{ sender }} keeps a mantel for {{ mantelName }}, and now and then writes a letter of
+            news: a photo, a first word, a birthday. Accepting means those letters come to you too,
+            a few days after each is written. You can read them and cannot write back, and you can
+            stop at any time. Nobody who gets the news is told who else does.
           </p>
           <p v-else-if="mantelName" class="text-muted">
             {{ sender }} keeps a mantel for {{ mantelName }}: a place for letters to someone who

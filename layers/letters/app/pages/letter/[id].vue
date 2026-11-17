@@ -24,6 +24,11 @@ onMounted(async () => {
 const heading = computed(() => {
   const opened = letter.value
   if (!opened) return 'A letter'
+  if (opened.news) {
+    return opened.kind === 'return'
+      ? `Returned: your news of ${opened.news}`
+      : `News of ${opened.news}`
+  }
   if (opened.kind === 'return') {
     return opened.name ? `Returned: your letter to ${opened.name}` : 'Returned: your letter'
   }
@@ -48,6 +53,9 @@ useSeo({
           v-if="letter?.postmark"
           class="mt-2 font-mono text-xs tracking-wide text-muted uppercase"
         >
+          <template v-if="letter.news && letter.kind === 'letter' && letter.name">
+            From {{ letter.name }} ·
+          </template>
           Postmarked {{ longDay(letter.postmark) }}
         </p>
       </div>

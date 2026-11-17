@@ -39,6 +39,8 @@ export const inviteInputSchema = z.object({
   mantelId: z.string().uuid().optional(),
   /** A family the inviter organises: the invitation is to join it. */
   familyId: z.string().uuid().optional(),
+  /** With `mantelId`: the invitation is to read the child's news, not to write. */
+  news: z.boolean().optional(),
 })
 
 /**
@@ -61,6 +63,8 @@ export interface InviteView {
   mantelName?: string | null
   /** Set when the invitation is to join a family. */
   familyName?: string | null
+  /** With `mantelName`: the invitation is to read the child's news, not to write. */
+  news?: boolean
 }
 
 export interface PersonView {

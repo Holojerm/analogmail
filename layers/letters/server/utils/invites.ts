@@ -12,6 +12,7 @@ import { INVITE_TTL_MS, MAX_OPEN_INVITES, type InviteView } from '../../shared/u
 import { openCorrespondenceBetween } from './correspondences'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 
+import { openNews } from './news'
 import { recipientIdentity } from './recipients'
 import { otherMembers } from './drafts'
 import { canInviteToFamily } from './families'
@@ -32,6 +33,7 @@ export type CreateInviteResult =
       inviterName: string
       mantelName: string | null
       familyName: string | null
+      news: boolean
     }
   | {
       status:
@@ -59,6 +61,8 @@ export async function createInvite(
   mantelId: string | null = null,
   /** A family the inviter organises: the invitation is then to join it. */
   familyId: string | null = null,
+  /** With `mantelId`: the invitation is to read the child's news, not to write. */
+  news = false,
 ): Promise<CreateInviteResult> {
   const address = normalizeEmail(email)
   if (address === normalizeEmail(inviter.email)) return { status: 'self' }
@@ -66,6 +70,9 @@ export async function createInvite(
   if (mantelId && (!mantel?.mantel || !(await isKeeper(db, inviter.id, mantelId)))) {
     return { status: 'not-keeper' }
   }
+  // Null for a mantel that has no news: not a child's, or closed.
+  const newsId = mantelId && news ? await openNews(db, inviter.id, mantelId, now) : null
+  if (news && !newsId) return { status: 'not-keeper' }
   const family = familyId ? await canInviteToFamily(db, inviter.id, familyId) : null
   if (family === 'not-organiser') return { status: 'not-organiser' }
   if (family === 'full') return { status: 'family-full' }
@@ -82,7 +89,7 @@ export async function createInvite(
   const sameKind = familyId
     ? eq(invites.familyId, familyId)
     : mantelId
-      ? eq(invites.mantelId, mantelId)
+      ? and(eq(invites.mantelId, mantelId), eq(invites.news, news))
       : and(isNull(invites.mantelId), isNull(invites.familyId))
   const [waiting] = await db
     .select({ id: invites.id })
@@ -99,7 +106,9 @@ export async function createInvite(
   if (existing) {
     const already = family
       ? ((await otherMembers(db, family.correspondenceId, inviter.id)) ?? []).includes(existing.id)
-      : await openCorrespondenceBetween(db, mantelId ?? inviter.id, existing.id)
+      : newsId
+        ? ((await otherMembers(db, newsId, inviter.id)) ?? []).includes(existing.id)
+        : await openCorrespondenceBetween(db, mantelId ?? inviter.id, existing.id)
     if (already) return { status: 'already-writing' }
   }
 
@@ -117,6 +126,7 @@ export async function createInvite(
       expiresAt,
       mantelId,
       familyId,
+      news,
       createdAt: now,
     })
     .returning({ id: invites.id })
@@ -128,6 +138,7 @@ export async function createInvite(
     inviterName,
     mantelName: mantel?.name ?? null,
     familyName: family?.name ?? null,
+    news,
   }
 }
 
@@ -162,6 +173,7 @@ export async function viewInvite(db: LettersDb, token: string, now: Date): Promi
     expiresAt: row.expiresAt.toISOString(),
     mantelName: row.mantelId ? (mantel?.name ?? null) : undefined,
     familyName: row.familyId ? await familyNameOf(db, row.familyId) : undefined,
+    news: row.news || undefined,
   }
 }
 

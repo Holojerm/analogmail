@@ -7,6 +7,8 @@ export interface MantelItem {
   kind: 'letter' | 'return'
   /** Who wrote it, or for a return who it was for. Null when that account is gone. */
   name: string | null
+  /** The child's name when the letter is news of them. */
+  news: string | null
   /** 'YYYY-MM-DD', the sender's calendar. */
   postmark: string | null
   /** The mail day it arrived on, 'YYYY-MM-DD'. */
@@ -19,6 +21,8 @@ export interface OpenedLetter {
   correspondenceId: string
   kind: 'letter' | 'return'
   name: string | null
+  /** The child's name when the letter is news of them. */
+  news: string | null
   postmark: string | null
   ciphertext: string
   wrappedKey: string

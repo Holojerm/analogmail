@@ -47,7 +47,7 @@ test('a kept mantel: opened, its code shown once, a second keeper seated', async
   await ann.getByLabel('I have written my recovery code down').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
   await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
-  await expect(ann.getByRole('heading', { name: 'Leo' })).toBeVisible()
+  await expect(ann.getByRole('heading', { name: 'Leo', exact: true })).toBeVisible()
   await expect(ann.getByText('This mantel has one keeper')).toBeVisible()
 
   // ── She asks Bob. He accepts and reads his key's fingerprint to her ────────

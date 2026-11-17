@@ -22,6 +22,7 @@ const ACTION_URL: Record<EmailName, (data: Record<string, unknown>) => string> =
   'family-invite': (d) => String(d.url),
   invite: (d) => String(d.url),
   'mantel-invite': (d) => String(d.url),
+  'news-invite': (d) => String(d.url),
   'mantel-recovery': (d) => String(d.url),
   'mail-arrived': (d) => `${d.appUrl}/mantel`,
   'magic-link': (d) => String(d.url),

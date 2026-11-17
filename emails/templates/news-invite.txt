@@ -1,0 +1,12 @@
+{{inviterName}} would like to send you news of {{mantelName}}
+
+{{inviterName}} keeps a mantel for {{mantelName}} on {{appName}}, and now and then writes a letter of news: a photo, a first word, a birthday. They would like you to be one of the people who gets it.
+
+News comes as a letter, a few days after it is written. It is encrypted, so only the people it is sent to can read it. You can stop getting it whenever you like.
+
+See the invitation: {{url}}
+
+—
+The invitation is good for {{expiresDays}} days. If you don't know {{inviterName}}, ignore this email: nothing more will be sent, and your address is deleted when the invitation expires.
+
+{{appUrl}}

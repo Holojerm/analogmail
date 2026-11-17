@@ -9,11 +9,14 @@ import { planPosting, senderView, type Posting } from '#layers/post/shared/utils
 
 import type { DeskLetter, SentStatus } from '../../shared/utils/letter-doc'
 import { otherMembers } from './drafts'
-import { correspondenceLabels } from './correspondences'
+import { correspondenceLabels, type CorrespondenceLabel } from './correspondences'
+import { isKeeper } from '#layers/keys/server/utils/mantels'
+
+import { newsMantelOf, seatKeepers } from './news'
 import type { LettersDb } from './people'
 import { recipientIdentity } from './recipients'
 
-export type PostingRefusal = 'closed' | 'sender-needs-city' | 'recipient-not-ready'
+export type PostingRefusal = 'closed' | 'sender-needs-city' | 'recipient-not-ready' | 'no-readers'
 
 export interface SealRecipient {
   id: string
@@ -35,6 +38,10 @@ export interface SealPlan {
   toMantel: boolean
   /** The family's name when the letter goes to a family. */
   family: string | null
+  /** The child's name when the letter is news of them. */
+  news: string | null
+  /** News only: whether the child's own mantel gets a copy of this letter. */
+  withChild: boolean
   /** The sender's own time zone: pickup is 5 pm there, whatever the device says. */
   senderZone: string
   /** Pickup and postmark, which are the sender's and so the same for every reader. */
@@ -53,10 +60,21 @@ export async function planSeal(
   authorId: string,
   correspondenceId: string,
   now: Date,
+  /** News only: also send a copy to the child's mantel. */
+  withChild = false,
 ): Promise<SealPlan | PostingRefusal> {
   const { postalProfiles, families } = tables
-  const others = await otherMembers(db, correspondenceId, authorId)
-  if (!others || others.length === 0) return 'closed'
+  const news = await newsMantelOf(db, correspondenceId)
+  if (news) {
+    // Only a keeper writes a child's news. A reader's place in it is no way in.
+    if (!(await isKeeper(db, authorId, news.mantelId))) return 'closed'
+    await seatKeepers(db, news.mantelId, correspondenceId, now)
+  }
+  const members = await otherMembers(db, correspondenceId, authorId)
+  if (!members) return 'closed'
+  // The mantel is not a member of its news: the writer adds it, letter by letter.
+  const others = news && withChild ? [...members, news.mantelId] : members
+  if (others.length === 0) return news ? 'no-readers' : 'closed'
 
   const profiles = await db
     .select()
@@ -72,7 +90,8 @@ export async function planSeal(
     const identity = await recipientIdentity(db, id)
     // Someone who has not finished setting up gets nothing yet; the rest do.
     if (!place || !identity) continue
-    toMantel ||= identity.mantel
+    // News is never sealed until a day: its readers are people, reading now.
+    toMantel ||= identity.mantel && !news
     recipients.push({
       id,
       name: identity.name,
@@ -99,6 +118,8 @@ export async function planSeal(
     recipientPublicKey: first.publicKey,
     toMantel,
     family: family?.name ?? null,
+    news: news?.name ?? null,
+    withChild: Boolean(news) && withChild,
     senderZone: sender.timeZone,
     posting: first.posting,
     lastArrival: recipients
@@ -139,13 +160,15 @@ export async function sealLetter(
   now: Date,
   /** 'YYYY-MM-DD'. Only a letter to a kept mantel can be sealed until a day. */
   opensOn: string | null = null,
+  /** News only: also send a copy to the child's mantel. */
+  withChild = false,
 ): Promise<SealResult> {
   const { letters, letterKeys, deliveries } = tables
   const [letter] = await db.select().from(letters).where(eq(letters.id, letterId)).limit(1)
   if (!letter || letter.authorId !== authorId) return { status: 'not-yours' }
   if (letter.sealedAt) return { status: 'already-sealed' }
 
-  const plan = await planSeal(db, authorId, letter.correspondenceId, now)
+  const plan = await planSeal(db, authorId, letter.correspondenceId, now, withChild)
   if (typeof plan === 'string') return { status: plan }
   const { posting, recipients } = plan
   const keys = typeof wrappedKeys === 'string' ? { [plan.recipientId]: wrappedKeys } : wrappedKeys
@@ -248,6 +271,10 @@ export async function recallLetter(
 
 const iso = (date: Date) => date.toISOString()
 
+/** Who a letter on the desk is for. News goes to more than one name can say. */
+const deskName = (label?: CorrespondenceLabel) =>
+  label?.kind === 'news' ? `everyone who gets news of ${label.name}` : (label?.name ?? '')
+
 /**
  * The writer's desk: their drafts and what they have sealed, newest first.
  * A sealed letter's status comes from `senderView`, which knows only the
@@ -316,7 +343,7 @@ export async function listDesk(
     return {
       id: row.id,
       correspondenceId: row.correspondenceId,
-      to: labels.get(row.correspondenceId)?.name ?? '',
+      to: deskName(labels.get(row.correspondenceId)),
       updatedAt: iso(row.updatedAt),
       status,
       opensOn: row.sealedAt ? row.opensOn : null,

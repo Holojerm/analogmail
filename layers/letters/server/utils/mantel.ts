@@ -35,7 +35,7 @@ async function otherMember(db: LettersDb, correspondenceId: string, userId: stri
 }
 
 async function delivered(db: LettersDb, userId: string, letterId?: string) {
-  const { deliveries, letters } = tables
+  const { deliveries, letters, mantelNews, mantels } = tables
   return db
     .select({
       deliveryId: deliveries.id,
@@ -48,9 +48,13 @@ async function delivered(db: LettersDb, userId: string, letterId?: string) {
       openedAt: deliveries.openedAt,
       ciphertext: letters.ciphertext,
       inReplyTo: letters.inReplyTo,
+      // The child's name when the letter is news of them.
+      news: mantels.name,
     })
     .from(deliveries)
     .innerJoin(letters, eq(letters.id, deliveries.letterId))
+    .leftJoin(mantelNews, eq(mantelNews.correspondenceId, letters.correspondenceId))
+    .leftJoin(mantels, eq(mantels.id, mantelNews.mantelId))
     .where(
       and(
         eq(deliveries.recipientId, userId),
@@ -65,7 +69,8 @@ export async function listMantel(db: LettersDb, userId: string): Promise<MantelI
   const rows = await delivered(db, userId)
   const others = new Map<string, string | null>()
   for (const row of rows) {
-    if (row.kind === 'return' && !others.has(row.correspondenceId)) {
+    // Returned news has no one name to go under.
+    if (row.kind === 'return' && !row.news && !others.has(row.correspondenceId)) {
       others.set(row.correspondenceId, await otherMember(db, row.correspondenceId, userId))
     }
   }
@@ -80,6 +85,7 @@ export async function listMantel(db: LettersDb, userId: string): Promise<MantelI
     correspondenceId: row.correspondenceId,
     kind: row.kind === 'return' ? 'return' : 'letter',
     name: names.get(who(row) ?? '') ?? null,
+    news: row.news,
     postmark: row.postmark,
     arrivedOn: row.arrivedOn,
     opened: Boolean(row.openedAt),
@@ -112,7 +118,7 @@ export async function openLetter(
       .set({ openedAt: now })
       .where(and(eq(deliveries.id, row.deliveryId), isNull(deliveries.openedAt)))
   }
-  const other = await otherMember(db, row.correspondenceId, userId)
+  const other = row.news ? null : await otherMember(db, row.correspondenceId, userId)
   const subject = row.kind === 'return' ? other : row.authorId
   const names = await displayNames(db, subject ? [subject] : [])
   const [correspondence] = await db
@@ -125,11 +131,14 @@ export async function openLetter(
     correspondenceId: row.correspondenceId,
     kind: row.kind === 'return' ? 'return' : 'letter',
     name: names.get(subject ?? '') ?? null,
+    news: row.news,
     postmark: row.postmark,
     ciphertext: row.ciphertext,
     wrappedKey: key.wrappedKey,
     inReplyTo: row.inReplyTo,
-    canReply: row.kind === 'letter' && Boolean(correspondence) && !correspondence?.closedAt,
+    // News is read-only: nobody replies to it.
+    canReply:
+      row.kind === 'letter' && !row.news && Boolean(correspondence) && !correspondence?.closedAt,
   }
 }
 
