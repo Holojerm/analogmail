@@ -1,8 +1,15 @@
 <script setup lang="ts">
 // An anniversary mantel's write link: the address printed on a card so guests
-// can write without an account. The part after the # is a fingerprint of the
-// mantel's key, worked out here, and the guest's browser checks it.
-const props = defineProps<{ mantelId: string; publicKey: string }>()
+// can write without an account. The part after the # never reaches us with
+// the page: a fingerprint of the mantel's key, which the guest's browser
+// checks, and a secret worked out here from the mantel's key, without which
+// the address is no use. So the address can only be shown where the mantel
+// opens.
+import { guestLinkFragment } from '../../../shared/utils/guest'
+import { guestLinkSecret, guestLinkSecretHash, newGuestLinkId } from '../../utils/guest-link-secret'
+
+const props = defineProps<{ mantelId: string; publicKey: string; wrappedKey: string | null }>()
+const mantelKeys = useMantelKeys()
 
 interface GuestLink {
   id: string
@@ -19,6 +26,10 @@ const opensOn = ref('')
 const closesOn = ref('')
 const busy = ref(false)
 const failure = ref<string | null>(null)
+// False when this device cannot open the mantel, and so cannot work out the address.
+const opens = ref(true)
+
+const mantelKey = () => mantelKeys.open({ id: props.mantelId, wrappedKey: props.wrappedKey })
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
 
@@ -29,9 +40,16 @@ async function load() {
   )
   hasPost.value = Boolean(view.post)
   link.value = view.guestLink
-  const print = view.guestLink ? await keyFingerprintToken(props.publicKey) : null
+  const key = await mantelKey()
+  opens.value = Boolean(key)
+  const print = await keyFingerprintToken(props.publicKey)
   address.value =
-    view.guestLink && print ? `${window.location.origin}/w/${view.guestLink.id}#${print}` : null
+    view.guestLink && key && print
+      ? `${window.location.origin}/w/${view.guestLink.id}#${guestLinkFragment(
+          print,
+          await guestLinkSecret(key, view.guestLink.id),
+        )}`
+      : null
 }
 onMounted(() => {
   closesOn.value = inDays(30)
@@ -45,9 +63,21 @@ async function create() {
   busy.value = true
   failure.value = null
   try {
+    const key = await mantelKey()
+    if (!key) {
+      opens.value = false
+      return
+    }
+    const id = newGuestLinkId()
     await $fetch('/api/letters/kept/guest-link', {
       method: 'POST',
-      body: { mantelId: props.mantelId, opensOn: opensOn.value, closesOn: closesOn.value },
+      body: {
+        mantelId: props.mantelId,
+        id,
+        secretHash: await guestLinkSecretHash(await guestLinkSecret(key, id)),
+        opensOn: opensOn.value,
+        closesOn: closesOn.value,
+      },
     })
     await load()
   } catch (error) {
@@ -70,11 +100,16 @@ async function create() {
       :description="failure"
     />
 
+    <p v-if="!opens" class="text-muted">
+      This device cannot open the mantel, so it cannot show or make the write link. Open this page
+      where you hold the mantel's key.
+    </p>
     <template v-if="link && address">
       <p class="text-sm text-muted">
         Print this address on a card, or as a QR code. Anyone who has it can write one letter after
         another without an account, until {{ yearDay(link.closesOn) }}. Every letter stays sealed
-        until {{ yearDay(link.opensOn) }}.
+        until {{ yearDay(link.opensOn) }}. Print all of it: the part after the # sign is what lets a
+        guest write.
       </p>
       <p class="break-all font-mono text-sm text-highlighted" data-testid="guest-link">
         {{ address }}
@@ -87,7 +122,7 @@ async function create() {
       Choose the mantel's city first. Then you can make the link guests write from.
     </p>
 
-    <form v-if="hasPost" class="flex flex-col gap-4" @submit.prevent="create">
+    <form v-if="hasPost && opens" class="flex flex-col gap-4" @submit.prevent="create">
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Guests can write until" name="closes-on">
           <UInput v-model="closesOn" type="date" class="w-full" />
