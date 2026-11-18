@@ -22,6 +22,8 @@ export const NOTICE_RUN_LIMIT = 100
 
 export interface NoticeReport {
   sent: number
+  /** Devices that took the notice as a notification, beside the channel's own send. */
+  pushed: number
   /** Failed this time and will be tried again. */
   retrying: number
   failed: number
@@ -34,10 +36,25 @@ export async function dispatchNotices(
   db: PostDb,
   notifier: Notifier,
   now: Date,
-  options: { limit?: number } = {},
+  options: {
+    limit?: number
+    /**
+     * The same notice on the devices a person turned notifications on in
+     * (./push.ts). Resolves to how many took it. Beside the channel, not
+     * instead of it: a notification is easy to miss and has never failed loudly.
+     */
+    push?: (userId: string) => Promise<number>
+  } = {},
 ): Promise<NoticeReport> {
   const { notices, users } = tables
-  const report: NoticeReport = { sent: 0, retrying: 0, failed: 0, expired: 0, skipped: false }
+  const report: NoticeReport = {
+    sent: 0,
+    pushed: 0,
+    retrying: 0,
+    failed: 0,
+    expired: 0,
+    skipped: false,
+  }
   const settle = (id: string, values: Partial<typeof notices.$inferInsert>) =>
     db.update(notices).set(values).where(eq(notices.id, id))
 
@@ -82,6 +99,12 @@ export async function dispatchNotices(
       .where(and(eq(notices.id, notice.id), eq(notices.state, 'pending')))
       .returning({ id: notices.id })
     if (!claimed) continue
+
+    // Once per notice, on its first attempt: a retry of the channel must not
+    // ring the phone again. Whatever goes wrong here is not the notice failing.
+    if (attempts === 1 && options.push) {
+      report.pushed += await options.push(notice.userId).catch(() => 0)
+    }
 
     let result: NotifyResult
     try {

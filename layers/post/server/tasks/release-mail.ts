@@ -11,7 +11,7 @@ import { db } from '@nuxthub/db'
 import { logEvent } from '#server/utils/log'
 import { recordOpsEvent } from '#server/utils/ops'
 
-import { currentNotifier } from '../notify/current'
+import { currentNotifier, pushNotice } from '../notify/current'
 import { dispatchNotices } from '../notify/dispatch'
 import { postNow } from '../utils/clock'
 import { runRelease } from '../utils/release-run'
@@ -39,7 +39,7 @@ export default defineTask({
     const now = await postNow()
     const release = await step('release_failed', () => runRelease(db, now))
     const notices = await step('notice_dispatch_failed', async () =>
-      dispatchNotices(db, await currentNotifier(), now),
+      dispatchNotices(db, await currentNotifier(), now, { push: pushNotice }),
     )
     logEvent('info', 'release_mail', { release, notices, durationMs: Date.now() - started })
     return { result: { release, notices } }
