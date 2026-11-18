@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { sql } from 'drizzle-orm'
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 const timestamps = {
   createdAt: integer('created_at', { mode: 'timestamp' })
@@ -55,8 +56,16 @@ export const mantels = sqliteTable('mantels', {
   // 'child' or 'anniversary'.
   kind: text('kind').notNull(),
   name: text('name').notNull(),
-  // SPKI, base64url. Never replaced: letters are sealed to it.
+  // SPKI, base64url. Letters are sealed to it. It changes only when the
+  // mantel is re-keyed (server/utils/rekey.ts), in one transaction with every
+  // letter key held for the mantel being wrapped again to the new key.
   publicKey: text('public_key').notNull(),
+  // Counts re-keys. A browser says which version it worked from, so a copy
+  // of an earlier key is never stored as the current one.
+  keyVersion: integer('key_version').notNull().default(1),
+  // Set when a keeper stops keeping the mantel: they may still hold its key,
+  // so a keeper who remains is asked to change it. Cleared by the re-key.
+  rekeyDueAt: integer('rekey_due_at', { mode: 'timestamp' }),
   scheme: integer('scheme').notNull().default(1),
   createdBy: text('created_by'),
   closedAt: integer('closed_at', { mode: 'timestamp' }),
@@ -91,6 +100,11 @@ export const mantelKeepers = sqliteTable(
 // The mantel's private key, encrypted in a browser: one copy per keeper,
 // wrapped to that keeper's account public key, and one under the mantel's
 // recovery code (`keeperId` is ''). The server can open none of them.
+//
+// After a re-key, a keeper who has not opened the mantel since holds two rows
+// instead of a 'keeper' one: 'previous', their copy of the key before, and
+// 'handover', the new key locked under both their account key and that
+// earlier mantel key. Their browser opens it and stores a 'keeper' copy.
 export const mantelKeyWraps = sqliteTable(
   'mantel_key_wraps',
   {
@@ -98,7 +112,7 @@ export const mantelKeyWraps = sqliteTable(
       .primaryKey()
       .$defaultFn(() => crypto.randomUUID()),
     mantelId: text('mantel_id').notNull(),
-    // 'keeper' or 'recovery'.
+    // 'keeper', 'recovery', 'previous' or 'handover'.
     kind: text('kind').notNull(),
     keeperId: text('keeper_id').notNull().default(''),
     wrapped: text('wrapped').notNull(),
@@ -174,6 +188,13 @@ export const mantelRecoveries = sqliteTable(
   },
   (table) => [index('mantel_recoveries_mantel_idx').on(table.mantelId)],
 )
+
+// Never holds a row. A batch that must not run unless something is still true
+// includes an insert here that selects a row only when it is not: the check
+// then fails and the whole batch is rolled back (server/utils/batch-guard.ts).
+export const batchGuards = sqliteTable('batch_guards', { failed: text('failed') }, (table) => [
+  check('batch_guards_never', sql`${table.failed} IS NULL`),
+])
 
 export type Mantel = typeof mantels.$inferSelect
 export type MantelKeeper = typeof mantelKeepers.$inferSelect

@@ -2,6 +2,8 @@
 
 import { z } from 'zod'
 
+import { PUBLIC_KEY_PATTERN } from '../../../keys/shared/utils/key-format'
+
 import { letterCiphertextSchema, letterIdSchema, letterKeySchema } from './letter-doc'
 import { photoIdSchema } from './letter-photo'
 
@@ -38,6 +40,8 @@ export const newGuestLinkSchema = z.object({
   id: guestLinkIdSchema,
   /** SHA-256 (hex) of the link's secret. The secret itself is never sent here. */
   secretHash: z.string().regex(/^[0-9a-f]{64}$/),
+  /** The mantel's public key the secret and the fingerprint were worked out from. */
+  publicKey: z.string().regex(PUBLIC_KEY_PATTERN),
   /** The day every letter from this link opens: the first anniversary, say. */
   opensOn: day,
   /** The last day a guest may write. */

@@ -14,10 +14,11 @@
 // path alone (a log line, an address bar without the fragment) learns nothing
 // and can send nothing.
 
-import { and, count, desc, eq, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
+import { batchGuard, isGuardFailure, mantelKeyIs } from '#layers/keys/server/utils/batch-guard'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 import { sha256Hex, timingSafeEqual } from '#server/utils/hash'
 
@@ -50,30 +51,48 @@ const lettersFrom = async (db: LettersDb, linkId: string) => {
 
 export type CreateGuestLinkResult =
   | { status: 'created'; id: string }
-  | { status: 'not-keeper' | 'not-anniversary' | 'needs-post' | 'bad-dates' | 'exists' }
+  | {
+      status:
+        | 'not-keeper'
+        | 'not-anniversary'
+        | 'needs-post'
+        | 'bad-dates'
+        | 'exists'
+        | 'key-changed'
+    }
 
 /**
  * Makes a mantel's write link, replacing the one it had. Letters already
  * sent through the old link stay; the old address stops working. The id and
  * the hash of the secret come from the keeper's browser, which derived the
- * secret from the mantel's key.
+ * secret from the mantel's key. `publicKey` is the mantel's key as that
+ * browser knew it: a link made from a key the mantel no longer has would
+ * match no card and be no use to any guest, so it is refused.
  */
 export async function createGuestLink(
   db: LettersDb,
   keeperId: string,
-  input: { mantelId: string; id: string; secretHash: string; opensOn: string; closesOn: string },
+  input: {
+    mantelId: string
+    id: string
+    secretHash: string
+    publicKey: string
+    opensOn: string
+    closesOn: string
+  },
   now: Date,
 ): Promise<CreateGuestLinkResult> {
   const { guestLinks, mantels, postalProfiles, correspondences, correspondenceMembers } = tables
   if (!(await isKeeper(db, keeperId, input.mantelId))) return { status: 'not-keeper' }
   const [mantel] = await db
-    .select({ kind: mantels.kind, closedAt: mantels.closedAt })
+    .select({ kind: mantels.kind, closedAt: mantels.closedAt, publicKey: mantels.publicKey })
     .from(mantels)
     .where(eq(mantels.id, input.mantelId))
     .limit(1)
   if (!mantel || mantel.closedAt || mantel.kind !== 'anniversary') {
     return { status: 'not-anniversary' }
   }
+  if (mantel.publicKey !== input.publicKey) return { status: 'key-changed' }
   const [post] = await db
     .select({ userId: postalProfiles.userId })
     .from(postalProfiles)
@@ -125,7 +144,13 @@ export async function createGuestLink(
       createdAt: now,
     }),
   )
-  await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  statements.unshift(batchGuard(db, mantelKeyIs(input.mantelId, input.publicKey)))
+  try {
+    await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  } catch (error) {
+    if (isGuardFailure(error)) return { status: 'key-changed' }
+    throw error
+  }
   return { status: 'created', id }
 }
 
@@ -227,6 +252,12 @@ export async function postGuestLetter(
   if (photo && photoKey) await photo.store.put(photoKey, photo.bytes)
   try {
     await db.batch([
+      // A re-key revokes the link in the same transaction that changes the
+      // key. A letter wrapped to the old key is never stored after it.
+      batchGuard(
+        db,
+        sql`EXISTS (SELECT 1 FROM guest_links WHERE id = ${link.id} AND revoked_at IS NULL)`,
+      ),
       db.insert(letters).values({
         id: letter.id,
         correspondenceId: link.correspondenceId,
@@ -261,6 +292,7 @@ export async function postGuestLetter(
   } catch (error) {
     // No letter, so no photo: a file nothing names would never be deleted.
     if (photo && photoKey) await photo.store.remove([photoKey])
+    if (isGuardFailure(error)) return { status: 'closed' }
     throw error
   }
   return { status: 'posted', opensOn: link.opensOn }

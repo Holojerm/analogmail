@@ -75,6 +75,7 @@ async function create() {
         mantelId: props.mantelId,
         id,
         secretHash: await guestLinkSecretHash(await guestLinkSecret(key, id)),
+        publicKey: props.publicKey,
         opensOn: opensOn.value,
         closesOn: closesOn.value,
       },

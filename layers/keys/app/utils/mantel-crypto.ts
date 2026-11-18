@@ -5,6 +5,7 @@
 // never kept on a device: it is unwrapped in memory when needed.
 
 import { fromBase64Url, toBase64Url } from '../../shared/utils/key-format'
+import { HANDOVER_SEPARATOR } from '../../shared/utils/mantel-format'
 import { generateAccountKeys, type AccountKeys } from './key-crypto'
 
 const CURVE = { name: 'ECDH', namedCurve: 'P-256' } as const
@@ -80,6 +81,107 @@ export async function unwrapMantelKey(
   } catch {
     return null
   }
+}
+
+const HANDOVER_LABEL = 'dearmantel/v1/mantel-key-handover'
+const handoverData = (context: KeeperContext) =>
+  text.encode(`${HANDOVER_LABEL}\n${context.mantelId}\n${context.keeperId}`)
+
+// Two secrets in one key: the exchange with the keeper's account key, and the
+// mantel's key from before. The exchanged bits have a fixed length and come
+// first, so the pair cannot be read two ways.
+async function handoverKey(
+  privateKey: CryptoKey,
+  publicKey: CryptoKey,
+  oneTimePublic: Bytes,
+  previousMantelKey: Bytes,
+) {
+  const bits = new Uint8Array(
+    await crypto.subtle.deriveBits({ name: 'ECDH', public: publicKey }, privateKey, 256),
+  )
+  const both = new Uint8Array(bits.length + previousMantelKey.length)
+  both.set(bits)
+  both.set(previousMantelKey, bits.length)
+  const material = await crypto.subtle.importKey('raw', both, 'HKDF', false, ['deriveKey'])
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: oneTimePublic, info: text.encode(HANDOVER_LABEL) },
+    material,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  )
+}
+
+/**
+ * After a re-key: the mantel's new private key for a keeper who was not
+ * there, locked under their account key and the mantel's key from before
+ * together. `keeperPublicKey` is what the server says their key is. A server
+ * that swapped it still could not open this, having never held the earlier
+ * mantel key; someone who left with that key cannot either, without the
+ * keeper's own.
+ */
+export async function wrapMantelKeyForHandover(
+  keeperPublicKey: string,
+  previousMantelKey: Bytes,
+  mantelPrivateKey: Bytes,
+  context: KeeperContext,
+): Promise<string> {
+  const spki = fromBase64Url(keeperPublicKey)
+  if (!spki) throw new Error('The keeper has no usable public key')
+  const keeper = await crypto.subtle.importKey('spki', spki, CURVE, false, [])
+  const oneTime = await crypto.subtle.generateKey(CURVE, true, ['deriveBits'])
+  const oneTimePublic = new Uint8Array(await crypto.subtle.exportKey('raw', oneTime.publicKey))
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
+  const sealed = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, additionalData: handoverData(context) },
+    await handoverKey(oneTime.privateKey, keeper, oneTimePublic, previousMantelKey),
+    mantelPrivateKey,
+  )
+  return `v1.${toBase64Url(oneTimePublic)}.${toBase64Url(iv)}.${toBase64Url(new Uint8Array(sealed))}`
+}
+
+/** Null without both the keeper's account key and the mantel's key from before. */
+export async function unwrapMantelKeyHandover(
+  accountPrivateKey: CryptoKey,
+  previousMantelKey: Bytes,
+  wrapped: string,
+  context: KeeperContext,
+): Promise<Bytes | null> {
+  const [version, publicText, ivText, sealedText] = wrapped.split('.')
+  const oneTimePublic = fromBase64Url(publicText ?? '')
+  const iv = fromBase64Url(ivText ?? '')
+  const sealed = fromBase64Url(sealedText ?? '')
+  if (version !== 'v1' || !oneTimePublic || !iv || !sealed || iv.length !== IV_BYTES) return null
+  try {
+    const sender = await crypto.subtle.importKey('raw', oneTimePublic, CURVE, false, [])
+    const opened = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv, additionalData: handoverData(context) },
+      await handoverKey(accountPrivateKey, sender, oneTimePublic, previousMantelKey),
+      sealed,
+    )
+    return new Uint8Array(opened)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Opens a hand-over as the server stores it: one link per re-key the keeper
+ * was not there for, joined by `HANDOVER_SEPARATOR`. Each link opens with the
+ * key the one before it gave, starting from the keeper's own earlier copy.
+ */
+export async function openHandoverChain(
+  accountPrivateKey: CryptoKey,
+  previousMantelKey: Bytes,
+  chain: string,
+  context: KeeperContext,
+): Promise<Bytes | null> {
+  let mantelKey: Bytes | null = previousMantelKey
+  for (const link of chain.split(HANDOVER_SEPARATOR)) {
+    mantelKey = await unwrapMantelKeyHandover(accountPrivateKey, mantelKey, link, context)
+    if (!mantelKey) return null
+  }
+  return mantelKey
 }
 
 const RECOVERY_LABEL = 'dearmantel/v1/mantel-key-recovery'

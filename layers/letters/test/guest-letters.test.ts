@@ -90,7 +90,13 @@ async function newLink(secret = 'S'.repeat(22)) {
   return {
     id,
     secret,
-    input: { mantelId: WEDDING, id, secretHash: await sha256(secret), ...DATES },
+    input: {
+      mantelId: WEDDING,
+      id,
+      secretHash: await sha256(secret),
+      publicKey: 'wedding-key',
+      ...DATES,
+    },
   }
 }
 
@@ -174,6 +180,14 @@ describe('making the write link', () => {
     expect(row?.secretHash).toBe(await sha256(secret))
     expect(JSON.stringify(row)).not.toContain(secret)
     expect((await createGuestLink(db, 'maya', input, NOW)).status).toBe('exists')
+  })
+
+  it('is refused when it was worked out from a key the mantel no longer has', async () => {
+    const { input } = await newLink()
+    expect(await createGuestLink(db, 'maya', { ...input, publicKey: 'an-older-key' }, NOW)).toEqual(
+      { status: 'key-changed' },
+    )
+    expect(await db.select().from(guestLinks)).toHaveLength(0)
   })
 })
 
