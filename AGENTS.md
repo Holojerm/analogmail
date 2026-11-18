@@ -121,6 +121,7 @@ Custodial mantels (`layers/keys`): a child's or anniversary mantel has its own k
 in a keeper's browser (`mantel-crypto.ts`). The server holds the public key and wrapped copies
 of the private key: one per keeper, wrapped to that keeper's account key, and one under the
 mantel's recovery code. It never holds the key itself, and the key is never kept on a device.
+The key changes only by a re-key (below).
 Who keeps a mantel changes only through `custody.ts`: a proposal takes effect when more than
 half of the keepers have voted (`carries`), so two keepers must both agree. Seating a keeper
 also needs that person's acceptance and a wrapped copy from a keeper's browser, which the
@@ -129,7 +130,30 @@ server cannot make. A mantel's last keeper cannot delete their account. The reco
 the hash of a proof the code derives (`recoveryProof`). A keeper who uses it replaces their
 own copy of the key at once. Anyone else waits `RECOVERY_WAIT_DAYS` while every keeper is
 emailed (`mantel-recovery`) and any of them can cancel. Do not add a path that writes
-`mantel_keepers` or `mantel_key_wraps` outside `custody.ts`, `mantels.ts` and `recovery.ts`. Pages: `/mantels`
+`mantel_keepers` or `mantel_key_wraps` outside `custody.ts`, `mantels.ts`, `recovery.ts` and
+`rekey.ts`.
+
+Re-keying a mantel (`rekey.ts`, and `layers/letters/server/utils/kept-rekey.ts` for the letter
+keys): a keeper who leaves, by a vote or by deleting their account, may still hold the
+mantel's key, so `mantels.rekeyDueAt` is set and the keepers who remain are asked to change it
+(`LettersMantelRekey` on the mantel's page). One keeper's browser makes a new key pair and
+recovery code and wraps every `letter_keys` row held for the mantel again to the new key
+(`useMantelRekey`, `rewrapLetterKeys`). `rekeyMantel` stores all of it in one batch: the new
+public key and `keyVersion`, the keeper's copy, the recovery copy and proof, the letter keys,
+and the write link revoked (its fragment is a fingerprint of the old key). Each other keeper
+gets a `handover` copy locked under both their account key and the mantel's key from before
+(`wrapMantelKeyForHandover`), so neither the server nor whoever left can open it; their old
+copy becomes `previous`, and `useMantelKeys.open` settles the two into an ordinary copy on
+their next visit. Nothing about the letters is lost and no keeper is shut out.
+
+A batch that writes something a browser wrapped to a mantel's key must carry a guard
+(`batch-guard.ts`): the handler's check and its write are not one step, and a re-key can land
+between them. `batchGuard(db, condition)` is a statement that fails, rolling the batch back,
+unless the condition holds when it runs; `isGuardFailure` tells that from a fault. Sealing to
+a mantel (`sealLetter` takes `readerKeys`, the public key each copy was wrapped to), a guest's
+letter, seating a keeper (`grantSeat` takes `keyVersion`) and the recovery code all carry
+one. Build guards and other raw statements for a batch with the query builder, not `db.run`:
+Drizzle's D1 batch cannot bind a raw statement's values. Pages: `/mantels`
 (kept mantels and offered seats), `/mantels/new` (keys made here, recovery code shown once)
 and `/mantels/<id>` (keepers, proposals, and the fingerprint check before a keeper's browser
 wraps the key to a new one). The person being seated reads their own key's fingerprint from

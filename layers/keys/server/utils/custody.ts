@@ -13,6 +13,7 @@ import * as tables from '@nuxthub/db/schema'
 import { normalizeEmail } from '#server/utils/users'
 
 import { carries, PROPOSAL_TTL_DAYS, type KeeperRole } from '../../shared/utils/mantel-format'
+import { batchGuard, isGuardFailure, mantelKeyVersionIs } from './batch-guard'
 import type { KeysDb } from './keys'
 import { keepersOf } from './mantels'
 
@@ -128,7 +129,7 @@ export async function proposeRemoval(
 }
 
 async function applyRemovalIfCarried(db: KeysDb, proposalId: string, now: Date): Promise<boolean> {
-  const { mantelProposals, mantelKeepers, mantelKeyWraps } = tables
+  const { mantels, mantelProposals, mantelKeepers, mantelKeyWraps } = tables
   const proposal = await openProposal(db, proposalId, now)
   if (!proposal || proposal.kind !== 'remove_keeper' || !proposal.subjectId) return false
   if (!(await isCarried(db, proposalId, proposal.mantelId))) return false
@@ -146,15 +147,22 @@ async function applyRemovalIfCarried(db: KeysDb, proposalId: string, now: Date):
           isNull(mantelKeepers.leftAt),
         ),
       ),
+    // Every copy held for them, whatever its kind. The recovery copy's
+    // `keeperId` is '', so it stays.
     db
       .delete(mantelKeyWraps)
       .where(
         and(
           eq(mantelKeyWraps.mantelId, proposal.mantelId),
-          eq(mantelKeyWraps.kind, 'keeper'),
           eq(mantelKeyWraps.keeperId, proposal.subjectId),
         ),
       ),
+    // They may have kept the key itself: the keepers who remain are asked to
+    // change it (server/utils/rekey.ts).
+    db
+      .update(mantels)
+      .set({ rekeyDueAt: now, updatedAt: now })
+      .where(eq(mantels.id, proposal.mantelId)),
     db
       .update(mantelProposals)
       .set({ outcome: 'done', settledAt: now, updatedAt: now })
@@ -249,19 +257,23 @@ export type GrantSeatResult = 'seated' | 'not-ready'
 
 /**
  * Seats the new keeper with the copy of the mantel's key a keeper's browser
- * wrapped to them, after the two compared the key's fingerprint.
+ * wrapped to them, after the two compared the key's fingerprint. `keyVersion`
+ * is the version of the key that browser opened: if the mantel has been
+ * re-keyed since, the copy is of an old key and nobody is seated.
  */
 export async function grantSeat(
   db: KeysDb,
   keeperId: string,
   proposalId: string,
-  wrapped: string,
+  grant: { wrapped: string; keyVersion: number },
   now: Date,
 ): Promise<GrantSeatResult> {
   const { mantelProposals, mantelKeepers, mantelKeyWraps } = tables
+  const { wrapped } = grant
   const seat = await seatToFill(db, keeperId, proposalId, now)
   if (!seat || !seat.role) return 'not-ready'
-  await db.batch([
+  const statements = [
+    batchGuard(db, mantelKeyVersionIs(seat.mantelId, grant.keyVersion)),
     db
       .insert(mantelKeepers)
       .values({
@@ -287,7 +299,13 @@ export async function grantSeat(
       .update(mantelProposals)
       .set({ outcome: 'done', settledAt: now, subjectEmail: null, updatedAt: now })
       .where(and(eq(mantelProposals.id, proposalId), isNull(mantelProposals.outcome))),
-  ])
+  ] as const
+  try {
+    await db.batch(statements)
+  } catch (error) {
+    if (isGuardFailure(error)) return 'not-ready'
+    throw error
+  }
   return 'seated'
 }
 

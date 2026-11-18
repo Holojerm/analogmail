@@ -81,7 +81,11 @@
       opens the key in the browser of whoever types it and is never sent to us; what we receive is a
       value derived from it that proves they hold it. A keeper who uses it gets their own access
       back. Anyone else is asking to become a keeper: every keeper is emailed, and it takes effect
-      after 30 days unless one of them cancels.
+      after 30 days unless one of them cancels. When someone stops keeping a mantel we delete their
+      copy, but they were given the key and may have kept it. The keepers who remain are asked to
+      change the key, which is done in one of their browsers. Once it is changed, the old key opens
+      nothing we hold, and the recovery code printed before stops working. Until then it could, if
+      our database were ever copied.
     </p>
     <p>
       <strong class="text-highlighted">Sealed letters.</strong> A letter to a kept mantel can be
@@ -89,7 +93,9 @@
       key to anyone, its keepers included; the writer keeps their own copy. This is a promise kept
       by our servers together with a key we do not have. It is not a mathematical time lock: to read
       one early, both we and a keeper would have to break the rules. We can see the day a letter is
-      sealed until.
+      sealed until. One exception to "its key": when a mantel's key is changed, the browser of the
+      keeper changing it is handed each letter's locked key, to lock it again to the new one. The
+      letter and its photo are still withheld.
     </p>
     <p>
       <strong class="text-highlighted">Letters from guests.</strong> A couple can print a link that

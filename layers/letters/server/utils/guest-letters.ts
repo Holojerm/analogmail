@@ -14,10 +14,11 @@
 // path alone (a log line, an address bar without the fragment) learns nothing
 // and can send nothing.
 
-import { and, count, desc, eq, isNull } from 'drizzle-orm'
+import { and, count, desc, eq, isNull, sql } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
+import { batchGuard, isGuardFailure } from '#layers/keys/server/utils/batch-guard'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 import { sha256Hex, timingSafeEqual } from '#server/utils/hash'
 
@@ -227,6 +228,12 @@ export async function postGuestLetter(
   if (photo && photoKey) await photo.store.put(photoKey, photo.bytes)
   try {
     await db.batch([
+      // A re-key revokes the link in the same transaction that changes the
+      // key. A letter wrapped to the old key is never stored after it.
+      batchGuard(
+        db,
+        sql`EXISTS (SELECT 1 FROM guest_links WHERE id = ${link.id} AND revoked_at IS NULL)`,
+      ),
       db.insert(letters).values({
         id: letter.id,
         correspondenceId: link.correspondenceId,
@@ -261,6 +268,7 @@ export async function postGuestLetter(
   } catch (error) {
     // No letter, so no photo: a file nothing names would never be deleted.
     if (photo && photoKey) await photo.store.remove([photoKey])
+    if (isGuardFailure(error)) return { status: 'closed' }
     throw error
   }
   return { status: 'posted', opensOn: link.opensOn }

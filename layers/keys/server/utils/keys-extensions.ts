@@ -75,8 +75,15 @@ export async function soleKeeperOf(db: KeysDb, userId: string): Promise<string[]
 }
 
 export function registerKeysExtensions(): void {
-  const { userKeys, keyWraps, mantelKeepers, mantelKeyWraps, mantelProposals, mantelRecoveries } =
-    tables
+  const {
+    userKeys,
+    keyWraps,
+    mantels,
+    mantelKeepers,
+    mantelKeyWraps,
+    mantelProposals,
+    mantelRecoveries,
+  } = tables
 
   // When mail arrives on a kept mantel, its keepers are the ones to tell.
   registerNoticeAudience(async (db, recipientIds) => {
@@ -160,10 +167,23 @@ export function registerKeysExtensions(): void {
       }
     },
     deletionStatements: (db, userId) => [
-      // Their copy of each mantel's key goes with them. The mantel stays.
+      // Whoever held the account may still hold each mantel's key, so the
+      // keepers who remain are asked to change it. Before the next statement,
+      // which is what stops this person being found as a keeper.
       db
-        .delete(mantelKeyWraps)
-        .where(and(eq(mantelKeyWraps.kind, 'keeper'), eq(mantelKeyWraps.keeperId, userId))),
+        .update(mantels)
+        .set({ rekeyDueAt: new Date() })
+        .where(
+          inArray(
+            mantels.id,
+            db
+              .select({ id: mantelKeepers.mantelId })
+              .from(mantelKeepers)
+              .where(and(eq(mantelKeepers.userId, userId), isNull(mantelKeepers.leftAt))),
+          ),
+        ),
+      // Their copies of each mantel's key go with them. The mantel stays.
+      db.delete(mantelKeyWraps).where(eq(mantelKeyWraps.keeperId, userId)),
       db
         .update(mantelKeepers)
         .set({ leftAt: new Date() })

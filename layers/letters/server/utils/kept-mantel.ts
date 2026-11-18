@@ -2,7 +2,9 @@
 // shows before its delivery, and a letter sealed until a day gives up its
 // text, photo and key to nobody before that day on the mantel's calendar,
 // keepers included. The seal is this code withholding the letter plus a key
-// the server never has.
+// the server never has. One other place hands out a sealed letter's wrapped
+// key and nothing else of it: a re-key (kept-rekey.ts), which must wrap every
+// key again.
 
 import { and, desc, eq, gt, isNull, ne } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
