@@ -14,9 +14,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
   }
 
   if (useNuxtApp().isHydrating) {
+    let movedOn = false
+    const stop = useRouter().beforeEach((next) => {
+      if (next.fullPath !== to.fullPath) movedOn = true
+    })
     onNuxtReady(async () => {
-      const target = await locked()
-      if (target) await navigateTo(target)
+      // Another gate may send the person on while this one waits; that stands.
+      const target = await locked().finally(stop)
+      if (target && !movedOn) await navigateTo(target)
     })
     return
   }
