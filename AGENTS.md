@@ -164,11 +164,15 @@ has their copies in transit deleted (`endReading`), not returned. Keepers manage
 mantel's page (`LettersMantelNews`); a reader sees "News you get" on `/people` (`PeopleNews`).
 
 Guest letters (`layers/letters/server/utils/guest-letters.ts`): an anniversary mantel can
-have one write link, `/w/<id>#<fingerprint>`. The id is the only secret in the path; the
-fragment is a fingerprint of the mantel's public key, which the guest's page checks before it
-shows a form (`keyFingerprintToken`). A guest letter has no author, `origin` 'guest', no
-transit, and is sealed until the link's `opensOn`. The two routes under
-`/api/letters/guest/` are the only letter routes that work signed out: they sit behind
+have one write link, `/w/<id>#<fingerprint>.<secret>`. The fragment never reaches the server
+with the page. Its first part is a fingerprint of the mantel's public key, which the guest's
+page checks before it shows a form (`keyFingerprintToken`). Its second is a secret a keeper's
+browser derives from the mantel's private key and the link's id (`guestLinkSecret`); the
+server stores only its hash, and all three guest routes answer "unknown" without it, so the
+path alone opens nothing. A keeper's device shows the address only where it can open the
+mantel. A guest letter has no author, `origin` 'guest', no
+transit, and is sealed until the link's `opensOn`. The routes under
+`/api/letters/guest/` are the only letter routes that work signed out: the two that post sit behind
 `requireTurnstile` and rate limits per sender and per link, and the link has a closing day
 and a cap. Never add the guest's name, or anything else from inside the letter, to a row.
 

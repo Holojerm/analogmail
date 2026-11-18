@@ -13,6 +13,7 @@ const REFUSALS = {
   'not-anniversary': [409, 'Only an anniversary mantel has a write link.'],
   'needs-post': [409, "Choose the mantel's city first."],
   'bad-dates': [400, 'Writing must close today or later, and the letters must open after that.'],
+  exists: [409, 'That did not work. Try again.'],
 } as const
 
 export default defineEventHandler(async (event) => {

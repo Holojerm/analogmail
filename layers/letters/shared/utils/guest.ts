@@ -12,16 +12,44 @@ export const GUEST_LETTERS_MAX = 300
 
 export const guestLinkIdSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/)
 
+/**
+ * The part of a write link the server is never sent with the page: 16 bytes,
+ * base64url, in the fragment beside the key's fingerprint. A guest's browser
+ * presents it with every request, so the path alone opens nothing.
+ */
+export const guestLinkSecretSchema = z.string().regex(/^[A-Za-z0-9_-]{22}$/)
+
+/** A write link's fragment: the mantel key's fingerprint, a dot, the secret. */
+export const guestLinkFragment = (fingerprint: string, secret: string) => `${fingerprint}.${secret}`
+
+/** Null when the fragment is not a fingerprint and a secret. Takes it with or without the #. */
+export function parseGuestLinkFragment(
+  fragment: string,
+): { fingerprint: string; secret: string } | null {
+  const [fingerprint, secret, ...rest] = fragment.replace(/^#/, '').split('.')
+  if (!fingerprint || !secret || rest.length > 0) return null
+  if (!guestLinkSecretSchema.safeParse(secret).success) return null
+  return { fingerprint, secret }
+}
+
 export const newGuestLinkSchema = z.object({
   mantelId: z.string().uuid(),
+  /** Made in the keeper's browser, because the secret is derived from it. */
+  id: guestLinkIdSchema,
+  /** SHA-256 (hex) of the link's secret. The secret itself is never sent here. */
+  secretHash: z.string().regex(/^[0-9a-f]{64}$/),
   /** The day every letter from this link opens: the first anniversary, say. */
   opensOn: day,
   /** The last day a guest may write. */
   closesOn: day,
 })
 
-export const guestLetterSchema = z.object({
+export const guestLinkHolderSchema = z.object({
   link: guestLinkIdSchema,
+  secret: guestLinkSecretSchema,
+})
+
+export const guestLetterSchema = guestLinkHolderSchema.extend({
   id: letterIdSchema,
   ciphertext: letterCiphertextSchema,
   /** The letter's key, wrapped to the mantel's public key. */

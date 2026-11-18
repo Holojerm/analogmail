@@ -146,8 +146,11 @@ export const letters = sqliteTable(
 export const guestLinks = sqliteTable(
   'guest_links',
   {
-    // Random, and the only secret in the link's path.
+    // Random, made in the keeper's browser. The path alone opens nothing.
     id: text('id').primaryKey(),
+    // SHA-256 (hex) of the secret in the link's fragment, which every guest
+    // request presents. '' matches no secret: a link from before secrets.
+    secretHash: text('secret_hash').notNull().default(''),
     mantelId: text('mantel_id').notNull(),
     // The correspondence guest letters are filed under. Its only member is the mantel.
     correspondenceId: text('correspondence_id').notNull(),
