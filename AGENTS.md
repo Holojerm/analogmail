@@ -144,7 +144,16 @@ and the write link revoked (its fragment is a fingerprint of the old key). Each 
 gets a `handover` copy locked under both their account key and the mantel's key from before
 (`wrapMantelKeyForHandover`), so neither the server nor whoever left can open it; their old
 copy becomes `previous`, and `useMantelKeys.open` settles the two into an ordinary copy on
-their next visit. Nothing about the letters is lost and no keeper is shut out.
+their next visit, after checking the key it opened is the mantel's public key's pair. A keeper
+who misses more than one re-key holds a chain: each re-key appends a link to their `handover`
+row (`HANDOVER_SEPARATOR`, `openHandoverChain`), so nothing about the letters is lost and no
+keeper is shut out. The new recovery code is kept on the re-keying device until its keeper
+confirms it (`unconfirmedCode`), because once the batch lands it cannot be made again. Limits,
+all deliberate: the server cannot check the wrapped keys it is handed, so the keeper doing a
+re-key is trusted with the letters as they already are with the key; the other keepers'
+account keys come from the server, so the server together with whoever left could open a
+hand-over (neither can alone); and the plan hands a keeper the wrapped keys of letters still
+sealed or on their way, which opens nothing but shows that they exist.
 
 A batch that writes something a browser wrapped to a mantel's key must carry a guard
 (`batch-guard.ts`): the handler's check and its write are not one step, and a re-key can land
@@ -167,7 +176,8 @@ returns treat it as a person. `recipientIdentity` is the one place that tells th
 The release tells a mantel's keepers through `registerNoticeAudience` (never a notice for the
 mantel id). Keepers read through `kept-mantel.ts` only, which holds both gates: nothing before
 delivery, and for a letter with `opensOn` nothing (text, photo, key) before that day on the
-mantel's calendar, to keepers too. Opening is not post: no release, no notice, any weekday. Any
+mantel's calendar, to keepers too. The one other reader of a mantel's `letter_keys` is a
+re-key's plan (`kept-rekey.ts`), which hands over wrapped keys and nothing else. Opening is not post: no release, no notice, any weekday. Any
 new way to read a mantel's letters (export, print) must go through the same gate. Keepers
 write from the mantel's page. Anyone else writes after a keeper invites them: the same
 invitation as between two people, with `invites.mantelId` set, its own email

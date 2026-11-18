@@ -32,6 +32,40 @@ export type RekeyOutcome =
 // stores nothing and this starts again from what is there now.
 const ATTEMPTS = 3
 
+// The new recovery code is the one thing made here that cannot be made again:
+// once the server has stored the new key, the old code is dead. So the code
+// is written to this device before the request goes, and stays until the
+// keeper confirms they have kept it. A reply that never arrives, or a tab
+// closed too soon, then loses nothing: the mantel's page shows it again.
+const pendingName = (mantelId: string) => `dearmantel:rekey-code:${mantelId}`
+
+interface PendingCode {
+  /** The key the code belongs to. It counts only once that is the mantel's key. */
+  publicKey: string
+  code: string
+}
+
+function readPending(mantelId: string): PendingCode | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem(pendingName(mantelId)) ?? 'null') as unknown
+    const { publicKey, code } = (stored ?? {}) as Partial<PendingCode>
+    return typeof publicKey === 'string' && typeof code === 'string' ? { publicKey, code } : null
+  } catch {
+    return null
+  }
+}
+
+// Storage can refuse (a private window). The re-key still works; only the
+// second chance to see the code is lost.
+function writePending(mantelId: string, pending: PendingCode | null) {
+  try {
+    if (pending) localStorage.setItem(pendingName(mantelId), JSON.stringify(pending))
+    else localStorage.removeItem(pendingName(mantelId))
+  } catch {
+    // Nothing to do.
+  }
+}
+
 export function useMantelRekey() {
   const { user } = useUserSession()
   const mantelKeys = useMantelKeys()
@@ -79,16 +113,50 @@ export function useMantelRekey() {
         ),
         letterKeys: await rewrapLetterKeys(previousKey, next.publicKey, mantel.id, plan.letterKeys),
       }
+      const shown = formatRecoveryCode(code)
+      writePending(mantel.id, { publicKey: next.publicKey, code: shown })
       try {
         await $fetch('/api/letters/kept/rekey', { method: 'POST', body })
-        return { status: 'rekeyed', code: formatRecoveryCode(code) }
+        return { status: 'rekeyed', code: shown }
       } catch (error) {
         const reason = (error as { data?: { data?: { reason?: string } } }).data?.data?.reason
-        if (reason !== 'changed' && reason !== 'keepers-changed') return { status: 'failed' }
+        if (reason === 'changed' || reason === 'keepers-changed') {
+          writePending(mantel.id, null)
+          continue
+        }
+        // No refusal came back, so the key may have been stored all the same.
+        if (await isKeyOf(mantel.id, next.publicKey)) return { status: 'rekeyed', code: shown }
+        return { status: 'failed' }
       }
     }
     return { status: 'busy' }
   }
 
-  return { rekey }
+  /** Whether the mantel's key is now this one. False when it cannot be asked. */
+  async function isKeyOf(mantelId: string, publicKey: string): Promise<boolean> {
+    try {
+      const view = await $fetch<{ publicKey: string }>('/api/mantels/view', {
+        method: 'POST',
+        body: { id: mantelId },
+      })
+      return view.publicKey === publicKey
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * A new recovery code this device made for the mantel's current key and
+   * that nobody has confirmed keeping. One made for a key that never became
+   * the mantel's is forgotten.
+   */
+  function unconfirmedCode(mantel: { id: string; publicKey: string }): string | null {
+    const pending = readPending(mantel.id)
+    if (!pending) return null
+    if (pending.publicKey === mantel.publicKey) return pending.code
+    writePending(mantel.id, null)
+    return null
+  }
+
+  return { rekey, unconfirmedCode, confirmCode: (mantelId: string) => writePending(mantelId, null) }
 }

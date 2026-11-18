@@ -364,8 +364,15 @@ test("a keeper leaves: the mantel's key is changed and the others keep reading",
   const secondCode = (await ann.getByTestId('recovery-code').innerText()).trim()
   expect(secondCode).toMatch(/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/)
   expect(secondCode).not.toBe(firstCode)
+  // The old code is dead now, so the new one is not lost by leaving the page
+  // before it has been kept: it is shown again until she says she has it.
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByTestId('recovery-code')).toHaveText(secondCode)
   await ann.getByLabel('I have kept my recovery code somewhere safe').check()
   await ann.getByRole('button', { name: 'Continue' }).click()
+  await expect(ann.getByTestId('recovery-code')).toHaveCount(0)
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByTestId('recovery-code')).toHaveCount(0)
   await expect(ann.getByRole('heading', { name: "Change this mantel's key" })).toHaveCount(0)
   await expect(ann.getByText('This device cannot open this mantel')).toHaveCount(0)
 

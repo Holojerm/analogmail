@@ -92,6 +92,12 @@ export async function claimRecovery(
       await db.batch([
         // A re-key replaces the code. A copy opened with the old one is of the old key.
         batchGuard(db, codeIs(mantel.id, proofHash)),
+        // And they still keep it: a copy stored for someone just removed
+        // would be a keeper's copy with no keeper.
+        batchGuard(
+          db,
+          sql`EXISTS (SELECT 1 FROM mantel_keepers WHERE mantel_id = ${mantel.id} AND user_id = ${claimantId} AND left_at IS NULL)`,
+        ),
         db.delete(mantelKeyWraps).where(heldBy(mantel.id, claimantId)),
         db.insert(mantelKeyWraps).values({
           mantelId: mantel.id,
@@ -126,13 +132,22 @@ export async function claimRecovery(
     }
   }
   const readyAt = new Date(now.getTime() + RECOVERY_WAIT_DAYS * DAY_MS)
-  await db.insert(mantelRecoveries).values({
-    mantelId: mantel.id,
-    claimantId,
-    wrapped: claim.wrapped,
-    readyAt,
-    createdAt: now,
-  })
+  try {
+    await db.batch([
+      // A claim stored after a re-key would wait out its thirty days holding the old key.
+      batchGuard(db, codeIs(mantel.id, proofHash)),
+      db.insert(mantelRecoveries).values({
+        mantelId: mantel.id,
+        claimantId,
+        wrapped: claim.wrapped,
+        readyAt,
+        createdAt: now,
+      }),
+    ])
+  } catch (error) {
+    if (isGuardFailure(error)) return { status: 'unknown' }
+    throw error
+  }
   return { status: 'waiting', mantelId: mantel.id, name: mantel.name, readyAt, keeperIds }
 }
 

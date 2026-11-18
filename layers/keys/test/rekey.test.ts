@@ -25,7 +25,7 @@ import { registerKeysExtensions } from '../server/utils/keys-extensions'
 import { createMantel, getMantel, keepersOf } from '../server/utils/mantels'
 import { claimRecovery, findByRecoveryProof, finishRecovery } from '../server/utils/recovery'
 import { rekeyPlan, rekeySchema, rekeyStatements, settleHandover } from '../server/utils/rekey'
-import { RECOVERY_WAIT_DAYS } from '../shared/utils/mantel-format'
+import { HANDOVER_SEPARATOR, RECOVERY_WAIT_DAYS } from '../shared/utils/mantel-format'
 
 const db = drizzle(env.DB, { schema })
 const {
@@ -39,6 +39,8 @@ const {
   mantelRecoveries,
   batchGuards,
 } = schema
+
+type Batch = [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]
 
 const NOW = new Date('2026-11-16T12:00:00Z')
 const LATER = new Date('2026-11-17T12:00:00Z')
@@ -271,9 +273,158 @@ describe('changing the key', () => {
     expect(await wrapsOf()).toEqual(['keeper:ann', 'keeper:bob', 'keeper:eve', 'recovery:'])
   })
 
+  it('is refused when the "new" key is the one the mantel already has', async () => {
+    expect(await rekey({ publicKey: OLD_KEY })).toBe('changed')
+    expect(await getMantel(db, 'ann', MANTEL)).toMatchObject({ rekeyDue: true, keyVersion: 1 })
+  })
+
+  it('stores nothing if the keepers changed places while the browser worked', async () => {
+    const ready = await rekeyStatements(db, 'ann', await input(), LATER)
+    if (ready.status !== 'ready') throw new Error(ready.status)
+    // Bob goes and Eve comes: as many copies as before, held by other people.
+    await db.update(mantelKeepers).set({ leftAt: LATER }).where(eq(mantelKeepers.userId, 'bob'))
+    await db.delete(mantelKeyWraps).where(eq(mantelKeyWraps.keeperId, 'bob'))
+    await db.insert(mantelKeepers).values({ mantelId: MANTEL, userId: 'eve', role: 'guardian' })
+    await db
+      .insert(mantelKeyWraps)
+      .values({ mantelId: MANTEL, kind: 'keeper', keeperId: 'eve', wrapped: keeperWrap('eve') })
+
+    const failure = await db.batch(ready.statements as Batch).then(
+      () => null,
+      (error: unknown) => error,
+    )
+    expect(isGuardFailure(failure)).toBe(true)
+    expect((await mantel()).publicKey).toBe(OLD_KEY)
+    expect(await wrapsOf()).toEqual(['keeper:ann', 'keeper:eve', 'recovery:'])
+  })
+
+  it('is not blocked by a copy left behind for someone who no longer keeps it', async () => {
+    await db
+      .insert(mantelKeyWraps)
+      .values({ mantelId: MANTEL, kind: 'keeper', keeperId: 'cal', wrapped: keeperWrap('cal') })
+    expect(await rekey()).toBe('rekeyed')
+    expect(await wrapsOf()).toEqual(['handover:bob', 'keeper:ann', 'previous:bob', 'recovery:'])
+  })
+
+  it('hands the new key to more keepers than one statement could carry', async () => {
+    const many = Array.from({ length: 15 }, (_, n) => `keeper-${n}`)
+    for (const id of many) {
+      await db.insert(users).values({ id, email: `${id}@example.com`, name: id })
+      await db.insert(userKeys).values({ userId: id, publicKey: `key-of-${id}` })
+      await db.insert(mantelKeepers).values({ mantelId: MANTEL, userId: id, role: 'successor' })
+      await db
+        .insert(mantelKeyWraps)
+        .values({ mantelId: MANTEL, kind: 'keeper', keeperId: id, wrapped: keeperWrap(id) })
+    }
+    const handovers = Object.fromEntries(
+      ['bob', ...many].map((id) => [id, keeperWrap(`${id}-handover`)]),
+    )
+    expect(await rekey({ handovers })).toBe('rekeyed')
+    expect((await wrapsOf()).filter((wrap) => wrap.startsWith('handover:'))).toHaveLength(16)
+  })
+
   it('tells a guard failure from any other fault', () => {
     expect(isGuardFailure(new Error('D1_ERROR: no such table: mantels'))).toBe(false)
     expect(isGuardFailure(null)).toBe(false)
+  })
+})
+
+describe('a keeper who was away for more than one re-key', () => {
+  const again = { keyVersion: 2, publicKey: 'C'.repeat(122), keeperWrap: keeperWrap('ann-3') }
+
+  beforeEach(async () => {
+    await calLeaves()
+    expect(await rekey()).toBe('rekeyed')
+    // Someone else leaves before Bob has opened the mantel again.
+    await db.update(mantels).set({ rekeyDueAt: LATER })
+  })
+
+  it('is still handed the new key, as one more link on what they already hold', async () => {
+    expect(await rekeyPlan(db, 'ann', MANTEL)).toMatchObject({
+      keyVersion: 2,
+      others: [{ userId: 'bob', publicKey: 'key-of-bob' }],
+    })
+    expect(await rekey({ ...again, handovers: {} })).toBe('keepers-changed')
+    expect(await rekey({ ...again, handovers: { bob: keeperWrap('bob-second') } })).toBe('rekeyed')
+
+    expect(await wrapsOf()).toEqual(['handover:bob', 'keeper:ann', 'previous:bob', 'recovery:'])
+    expect(await getMantel(db, 'bob', MANTEL)).toMatchObject({
+      keyVersion: 3,
+      wrappedKey: null,
+      handover: {
+        // His own copy from before either re-key opens the first link.
+        previous: keeperWrap('bob'),
+        wrapped: `${keeperWrap('bob-handover')}${HANDOVER_SEPARATOR}${keeperWrap('bob-second')}`,
+      },
+    })
+    expect(
+      await settleHandover(
+        db,
+        'bob',
+        { mantelId: MANTEL, keyVersion: 3, wrapped: keeperWrap('bob-new') },
+        LATER,
+      ),
+    ).toBe('settled')
+    expect(await wrapsOf()).toEqual(['keeper:ann', 'keeper:bob', 'recovery:'])
+  })
+
+  it('can do the next re-key themselves once they have opened it', async () => {
+    await settleHandover(
+      db,
+      'bob',
+      { mantelId: MANTEL, keyVersion: 2, wrapped: keeperWrap('bob-new') },
+      LATER,
+    )
+    expect(await rekey({ ...again, handovers: { ann: keeperWrap('ann-handover') } }, 'bob')).toBe(
+      'rekeyed',
+    )
+    expect(await wrapsOf()).toEqual(['handover:ann', 'keeper:bob', 'previous:ann', 'recovery:'])
+  })
+})
+
+describe('the recovery code as the key changes', () => {
+  beforeEach(calLeaves)
+
+  /** A database whose next batch runs only after something else has happened. */
+  const after = (first: () => Promise<unknown>) =>
+    new Proxy(db, {
+      get(target, property) {
+        if (property === 'batch') {
+          return async (statements: Parameters<typeof db.batch>[0]) => {
+            await first()
+            return target.batch(statements)
+          }
+        }
+        const value = Reflect.get(target, property) as unknown
+        return typeof value === 'function' ? value.bind(target) : value
+      },
+    })
+
+  it('does not start a claim with the old code once the key has changed', async () => {
+    const claimed = await claimRecovery(
+      after(() => rekey()),
+      'eve',
+      { proof: OLD_PROOF, wrapped: keeperWrap('eve-old') },
+      NOW,
+    )
+    expect(claimed).toEqual({ status: 'unknown' })
+    expect(await db.select().from(mantelRecoveries)).toHaveLength(0)
+  })
+
+  it('does not restore a copy for someone removed as they used it', async () => {
+    const restored = await claimRecovery(
+      after(() =>
+        db.update(mantelKeepers).set({ leftAt: LATER }).where(eq(mantelKeepers.userId, 'bob')),
+      ),
+      'bob',
+      { proof: OLD_PROOF, wrapped: keeperWrap('bob-again') },
+      NOW,
+    )
+    expect(restored).toEqual({ status: 'unknown' })
+    expect(await getMantel(db, 'ann', MANTEL)).toMatchObject({ rekeyDue: true })
+    expect((await db.select().from(mantelKeyWraps)).map((row) => row.wrapped)).not.toContain(
+      keeperWrap('bob-again'),
+    )
   })
 })
 

@@ -190,7 +190,7 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         description="Another keeper changed it after someone stopped keeping this mantel. You now hold the new key and need do nothing. The recovery code printed before no longer works: ask them for the new one."
       />
       <LettersMantelRekey
-        v-if="mantel.rekeyDue && canOpen"
+        v-if="canOpen"
         :mantel="mantel"
         :other-keepers="mantel.keepers.length - 1"
         @done="load"

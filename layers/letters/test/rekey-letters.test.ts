@@ -7,11 +7,14 @@ import { describe, expect, it } from 'vitest'
 import { generateAccountKeys, importPrivateKey } from '#layers/keys/app/utils/key-crypto'
 import {
   generateMantelKeys,
+  openHandoverChain,
   unwrapMantelKey,
   unwrapMantelKeyHandover,
   wrapMantelKeyForHandover,
   wrapMantelKeyForKeeper,
 } from '#layers/keys/app/utils/mantel-crypto'
+
+import { HANDOVER_SEPARATOR } from '#layers/keys/shared/utils/mantel-format'
 
 import {
   decryptLetter,
@@ -123,6 +126,28 @@ describe('handing the new key to a keeper who was not there', () => {
         keeperId: 'cal',
       }),
     ).toBeNull()
+  })
+
+  it('still reaches them after a second re-key, one link at a time', async () => {
+    const bob = await account()
+    const first = await generateMantelKeys()
+    const second = await generateMantelKeys()
+    const third = await generateMantelKeys()
+    const context = { mantelId: MANTEL, keeperId: 'bob' }
+    const bobsCopy = await wrapMantelKeyForKeeper(bob.publicKey, first.privateKey, context)
+    const links = [
+      await wrapMantelKeyForHandover(bob.publicKey, first.privateKey, second.privateKey, context),
+      await wrapMantelKeyForHandover(bob.publicKey, second.privateKey, third.privateKey, context),
+    ]
+    const previous = (await unwrapMantelKey(bob.privateKey, bobsCopy, context))!
+    const open = (chain: string[]) =>
+      openHandoverChain(bob.privateKey, previous, chain.join(HANDOVER_SEPARATOR), context)
+
+    expect(Array.from((await open(links))!)).toEqual(Array.from(third.privateKey))
+    expect(Array.from((await open([links[0]!]))!)).toEqual(Array.from(second.privateKey))
+    // The second link opens only with what the first one gives.
+    expect(await open([links[1]!])).toBeNull()
+    expect(await open(links.toReversed())).toBeNull()
   })
 
   it('gives a server that swapped the keeper’s key nothing', async () => {

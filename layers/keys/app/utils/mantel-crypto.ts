@@ -5,6 +5,7 @@
 // never kept on a device: it is unwrapped in memory when needed.
 
 import { fromBase64Url, toBase64Url } from '../../shared/utils/key-format'
+import { HANDOVER_SEPARATOR } from '../../shared/utils/mantel-format'
 import { generateAccountKeys, type AccountKeys } from './key-crypto'
 
 const CURVE = { name: 'ECDH', namedCurve: 'P-256' } as const
@@ -162,6 +163,25 @@ export async function unwrapMantelKeyHandover(
   } catch {
     return null
   }
+}
+
+/**
+ * Opens a hand-over as the server stores it: one link per re-key the keeper
+ * was not there for, joined by `HANDOVER_SEPARATOR`. Each link opens with the
+ * key the one before it gave, starting from the keeper's own earlier copy.
+ */
+export async function openHandoverChain(
+  accountPrivateKey: CryptoKey,
+  previousMantelKey: Bytes,
+  chain: string,
+  context: KeeperContext,
+): Promise<Bytes | null> {
+  let mantelKey: Bytes | null = previousMantelKey
+  for (const link of chain.split(HANDOVER_SEPARATOR)) {
+    mantelKey = await unwrapMantelKeyHandover(accountPrivateKey, mantelKey, link, context)
+    if (!mantelKey) return null
+  }
+  return mantelKey
 }
 
 const RECOVERY_LABEL = 'dearmantel/v1/mantel-key-recovery'

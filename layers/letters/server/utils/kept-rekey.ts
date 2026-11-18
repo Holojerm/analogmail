@@ -28,8 +28,10 @@ import type { LettersDb } from './people'
 /** More than a mantel will hold in a lifetime, and what one request can carry. */
 export const REKEY_LETTERS_MAX = 20_000
 
-// A JSON list is one bound value, and D1 caps a value at 2 MB.
-const CHUNK = 2_000
+// A JSON list is one bound value (D1 caps a value at 2 MB), and each row of
+// an update looks its key up in the list, so the work grows with the square
+// of the chunk.
+const CHUNK = 500
 
 export const mantelRekeySchema = rekeySchema.extend({
   /** Every letter key held for the mantel, wrapped again to the new key. */

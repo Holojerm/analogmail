@@ -6,21 +6,38 @@
 import type { KeptMantel } from '#layers/keys/app/composables/useMantelKeys'
 
 const props = defineProps<{
-  mantel: KeptMantel & { kind: 'child' | 'anniversary'; name: string }
+  mantel: KeptMantel & {
+    kind: 'child' | 'anniversary'
+    name: string
+    publicKey: string
+    rekeyDue: boolean
+  }
   otherKeepers: number
 }>()
 const emit = defineEmits<{ done: [] }>()
 
-const { rekey } = useMantelRekey()
+const { rekey, unconfirmedCode, confirmCode } = useMantelRekey()
 const working = ref(false)
 const failure = ref<string | null>(null)
 const code = ref<string | null>(null)
+
+// A code made on this device and never confirmed: the reply was lost, or the
+// page was left before the box was ticked.
+onMounted(() => {
+  code.value = unconfirmedCode(props.mantel)
+})
+
+function kept() {
+  confirmCode(props.mantel.id)
+  code.value = null
+  emit('done')
+}
 
 const FAILURES = {
   'cannot-open':
     'This device cannot open the mantel, so it cannot change its key. Open this page where you hold the key.',
   busy: 'Letters kept arriving while the key was being changed. Try again in a moment.',
-  failed: 'The key was not changed. Nothing is different. Try again.',
+  failed: 'The key may not have been changed. Reload this page to see, then try again.',
 } as const
 
 async function change() {
@@ -39,7 +56,11 @@ async function change() {
 </script>
 
 <template>
-  <section aria-labelledby="rekey-heading" class="flex flex-col gap-4">
+  <section
+    v-if="code || mantel.rekeyDue"
+    aria-labelledby="rekey-heading"
+    class="flex flex-col gap-4"
+  >
     <template v-if="code">
       <h2 id="rekey-heading" class="text-xl text-highlighted">The mantel's new recovery code</h2>
       <p class="text-muted">
@@ -50,7 +71,7 @@ async function change() {
           changed.
         </template>
       </p>
-      <RecoveryCodeCard :code="code" @confirmed="emit('done')" />
+      <RecoveryCodeCard :code="code" @confirmed="kept" />
     </template>
 
     <UCard v-else>

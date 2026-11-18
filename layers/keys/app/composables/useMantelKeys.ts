@@ -13,8 +13,8 @@ import {
   keyFingerprint,
   recoveryProof,
   recoveryProofHash,
+  openHandoverChain,
   unwrapMantelKey,
-  unwrapMantelKeyHandover,
   unwrapMantelKeyWithCode,
   wrapMantelKeyForKeeper,
   wrapMantelKeyUnderCode,
@@ -27,6 +27,8 @@ export interface KeptMantel {
   keyVersion?: number
   /** After a re-key, until this keeper's browser has opened the new key. */
   handover?: { previous: string; wrapped: string } | null
+  /** The mantel's public key as the server gives it: a handed-over key must be its pair. */
+  publicKey?: string
 }
 
 export function useMantelKeys() {
@@ -50,8 +52,9 @@ export function useMantelKeys() {
 
   /**
    * After a re-key by another keeper: opens the new key left for this one,
-   * which takes this account's key and the mantel's key from before, and
-   * stores an ordinary copy in place of both.
+   * which takes this account's key and the mantel's key from before (once
+   * for each re-key this keeper was not there for), and stores an ordinary
+   * copy in place of them.
    */
   async function takeHandover(
     privateKey: CryptoKey,
@@ -61,13 +64,17 @@ export function useMantelKeys() {
     const context = { mantelId: mantel.id, keeperId: me() }
     const previous = await unwrapMantelKey(privateKey, mantel.handover.previous, context)
     if (!previous) return null
-    const mantelKey = await unwrapMantelKeyHandover(
+    const mantelKey = await openHandoverChain(
       privateKey,
       previous,
       mantel.handover.wrapped,
       context,
     )
     if (!mantelKey) return null
+    // What was handed over must be the key letters are now sealed to. A copy
+    // of anything else is not stored, and not passed on to a new keeper.
+    const pair = await publicKeyOf(await importPrivateKey(mantelKey)).catch(() => null)
+    if (!mantel.publicKey || pair !== mantel.publicKey) return null
     // If storing the copy fails the key is still good for this visit, and the
     // two copies it came from are still there for the next.
     await $fetch('/api/mantels/rekey/settle', {
