@@ -2,6 +2,7 @@
 // A keeper's copy of a kept mantel's opened letters, made on this device with
 // this keeper's copy of the mantel's key. Sealed and unopened letters are
 // left out: making a copy opens nothing.
+import type { KeptMantel } from '#layers/keys/app/composables/useMantelKeys'
 import { saveFile } from '#layers/post/app/utils/save-file'
 
 import { fileSafe, type ArchiveSealed, type KeptArchive } from '../../../shared/utils/archive'
@@ -30,7 +31,7 @@ async function keep() {
   try {
     const body = { mantelId: props.mantelId }
     const archive = await $fetch<KeptArchive>('/api/letters/kept/archive', { method: 'POST', body })
-    const mantel = await $fetch<{ id: string; wrappedKey: string | null }>('/api/mantels/view', {
+    const mantel = await $fetch<KeptMantel>('/api/mantels/view', {
       method: 'POST',
       body: { id: props.mantelId },
     })

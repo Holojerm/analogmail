@@ -63,6 +63,8 @@ const store: PhotoStore = {
 }
 
 const LEO = 'aaaaaaaa-0000-4000-8000-000000000001'
+// Which key a copy for the mantel was wrapped to: sealing checks it is still the mantel's.
+const TO_LEO = { [LEO]: 'leo-key' }
 const MONDAY = new Date('2026-11-16T20:00:00Z')
 const FRIDAY = new Date('2026-11-20T18:00:00Z')
 const BIRTHDAY = '2044-06-14'
@@ -86,7 +88,7 @@ async function write(id: string, opensOn: string | null = null) {
     { id, correspondenceId: toLeo, ciphertext: CIPHERTEXT, wrappedKey: 'key-for-ann' },
     MONDAY,
   )
-  return sealLetter(db, 'ann', id, 'key-for-leo', MONDAY, opensOn)
+  return sealLetter(db, 'ann', id, 'key-for-leo', MONDAY, opensOn, false, TO_LEO)
 }
 const deliver = () =>
   db
@@ -319,7 +321,7 @@ describe('a photo on a kept mantel', () => {
       { letterId: OPEN, photoId: SEALED, bytes: new Uint8Array(64).fill(7) },
       MONDAY,
     )
-    await sealLetter(db, 'ann', OPEN, 'key-for-leo', MONDAY)
+    await sealLetter(db, 'ann', OPEN, 'key-for-leo', MONDAY, null, false, TO_LEO)
 
     expect(await readKeptPhoto(db, store, 'bob', LEO, OPEN, FRIDAY)).toBeNull()
     await deliver()
@@ -385,9 +387,9 @@ describe('inviting a writer', () => {
       },
       MONDAY,
     )
-    expect((await sealLetter(db, 'eve', OPEN, 'key-for-leo', MONDAY, BIRTHDAY)).status).toBe(
-      'sealed',
-    )
+    expect(
+      (await sealLetter(db, 'eve', OPEN, 'key-for-leo', MONDAY, BIRTHDAY, false, TO_LEO)).status,
+    ).toBe('sealed')
     await deliver()
 
     expect(await listKeptMantel(db, 'eve', LEO, FRIDAY)).toBeNull()
@@ -444,7 +446,7 @@ describe('inviting a writer', () => {
         },
         MONDAY,
       )
-      await sealLetter(db, 'eve', id, 'key-for-leo', MONDAY)
+      await sealLetter(db, 'eve', id, 'key-for-leo', MONDAY, null, false, TO_LEO)
     }
     await fromEve(OPEN)
     await deliver()

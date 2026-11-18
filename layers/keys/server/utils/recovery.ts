@@ -7,13 +7,14 @@
 // the keepers' vote, so it does not take effect at once. Every keeper is told,
 // any of them can cancel it, and only after the wait does it stand.
 
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
 import { sha256Hex } from '#server/utils/hash'
 
 import { FOUNDER_ROLE, RECOVERY_WAIT_DAYS, type MantelKind } from '../../shared/utils/mantel-format'
+import { batchGuard, isGuardFailure } from './batch-guard'
 import type { KeysDb } from './keys'
 import { keepersOf } from './mantels'
 
@@ -56,12 +57,13 @@ export async function findByRecoveryProof(db: KeysDb, proof: string) {
   return { mantelId: mantel.id, name: mantel.name, recoveryWrap: wrap.wrapped }
 }
 
-const keeperWrapOf = (mantelId: string, userId: string) =>
-  and(
-    eq(tables.mantelKeyWraps.mantelId, mantelId),
-    eq(tables.mantelKeyWraps.kind, 'keeper'),
-    eq(tables.mantelKeyWraps.keeperId, userId),
-  )
+// Every copy held for one person: the ordinary one, and after a re-key the
+// two it is made from. A copy opened with the recovery code replaces them all.
+const heldBy = (mantelId: string, userId: string) =>
+  and(eq(tables.mantelKeyWraps.mantelId, mantelId), eq(tables.mantelKeyWraps.keeperId, userId))
+
+const codeIs = (mantelId: string, proofHash: string) =>
+  sql`EXISTS (SELECT 1 FROM mantels WHERE id = ${mantelId} AND recovery_proof_hash = ${proofHash})`
 
 export type ClaimResult =
   | { status: 'restored'; mantelId: string }
@@ -81,20 +83,34 @@ export async function claimRecovery(
   const { mantelKeyWraps, mantelRecoveries } = tables
   const mantel = await mantelFor(db, claim.proof)
   if (!mantel) return { status: 'unknown' }
+  const proofHash = await sha256Hex(claim.proof)
   if (!(await hasKeys(db, claimantId))) return { status: 'no-keys' }
   const keeperIds = (await keepersOf(db, mantel.id)).map((keeper) => keeper.userId)
 
   if (keeperIds.includes(claimantId)) {
-    await db.batch([
-      db.delete(mantelKeyWraps).where(keeperWrapOf(mantel.id, claimantId)),
-      db.insert(mantelKeyWraps).values({
-        mantelId: mantel.id,
-        kind: 'keeper',
-        keeperId: claimantId,
-        wrapped: claim.wrapped,
-        createdAt: now,
-      }),
-    ])
+    try {
+      await db.batch([
+        // A re-key replaces the code. A copy opened with the old one is of the old key.
+        batchGuard(db, codeIs(mantel.id, proofHash)),
+        // And they still keep it: a copy stored for someone just removed
+        // would be a keeper's copy with no keeper.
+        batchGuard(
+          db,
+          sql`EXISTS (SELECT 1 FROM mantel_keepers WHERE mantel_id = ${mantel.id} AND user_id = ${claimantId} AND left_at IS NULL)`,
+        ),
+        db.delete(mantelKeyWraps).where(heldBy(mantel.id, claimantId)),
+        db.insert(mantelKeyWraps).values({
+          mantelId: mantel.id,
+          kind: 'keeper',
+          keeperId: claimantId,
+          wrapped: claim.wrapped,
+          createdAt: now,
+        }),
+      ])
+    } catch (error) {
+      if (isGuardFailure(error)) return { status: 'unknown' }
+      throw error
+    }
     return { status: 'restored', mantelId: mantel.id }
   }
 
@@ -116,13 +132,22 @@ export async function claimRecovery(
     }
   }
   const readyAt = new Date(now.getTime() + RECOVERY_WAIT_DAYS * DAY_MS)
-  await db.insert(mantelRecoveries).values({
-    mantelId: mantel.id,
-    claimantId,
-    wrapped: claim.wrapped,
-    readyAt,
-    createdAt: now,
-  })
+  try {
+    await db.batch([
+      // A claim stored after a re-key would wait out its thirty days holding the old key.
+      batchGuard(db, codeIs(mantel.id, proofHash)),
+      db.insert(mantelRecoveries).values({
+        mantelId: mantel.id,
+        claimantId,
+        wrapped: claim.wrapped,
+        readyAt,
+        createdAt: now,
+      }),
+    ])
+  } catch (error) {
+    if (isGuardFailure(error)) return { status: 'unknown' }
+    throw error
+  }
   return { status: 'waiting', mantelId: mantel.id, name: mantel.name, readyAt, keeperIds }
 }
 
@@ -171,6 +196,11 @@ export async function finishRecovery(
 
   const role = FOUNDER_ROLE[mantel.kind as MantelKind]
   const statements: BatchItem<'sqlite'>[] = [
+    // A keeper may cancel, or a re-key may void the claim, as this runs.
+    batchGuard(
+      db,
+      sql`EXISTS (SELECT 1 FROM mantel_recoveries WHERE id = ${recoveryId} AND cancelled_at IS NULL AND completed_at IS NULL)`,
+    ),
     db
       .insert(mantelKeepers)
       .values({
@@ -184,7 +214,7 @@ export async function finishRecovery(
         target: [mantelKeepers.mantelId, mantelKeepers.userId],
         set: { leftAt: null, role, addedBy: claimantId, updatedAt: now },
       }),
-    db.delete(mantelKeyWraps).where(keeperWrapOf(mantel.id, claimantId)),
+    db.delete(mantelKeyWraps).where(heldBy(mantel.id, claimantId)),
     db.insert(mantelKeyWraps).values({
       mantelId: mantel.id,
       kind: 'keeper',
@@ -197,7 +227,12 @@ export async function finishRecovery(
       .set({ completedAt: now, updatedAt: now })
       .where(eq(mantelRecoveries.id, recoveryId)),
   ]
-  await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  try {
+    await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  } catch (error) {
+    if (isGuardFailure(error)) return 'gone'
+    throw error
+  }
   return 'seated'
 }
 

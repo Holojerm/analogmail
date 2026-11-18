@@ -3,6 +3,7 @@
 // letter was delivered or opened.
 
 import { and, desc, eq, gt, inArray, isNull, ne } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
 import { planPosting, senderView, type Posting } from '#layers/post/shared/utils/postmark'
@@ -10,6 +11,7 @@ import { planPosting, senderView, type Posting } from '#layers/post/shared/utils
 import type { DeskLetter, SentStatus } from '../../shared/utils/letter-doc'
 import { otherMembers } from './drafts'
 import { correspondenceLabels, type CorrespondenceLabel } from './correspondences'
+import { batchGuard, isGuardFailure, mantelKeyIs } from '#layers/keys/server/utils/batch-guard'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 
 import { newsMantelOf, seatKeepers } from './news'
@@ -23,6 +25,8 @@ export interface SealRecipient {
   name: string
   /** SPKI, base64url: the key this reader's copy of the letter's key is wrapped to. */
   publicKey: string
+  /** A kept mantel, whose key can change (a re-key), rather than a person. */
+  mantel: boolean
   /** Each reader's copy travels to their own city and arrives on their own mail day. */
   posting: Posting
 }
@@ -96,6 +100,7 @@ export async function planSeal(
       id,
       name: identity.name,
       publicKey: identity.publicKey,
+      mantel: identity.mantel,
       posting: planPosting(
         now,
         { zone: sender.timeZone, place: sender },
@@ -151,6 +156,12 @@ export const OPENS_ON_MAX_YEARS = 100
  * `wrappedKeys` is the letter's key wrapped once per reader, by reader id. A
  * single string is accepted when there is exactly one reader. If the readers
  * are no longer the ones the browser wrapped for, nothing is sealed.
+ *
+ * A kept mantel's key can change. `readerKeys` says which public key each
+ * copy was wrapped to, by reader id; a copy for a mantel that does not name
+ * the mantel's key as it is now is refused, here and again inside the
+ * transaction, so a letter is never filed under a key its keepers no longer
+ * hold.
  */
 export async function sealLetter(
   db: LettersDb,
@@ -162,6 +173,7 @@ export async function sealLetter(
   opensOn: string | null = null,
   /** News only: also send a copy to the child's mantel. */
   withChild = false,
+  readerKeys: Record<string, string> = {},
 ): Promise<SealResult> {
   const { letters, letterKeys, deliveries } = tables
   const [letter] = await db.select().from(letters).where(eq(letters.id, letterId)).limit(1)
@@ -178,6 +190,10 @@ export async function sealLetter(
   ) {
     return { status: 'readers-changed' }
   }
+  const mantels = recipients.filter((reader) => reader.mantel)
+  if (mantels.some((reader) => readerKeys[reader.id] !== reader.publicKey)) {
+    return { status: 'readers-changed' }
+  }
   if (opensOn) {
     const latest = `${Number(posting.postmark.slice(0, 4)) + OPENS_ON_MAX_YEARS}${posting.postmark.slice(4)}`
     if (!plan.toMantel || opensOn <= posting.postmark || opensOn > latest) {
@@ -185,7 +201,8 @@ export async function sealLetter(
     }
   }
 
-  await db.batch([
+  const statements: BatchItem<'sqlite'>[] = [
+    ...mantels.map((reader) => batchGuard(db, mantelKeyIs(reader.id, reader.publicKey))),
     db
       .update(letters)
       .set({
@@ -221,7 +238,13 @@ export async function sealLetter(
         })),
       )
       .onConflictDoNothing(),
-  ])
+  ]
+  try {
+    await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  } catch (error) {
+    if (isGuardFailure(error)) return { status: 'readers-changed' }
+    throw error
+  }
   return {
     status: 'sealed',
     posting: {

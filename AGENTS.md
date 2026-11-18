@@ -121,6 +121,7 @@ Custodial mantels (`layers/keys`): a child's or anniversary mantel has its own k
 in a keeper's browser (`mantel-crypto.ts`). The server holds the public key and wrapped copies
 of the private key: one per keeper, wrapped to that keeper's account key, and one under the
 mantel's recovery code. It never holds the key itself, and the key is never kept on a device.
+The key changes only by a re-key (below).
 Who keeps a mantel changes only through `custody.ts`: a proposal takes effect when more than
 half of the keepers have voted (`carries`), so two keepers must both agree. Seating a keeper
 also needs that person's acceptance and a wrapped copy from a keeper's browser, which the
@@ -129,7 +130,39 @@ server cannot make. A mantel's last keeper cannot delete their account. The reco
 the hash of a proof the code derives (`recoveryProof`). A keeper who uses it replaces their
 own copy of the key at once. Anyone else waits `RECOVERY_WAIT_DAYS` while every keeper is
 emailed (`mantel-recovery`) and any of them can cancel. Do not add a path that writes
-`mantel_keepers` or `mantel_key_wraps` outside `custody.ts`, `mantels.ts` and `recovery.ts`. Pages: `/mantels`
+`mantel_keepers` or `mantel_key_wraps` outside `custody.ts`, `mantels.ts`, `recovery.ts` and
+`rekey.ts`.
+
+Re-keying a mantel (`rekey.ts`, and `layers/letters/server/utils/kept-rekey.ts` for the letter
+keys): a keeper who leaves, by a vote or by deleting their account, may still hold the
+mantel's key, so `mantels.rekeyDueAt` is set and the keepers who remain are asked to change it
+(`LettersMantelRekey` on the mantel's page). One keeper's browser makes a new key pair and
+recovery code and wraps every `letter_keys` row held for the mantel again to the new key
+(`useMantelRekey`, `rewrapLetterKeys`). `rekeyMantel` stores all of it in one batch: the new
+public key and `keyVersion`, the keeper's copy, the recovery copy and proof, the letter keys,
+and the write link revoked (its fragment is a fingerprint of the old key). Each other keeper
+gets a `handover` copy locked under both their account key and the mantel's key from before
+(`wrapMantelKeyForHandover`), so neither the server nor whoever left can open it; their old
+copy becomes `previous`, and `useMantelKeys.open` settles the two into an ordinary copy on
+their next visit, after checking the key it opened is the mantel's public key's pair. A keeper
+who misses more than one re-key holds a chain: each re-key appends a link to their `handover`
+row (`HANDOVER_SEPARATOR`, `openHandoverChain`), so nothing about the letters is lost and no
+keeper is shut out. The new recovery code is kept on the re-keying device until its keeper
+confirms it (`unconfirmedCode`), because once the batch lands it cannot be made again. Limits,
+all deliberate: the server cannot check the wrapped keys it is handed, so the keeper doing a
+re-key is trusted with the letters as they already are with the key; the other keepers'
+account keys come from the server, so the server together with whoever left could open a
+hand-over (neither can alone); and the plan hands a keeper the wrapped keys of letters still
+sealed or on their way, which opens nothing but shows that they exist.
+
+A batch that writes something a browser wrapped to a mantel's key must carry a guard
+(`batch-guard.ts`): the handler's check and its write are not one step, and a re-key can land
+between them. `batchGuard(db, condition)` is a statement that fails, rolling the batch back,
+unless the condition holds when it runs; `isGuardFailure` tells that from a fault. Sealing to
+a mantel (`sealLetter` takes `readerKeys`, the public key each copy was wrapped to), a guest's
+letter, seating a keeper (`grantSeat` takes `keyVersion`) and the recovery code all carry
+one. Build guards and other raw statements for a batch with the query builder, not `db.run`:
+Drizzle's D1 batch cannot bind a raw statement's values. Pages: `/mantels`
 (kept mantels and offered seats), `/mantels/new` (keys made here, recovery code shown once)
 and `/mantels/<id>` (keepers, proposals, and the fingerprint check before a keeper's browser
 wraps the key to a new one). The person being seated reads their own key's fingerprint from
@@ -143,7 +176,8 @@ returns treat it as a person. `recipientIdentity` is the one place that tells th
 The release tells a mantel's keepers through `registerNoticeAudience` (never a notice for the
 mantel id). Keepers read through `kept-mantel.ts` only, which holds both gates: nothing before
 delivery, and for a letter with `opensOn` nothing (text, photo, key) before that day on the
-mantel's calendar, to keepers too. Opening is not post: no release, no notice, any weekday. Any
+mantel's calendar, to keepers too. The one other reader of a mantel's `letter_keys` is a
+re-key's plan (`kept-rekey.ts`), which hands over wrapped keys and nothing else. Opening is not post: no release, no notice, any weekday. Any
 new way to read a mantel's letters (export, print) must go through the same gate. Keepers
 write from the mantel's page. Anyone else writes after a keeper invites them: the same
 invitation as between two people, with `invites.mantelId` set, its own email
@@ -164,11 +198,15 @@ has their copies in transit deleted (`endReading`), not returned. Keepers manage
 mantel's page (`LettersMantelNews`); a reader sees "News you get" on `/people` (`PeopleNews`).
 
 Guest letters (`layers/letters/server/utils/guest-letters.ts`): an anniversary mantel can
-have one write link, `/w/<id>#<fingerprint>`. The id is the only secret in the path; the
-fragment is a fingerprint of the mantel's public key, which the guest's page checks before it
-shows a form (`keyFingerprintToken`). A guest letter has no author, `origin` 'guest', no
-transit, and is sealed until the link's `opensOn`. The two routes under
-`/api/letters/guest/` are the only letter routes that work signed out: they sit behind
+have one write link, `/w/<id>#<fingerprint>.<secret>`. The fragment never reaches the server
+with the page. Its first part is a fingerprint of the mantel's public key, which the guest's
+page checks before it shows a form (`keyFingerprintToken`). Its second is a secret a keeper's
+browser derives from the mantel's private key and the link's id (`guestLinkSecret`); the
+server stores only its hash, and all three guest routes answer "unknown" without it, so the
+path alone opens nothing. A keeper's device shows the address only where it can open the
+mantel. A guest letter has no author, `origin` 'guest', no
+transit, and is sealed until the link's `opensOn`. The routes under
+`/api/letters/guest/` are the only letter routes that work signed out: the two that post sit behind
 `requireTurnstile` and rate limits per sender and per link, and the link has a closing day
 and a cap. Never add the guest's name, or anything else from inside the letter, to a row.
 

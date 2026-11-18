@@ -23,6 +23,12 @@ export const FOUNDER_ROLE: Record<MantelKind, KeeperRole> = {
 export const KEEPER_WRAP_PATTERN =
   /^v1\.[A-Za-z0-9_-]{87}\.[A-Za-z0-9_-]{16}\.[A-Za-z0-9_-]{150,400}$/
 
+/**
+ * Between the links of a hand-over that spans more than one re-key. Not a
+ * character a wrap can contain, so the chain splits one way.
+ */
+export const HANDOVER_SEPARATOR = '~'
+
 export const mantelNameSchema = z.string().trim().min(1).max(60)
 
 export const newMantelSchema = z.object({

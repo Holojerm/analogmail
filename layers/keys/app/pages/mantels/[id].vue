@@ -30,7 +30,10 @@ interface MantelView {
   name: string
   me: string
   publicKey: string
+  keyVersion: number
+  rekeyDue: boolean
   wrappedKey: string | null
+  handover: { previous: string; wrapped: string } | null
   keepers: Keeper[]
   proposals: Proposal[]
   recoveries: { id: string; name: string | null; readyAt: string }[]
@@ -47,6 +50,8 @@ const mantel = ref<MantelView | null>(null)
 const loading = ref(true)
 const failure = ref<string | null>(null)
 const canOpen = ref<boolean | null>(null)
+// Another keeper changed the key and this visit took the new one.
+const keyChanged = ref(false)
 const email = ref('')
 const role = ref<KeeperRole>('guardian')
 const busy = ref(false)
@@ -61,12 +66,21 @@ const ROLES = KEEPER_ROLES.map((value) => ({ value, label: ROLE[value] }))
 const message = (error: unknown) =>
   (error as { data?: { message?: string } }).data?.message ?? 'That did not work. Try again.'
 
+const fetchView = () =>
+  $fetch<MantelView>('/api/mantels/view', {
+    method: 'POST',
+    body: { id: String(route.params.id) },
+  })
+
 async function load() {
   try {
-    const view = await $fetch<MantelView>('/api/mantels/view', {
-      method: 'POST',
-      body: { id: String(route.params.id) },
-    })
+    let view = await fetchView()
+    // After another keeper's re-key, opening the mantel stores this keeper's
+    // copy of the new key. Everything below is shown from the view after that.
+    if (view.handover && !view.wrappedKey && (await mantelKeys.open(view))) {
+      keyChanged.value = true
+      view = await fetchView()
+    }
     mantel.value = view
     role.value = view.kind === 'child' ? 'guardian' : 'partner'
     canOpen.value = Boolean(await mantelKeys.open(view))
@@ -172,6 +186,21 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
       />
 
       <UAlert
+        v-if="keyChanged"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-key-round"
+        title="This mantel's key was changed"
+        description="Another keeper changed it after someone stopped keeping this mantel. You now hold the new key and need do nothing. The recovery code printed before no longer works: ask them for the new one."
+      />
+      <LettersMantelRekey
+        v-if="canOpen"
+        :mantel="mantel"
+        :other-keepers="mantel.keepers.length - 1"
+        @done="load"
+      />
+
+      <UAlert
         v-for="claim in mantel.recoveries"
         :key="claim.id"
         color="warning"
@@ -192,6 +221,7 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         v-if="mantel.kind === 'anniversary'"
         :mantel-id="mantel.id"
         :public-key="mantel.publicKey"
+        :wrapped-key="mantel.wrappedKey"
       />
 
       <section aria-labelledby="keepers-heading" class="flex flex-col gap-3">
