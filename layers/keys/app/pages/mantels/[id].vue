@@ -124,16 +124,20 @@ const propose = () =>
     email.value = ''
   })
 const proposeRemoval = (keeperId: string) =>
-  run(() =>
-    $fetch('/api/mantels/proposals', {
+  run(async () => {
+    await $fetch('/api/mantels/proposals', {
       method: 'POST',
       body: { kind: 'remove_keeper', mantelId: mantel.value!.id, keeperId },
-    }),
-  )
+    })
+  })
 const act = (id: string, action: 'vote' | 'withdraw') =>
-  run(() => $fetch('/api/mantels/proposals/act', { method: 'POST', body: { id, action } }))
+  run(async () => {
+    await $fetch('/api/mantels/proposals/act', { method: 'POST', body: { id, action } })
+  })
 const cancelRecovery = (id: string) =>
-  run(() => $fetch('/api/mantels/recover/act', { method: 'POST', body: { id, action: 'cancel' } }))
+  run(async () => {
+    await $fetch('/api/mantels/recover/act', { method: 'POST', body: { id, action: 'cancel' } })
+  })
 const day = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
 const grant = (id: string) =>
