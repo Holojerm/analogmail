@@ -13,6 +13,7 @@ import {
   keyFingerprint,
   recoveryProof,
   recoveryProofHash,
+  openHandoverChain,
   unwrapMantelKey,
   unwrapMantelKeyWithCode,
   wrapMantelKeyForKeeper,
@@ -22,6 +23,12 @@ import {
 export interface KeptMantel {
   id: string
   wrappedKey: string | null
+  /** The version of the mantel's key the wraps here belong to. */
+  keyVersion?: number
+  /** After a re-key, until this keeper's browser has opened the new key. */
+  handover?: { previous: string; wrapped: string } | null
+  /** The mantel's public key as the server gives it: a handed-over key must be its pair. */
+  publicKey?: string
 }
 
 export function useMantelKeys() {
@@ -43,15 +50,55 @@ export function useMantelKeys() {
     return publicKeyOf(privateKey)
   }
 
+  /**
+   * After a re-key by another keeper: opens the new key left for this one,
+   * which takes this account's key and the mantel's key from before (once
+   * for each re-key this keeper was not there for), and stores an ordinary
+   * copy in place of them.
+   */
+  async function takeHandover(
+    privateKey: CryptoKey,
+    mantel: KeptMantel,
+  ): Promise<Uint8Array<ArrayBuffer> | null> {
+    if (!mantel.handover || !mantel.keyVersion) return null
+    const context = { mantelId: mantel.id, keeperId: me() }
+    const previous = await unwrapMantelKey(privateKey, mantel.handover.previous, context)
+    if (!previous) return null
+    const mantelKey = await openHandoverChain(
+      privateKey,
+      previous,
+      mantel.handover.wrapped,
+      context,
+    )
+    if (!mantelKey) return null
+    // What was handed over must be the key letters are now sealed to. A copy
+    // of anything else is not stored, and not passed on to a new keeper.
+    const pair = await publicKeyOf(await importPrivateKey(mantelKey)).catch(() => null)
+    if (!mantel.publicKey || pair !== mantel.publicKey) return null
+    // If storing the copy fails the key is still good for this visit, and the
+    // two copies it came from are still there for the next.
+    await $fetch('/api/mantels/rekey/settle', {
+      method: 'POST',
+      body: {
+        mantelId: mantel.id,
+        keyVersion: mantel.keyVersion,
+        wrapped: await wrapMantelKeyForKeeper(await myPublicKey(), mantelKey, context),
+      },
+    }).catch(() => null)
+    return mantelKey
+  }
+
   /** This keeper's copy of the mantel's private key, opened. Null if this device cannot. */
   async function open(mantel: KeptMantel): Promise<Uint8Array<ArrayBuffer> | null> {
     const privateKey = await keys.privateKey()
-    if (!privateKey || !mantel.wrappedKey) return null
+    if (!privateKey) return null
+    if (!mantel.wrappedKey) return takeHandover(privateKey, mantel)
     return unwrapMantelKey(privateKey, mantel.wrappedKey, { mantelId: mantel.id, keeperId: me() })
   }
 
   return {
     open,
+    myPublicKey,
     /** What the person being seated reads out to the keeper seating them. */
     myFingerprint: async () => keyFingerprint(await myPublicKey()),
 
@@ -130,6 +177,7 @@ export function useMantelKeys() {
         method: 'POST',
         body: {
           id: proposalId,
+          keyVersion: mantel.keyVersion,
           wrapped: await wrapMantelKeyForKeeper(seat.publicKey, mantelKey, {
             mantelId: mantel.id,
             keeperId: seat.subjectId,

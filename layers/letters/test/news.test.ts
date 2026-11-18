@@ -44,6 +44,8 @@ const {
 } = schema
 
 const LEO = 'aaaaaaaa-0000-4000-8000-000000000001'
+// Which key a copy for the mantel was wrapped to: sealing checks it is still the mantel's.
+const TO_LEO = { [LEO]: 'leo-key' }
 const PIP = 'bbbbbbbb-0000-4000-8000-000000000002'
 const MONDAY = new Date('2026-11-16T20:00:00Z')
 const FRIDAY = new Date('2026-11-20T18:00:00Z')
@@ -92,6 +94,7 @@ async function write(id: string, readers: string[], withChild = false, author = 
     MONDAY,
     null,
     withChild,
+    TO_LEO,
   )
 }
 const deliver = () =>
@@ -278,12 +281,22 @@ describe('a child’s news', () => {
       MONDAY,
     )
     expect(
-      (await sealLetter(db, 'ann', FIRST, { [LEO]: 'key-for-leo' }, MONDAY, '2044-06-14', true))
-        .status,
+      (
+        await sealLetter(
+          db,
+          'ann',
+          FIRST,
+          { [LEO]: 'key-for-leo' },
+          MONDAY,
+          '2044-06-14',
+          true,
+          TO_LEO,
+        )
+      ).status,
     ).toBe('cannot-seal-until')
-    expect((await sealLetter(db, 'ann', FIRST, { [LEO]: 'k' }, MONDAY, null, true)).status).toBe(
-      'sealed',
-    )
+    expect(
+      (await sealLetter(db, 'ann', FIRST, { [LEO]: 'k' }, MONDAY, null, true, TO_LEO)).status,
+    ).toBe('sealed')
   })
 
   it('is written by keepers and answered by nobody', async () => {

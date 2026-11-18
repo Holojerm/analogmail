@@ -1,7 +1,8 @@
 // Custodial mantels and who keeps them. The server stores a mantel's public
 // key and wrapped copies of its private key that it cannot open. What it
-// guards: a public key is never replaced, a wrapped copy lands only on a
-// keeper's own row, and nobody but a keeper learns anything about a mantel.
+// guards: a public key changes only by a re-key (rekey.ts), a wrapped copy
+// lands only on a keeper's own row, and nobody but a keeper learns anything
+// about a mantel.
 
 import { and, eq, isNull } from 'drizzle-orm'
 import * as tables from '@nuxthub/db/schema'
@@ -111,24 +112,25 @@ export async function getMantel(db: KeysDb, userId: string, mantelId: string) {
   if (!keepers.some((keeper) => keeper.userId === userId)) return null
   const [mantel] = await db.select().from(mantels).where(eq(mantels.id, mantelId)).limit(1)
   if (!mantel) return null
-  const [wrap] = await db
-    .select({ wrapped: mantelKeyWraps.wrapped })
+  const wraps = await db
+    .select({ kind: mantelKeyWraps.kind, wrapped: mantelKeyWraps.wrapped })
     .from(mantelKeyWraps)
-    .where(
-      and(
-        eq(mantelKeyWraps.mantelId, mantelId),
-        eq(mantelKeyWraps.kind, 'keeper'),
-        eq(mantelKeyWraps.keeperId, userId),
-      ),
-    )
-    .limit(1)
+    .where(and(eq(mantelKeyWraps.mantelId, mantelId), eq(mantelKeyWraps.keeperId, userId)))
+  const held = (kind: string) => wraps.find((wrap) => wrap.kind === kind)?.wrapped ?? null
+  const previous = held('previous')
+  const handover = held('handover')
   return {
     id: mantel.id,
     kind: mantel.kind,
     name: mantel.name,
     publicKey: mantel.publicKey,
+    keyVersion: mantel.keyVersion,
+    /** A keeper has left and may still hold the key: it should be changed. */
+    rekeyDue: Boolean(mantel.rekeyDueAt),
     closedAt: mantel.closedAt,
     keepers,
-    wrappedKey: wrap?.wrapped ?? null,
+    wrappedKey: held('keeper'),
+    /** After a re-key: the new key, for this keeper's browser to open and settle. */
+    handover: previous && handover ? { previous, wrapped: handover } : null,
   }
 }

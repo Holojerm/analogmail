@@ -4,6 +4,7 @@
 import { db } from '@nuxthub/db'
 import { z } from 'zod'
 
+import { PUBLIC_KEY_PATTERN } from '#layers/keys/shared/utils/key-format'
 import { postNow } from '#layers/post/server/utils/clock'
 
 import { letterIdSchema, letterKeySchema } from '../../../shared/utils/letter-doc'
@@ -13,6 +14,8 @@ const bodySchema = z.object({
   id: letterIdSchema,
   /** The letter's key, wrapped once per reader, by reader id. */
   wrappedKeys: z.record(z.string().min(1).max(64), letterKeySchema),
+  /** The public key each copy was wrapped to, by reader id. */
+  readerKeys: z.record(z.string().min(1).max(64), z.string().regex(PUBLIC_KEY_PATTERN)),
   /** Only for a letter to a kept mantel: the day it is sealed until. */
   opensOn: z
     .string()
@@ -50,6 +53,7 @@ export default defineEventHandler(async (event) => {
     await postNow(),
     body.opensOn ?? null,
     body.withChild ?? false,
+    body.readerKeys,
   )
   if (result.status !== 'sealed') {
     const [statusCode, message] = REFUSALS[result.status]

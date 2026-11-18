@@ -223,6 +223,9 @@ async function seal() {
             ]),
           ),
         ),
+        readerKeys: Object.fromEntries(
+          plan.value.readers.map((reader) => [reader.id, reader.publicKey]),
+        ),
         opensOn: plan.value.toMantel && opensOn.value ? opensOn.value : null,
         withChild: withChild.value,
       },

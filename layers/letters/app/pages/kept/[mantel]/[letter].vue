@@ -2,6 +2,7 @@
 // A letter on a kept mantel, opened by one of its keepers: this keeper's copy
 // of the mantel's key opens the letter's key, and the letter is decrypted
 // here. The mantel's key is held in memory only for that.
+import type { KeptMantel } from '#layers/keys/app/composables/useMantelKeys'
 import type { KeptLetter } from '../../../../shared/utils/kept'
 import { parseLetterDoc, type LetterDoc } from '../../../../shared/utils/letter-doc'
 import { decryptLetter, unwrapContentKey } from '../../../utils/letter-crypto'
@@ -22,10 +23,10 @@ const photoUrl = ref<string | null>(null)
 
 onMounted(async () => {
   try {
-    const mantel = await $fetch<{ id: string; name: string; wrappedKey: string | null }>(
-      '/api/mantels/view',
-      { method: 'POST', body: { id: mantelId } },
-    )
+    const mantel = await $fetch<KeptMantel & { name: string }>('/api/mantels/view', {
+      method: 'POST',
+      body: { id: mantelId },
+    })
     mantelName.value = mantel.name
     const letter = await $fetch<KeptLetter>('/api/letters/kept/open', {
       method: 'POST',

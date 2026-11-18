@@ -4,9 +4,9 @@
 
 import { readFile } from 'node:fs/promises'
 
-import { expect, test } from '../../../../test/e2e/fixtures'
+import { expect, test, uniqueEmail } from '../../../../test/e2e/fixtures'
 
-import { device, makePair, open } from './helpers'
+import { device, finishSignUp, makePair, open } from './helpers'
 
 // A 1 × 1 PNG.
 const PNG = Buffer.from(
@@ -280,5 +280,123 @@ test("a mantel's recovery code: a keeper is restored at once, anyone else waits"
   await ann.getByRole('link', { name: 'Open the mantel' }).click()
   await expect(ann.getByText('This device cannot open this mantel')).toHaveCount(0)
 
+  await close()
+})
+
+test("a keeper leaves: the mantel's key is changed and the others keep reading", async ({
+  browser,
+  baseURL,
+}) => {
+  test.setTimeout(300_000)
+  const { ann, bob, close } = await makePair(browser, baseURL!)
+  const cal = await device(browser, baseURL!)
+  await open(cal, '/auth/sign-up')
+  await finishSignUp(cal, uniqueEmail('third'), 'Cal Tester')
+  await cal.waitForURL('**/people', { timeout: 15_000 })
+  const emailOf = async (page: typeof ann) =>
+    ((await (await page.request.get('/api/_auth/session')).json()) as { user: { email: string } })
+      .user.email
+
+  // ── Ann opens Leo's mantel and keeps its first recovery code ───────────────
+  await open(ann, '/mantels/new')
+  await ann.getByLabel('Whose mantel is it?').fill('Leo')
+  await ann.getByRole('button', { name: 'Open the mantel' }).click()
+  const firstCode = (await ann.getByTestId('recovery-code').innerText()).trim()
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await ann.waitForURL(/\/mantels\/[0-9a-f-]{36}$/)
+  const mantelPath = new URL(ann.url()).pathname
+
+  // ── Bob and then Cal are seated, each after the fingerprints match ─────────
+  async function seat(who: typeof ann, agreeing: (typeof ann)[]) {
+    await ann.getByLabel('Their email').fill(await emailOf(who))
+    await ann.getByRole('button', { name: 'Ask them' }).click()
+    await expect(ann.getByText(/They have not accepted yet/)).toBeVisible()
+    for (const keeper of agreeing) {
+      await open(keeper, mantelPath)
+      await keeper.getByRole('button', { name: 'Agree' }).click()
+    }
+    await open(who, '/mantels')
+    await who.getByRole('button', { name: 'Accept' }).click()
+    const spoken = (await who.getByTestId('my-fingerprint').innerText()).trim()
+    await ann.reload({ waitUntil: 'networkidle' })
+    await expect(ann.getByTestId('their-fingerprint')).toHaveText(spoken)
+    await ann.getByRole('button', { name: 'They match. Give them the key' }).click()
+    await expect(ann.getByTestId('their-fingerprint')).toHaveCount(0)
+  }
+  await seat(bob, [])
+  await seat(cal, [bob])
+  await open(cal, mantelPath)
+  await expect(cal.getByText('This device cannot open this mantel')).toHaveCount(0)
+  await expect(ann.getByRole('heading', { name: "Change this mantel's key" })).toHaveCount(0)
+
+  // ── Two of three agree that Cal stops keeping it ───────────────────────────
+  await ann
+    .getByRole('button', { name: 'Propose that Cal Tester stops keeping this mantel' })
+    .click()
+  await expect(ann.getByText('1 of 3 keepers agree.')).toBeVisible()
+  await open(bob, mantelPath)
+  await bob.getByRole('button', { name: 'Agree' }).click()
+  await expect(bob.getByText('Cal Tester')).toHaveCount(0)
+
+  // ── Ann changes the key. Only wrapped keys leave her browser ───────────────
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByRole('heading', { name: "Change this mantel's key" })).toBeVisible()
+  const stored = ann.waitForRequest((request) => request.url().endsWith('/api/letters/kept/rekey'))
+  await ann.getByRole('button', { name: 'Change the key' }).click()
+  const sent = (await stored).postDataJSON() as Record<string, unknown>
+  expect(Object.keys(sent).toSorted()).toEqual(
+    [
+      'handovers',
+      'keeperWrap',
+      'keyVersion',
+      'letterKeys',
+      'mantelId',
+      'publicKey',
+      'recoveryProofHash',
+      'recoveryWrap',
+    ].toSorted(),
+  )
+  expect(sent.keeperWrap).toMatch(/^v1\./)
+  expect(Object.values(sent.handovers as Record<string, string>)).toHaveLength(1)
+
+  await expect(ann.getByRole('heading', { name: "The mantel's new recovery code" })).toBeVisible()
+  const secondCode = (await ann.getByTestId('recovery-code').innerText()).trim()
+  expect(secondCode).toMatch(/^([0-9A-Z]{4}-){7}[0-9A-Z]{4}$/)
+  expect(secondCode).not.toBe(firstCode)
+  // The old code is dead now, so the new one is not lost by leaving the page
+  // before it has been kept: it is shown again until she says she has it.
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByTestId('recovery-code')).toHaveText(secondCode)
+  await ann.getByLabel('I have kept my recovery code somewhere safe').check()
+  await ann.getByRole('button', { name: 'Continue' }).click()
+  await expect(ann.getByTestId('recovery-code')).toHaveCount(0)
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByTestId('recovery-code')).toHaveCount(0)
+  await expect(ann.getByRole('heading', { name: "Change this mantel's key" })).toHaveCount(0)
+  await expect(ann.getByText('This device cannot open this mantel')).toHaveCount(0)
+
+  // ── Bob was not there. His next visit takes the new key and needs nothing ──
+  const settled = bob.waitForResponse((response) =>
+    response.url().endsWith('/api/mantels/rekey/settle'),
+  )
+  await open(bob, mantelPath)
+  expect((await settled).status()).toBe(200)
+  await expect(bob.getByText("This mantel's key was changed")).toBeVisible()
+  await expect(bob.getByText('This device cannot open this mantel')).toHaveCount(0)
+  await expect(bob.getByRole('heading', { name: "Change this mantel's key" })).toHaveCount(0)
+  await bob.reload({ waitUntil: 'networkidle' })
+  await expect(bob.getByText("This mantel's key was changed")).toHaveCount(0)
+  await expect(bob.getByText('This device cannot open this mantel')).toHaveCount(0)
+
+  // ── The code printed before opens nothing; Cal keeps no mantel ─────────────
+  await open(cal, '/mantels/recover')
+  await cal.getByLabel('Recovery code').fill(firstCode)
+  await cal.getByRole('button', { name: 'Use the code' }).click()
+  await expect(cal.getByText('That code does not open a mantel.')).toBeVisible()
+  await open(cal, '/mantels')
+  await expect(cal.getByText('You keep no mantels.')).toBeVisible()
+
+  await cal.context().close()
   await close()
 })

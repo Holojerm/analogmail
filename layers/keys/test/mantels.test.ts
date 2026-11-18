@@ -66,7 +66,13 @@ async function seat(who: string, proposer = 'ann', voters: string[] = []) {
   await acceptSeat(db, who, offer.proposalId, NOW)
   return {
     id: offer.proposalId,
-    granted: await grantSeat(db, proposer, offer.proposalId, keeperWrap(who), NOW),
+    granted: await grantSeat(
+      db,
+      proposer,
+      offer.proposalId,
+      { wrapped: keeperWrap(who), keyVersion: 1 },
+      NOW,
+    ),
   }
 }
 
@@ -144,7 +150,15 @@ describe('adding a keeper', () => {
 
     // Not accepted yet: there is nobody to wrap the key to.
     expect(await seatToFill(db, 'ann', offer.proposalId, NOW)).toBeNull()
-    expect(await grantSeat(db, 'ann', offer.proposalId, keeperWrap('bob'), NOW)).toBe('not-ready')
+    expect(
+      await grantSeat(
+        db,
+        'ann',
+        offer.proposalId,
+        { wrapped: keeperWrap('bob'), keyVersion: 1 },
+        NOW,
+      ),
+    ).toBe('not-ready')
 
     expect(await acceptSeat(db, 'cal', offer.proposalId, NOW)).toBe('not-yours')
     expect(await acceptSeat(db, 'bob', offer.proposalId, NOW)).toBe('accepted')
@@ -155,8 +169,24 @@ describe('adding a keeper', () => {
     })
     expect(await keeperIds()).toEqual(['ann'])
 
-    expect(await grantSeat(db, 'bob', offer.proposalId, keeperWrap('bob'), NOW)).toBe('not-ready')
-    expect(await grantSeat(db, 'ann', offer.proposalId, keeperWrap('bob'), NOW)).toBe('seated')
+    expect(
+      await grantSeat(
+        db,
+        'bob',
+        offer.proposalId,
+        { wrapped: keeperWrap('bob'), keyVersion: 1 },
+        NOW,
+      ),
+    ).toBe('not-ready')
+    expect(
+      await grantSeat(
+        db,
+        'ann',
+        offer.proposalId,
+        { wrapped: keeperWrap('bob'), keyVersion: 1 },
+        NOW,
+      ),
+    ).toBe('seated')
     expect(await keeperIds()).toEqual(['ann', 'bob'])
     expect(await wrapsOf()).toEqual(['keeper:ann', 'keeper:bob', 'recovery:'])
     expect(await getMantel(db, 'bob', MANTEL)).toMatchObject({ wrappedKey: keeperWrap('bob') })
@@ -175,11 +205,27 @@ describe('adding a keeper', () => {
     if (offer.result !== 'proposed') throw new Error(offer.result)
     await acceptSeat(db, 'cal', offer.proposalId, NOW)
 
-    expect(await grantSeat(db, 'ann', offer.proposalId, keeperWrap('cal'), NOW)).toBe('not-ready')
+    expect(
+      await grantSeat(
+        db,
+        'ann',
+        offer.proposalId,
+        { wrapped: keeperWrap('cal'), keyVersion: 1 },
+        NOW,
+      ),
+    ).toBe('not-ready')
     expect(await voteForProposal(db, 'cal', offer.proposalId, NOW)).toBe('not-keeper')
     expect(await voteForProposal(db, 'bob', offer.proposalId, NOW)).toBe('voted')
     expect(await voteForProposal(db, 'bob', offer.proposalId, NOW)).toBe('voted')
-    expect(await grantSeat(db, 'bob', offer.proposalId, keeperWrap('cal'), NOW)).toBe('seated')
+    expect(
+      await grantSeat(
+        db,
+        'bob',
+        offer.proposalId,
+        { wrapped: keeperWrap('cal'), keyVersion: 1 },
+        NOW,
+      ),
+    ).toBe('seated')
     expect(await keeperIds()).toEqual(['ann', 'bob', 'cal'])
   })
 
