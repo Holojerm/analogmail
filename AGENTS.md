@@ -223,7 +223,10 @@ after hydration, never during it. The city list is GeoNames data loaded by
 Notices: the release queues one `notices` row per person per mail day, and `dispatchNotices`
 sends them through a `Notifier` (`layers/post/server/notify/`; email is the only one). The notice
 email ("Something arrived on your mantel") takes no data but the brand, so it cannot name a
-sender or count letters. A send is at
+sender or count letters. The same notice also goes as a notification to the devices a person
+turned them on in (`pushNotice`, through the vendored `layers/pwa`): once per notice, beside the
+email and never instead of it, with the same fixed wording. It is the only push in the product,
+and the switch for it is on Your post (`/settings/post`). A send is at
 most once; a failed one is retried on later runs, never repeated as a reminder. Resend reports
 bounces to `POST /api/webhooks/resend` (404 until `NUXT_POST_RESEND_WEBHOOK_SECRET` is set): a
 hard bounce of a notice returns that day's unopened letters to their senders.
@@ -313,6 +316,7 @@ Read the row that matches what you are about to touch. Do not load them all.
 | [`.claude/docs/gotchas.md`](.claude/docs/gotchas.md) | Silent failure modes — wrong-file databases, migrations that never run, empty sitemaps, rate limiters that quietly do nothing | Something "works" but produces no output; or you touch D1, migrations, deploy config, cron, `definePageMeta`, or a worktree |
 | [`.claude/docs/patterns.md`](.claude/docs/patterns.md) | Worked examples: components, API routes, Drizzle queries, forms, error handling, feedback | Writing a new component, route, form, or query — especially your first change here |
 | [`.claude/docs/auth.md`](.claude/docs/auth.md) | Magic link, OAuth, session revocation, `rateLimit()`, Turnstile | Anything under `server/api/auth/`, sessions, rate limiting, or bot protection |
+| [`.claude/docs/pwa.md`](.claude/docs/pwa.md) | The vendored pwa layer: the service worker, the offline page, what may and may not be cached, Web Push (`sendPush`, VAPID keys), the install prompt | Anything that sends a notification, or a page that behaves differently once installed |
 | [`.claude/docs/email.md`](.claude/docs/email.md) | Resend, the `EMAIL_QUEUE`, retry/dead-letter, notification decisions | Adding or changing any outbound email |
 | [`.claude/docs/seo.md`](.claude/docs/seo.md) | `useSeo()`, `publicPage` meta, structured data | Adding or editing a page |
 | [`.claude/docs/brand.md`](.claude/docs/brand.md) | How every icon is generated from one `Logo.vue` | Redesigning the mark or fixing `brand:check` |

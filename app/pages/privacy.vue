@@ -43,6 +43,11 @@ const processors = [
     purpose: 'Transactional email delivery',
     data: 'Your email address and the message content',
   },
+  {
+    name: "Your browser's push service (Google, Apple, Mozilla or Microsoft)",
+    purpose: 'Notifications, only on a device where you turned them on',
+    data: 'An encrypted notice that something arrived. It names no sender and carries no letter',
+  },
 ]
 
 useSeo({
