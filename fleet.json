@@ -14,7 +14,7 @@
   "deploy": "workers-builds",
   "template": {
     "repo": "Holojerm/nuxt-cf-template",
-    "syncedSha": "26c47b9355f0d83cd883821b8ec9426d776a559f",
+    "syncedSha": "98bcb65d4e9bf488917fe6278340583c37079585",
     "customized": [
       "app/components/Auth/UserMenu.vue",
       "app/pages/account.vue",
@@ -73,6 +73,7 @@
     "retention": { "event": "$pageview", "window": "weekly" }
   },
   "secrets": [
+    "NUXT_APP_SECRET",
     "NUXT_SESSION_PASSWORD",
     "NUXT_RESEND_API_KEY",
     "NUXT_POST_RESEND_WEBHOOK_SECRET",
