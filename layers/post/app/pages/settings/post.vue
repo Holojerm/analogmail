@@ -195,5 +195,9 @@ useSeo({
         </UFormField>
       </div>
     </UCard>
+
+    <!-- Being told when post arrives, on this device. Renders nothing where a
+         browser can neither install the app nor show a notification. -->
+    <PwaDeviceSettings />
   </div>
 </template>

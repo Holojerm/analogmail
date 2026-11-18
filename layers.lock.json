@@ -11,6 +11,11 @@
       "ref": "main",
       "sha": "98bcb65d4e9bf488917fe6278340583c37079585",
       "hash": "26fea270f93487feebc4932d883555868dff68f18d65380c979b8cf41e3e17f8"
+    },
+    "pwa": {
+      "ref": "main",
+      "sha": "f1e9686c7d2909cd8fcc25d619b8606afb6f84eb",
+      "hash": "2d730fa2930909bd4e99e79572e20d6e7529784c5a315e4b610eeafd913261ad"
     }
   }
 }

@@ -12,6 +12,7 @@ import { handleNoticeBounce, isHardBounce } from '../server/notify/bounce'
 import { dispatchNotices, NOTICE_EXPIRY_MS } from '../server/notify/dispatch'
 import { createEmailNotifier, NOTICE_SUBJECT, noticeEmail } from '../server/notify/email'
 import type { Notifier, NotifyResult } from '../server/notify/notifier'
+import { NOTICE_PUSH } from '../server/notify/push'
 import { verifySvixSignature } from '../server/notify/svix'
 import { runRelease } from '../server/utils/release-run'
 
@@ -171,9 +172,81 @@ describe('sending notices', () => {
   it('never mails a deleted account', async () => {
     await db.delete(users).where(eq(users.id, 'ann'))
     const { calls, notifier } = recorder()
+    const pushed: string[] = []
+    const push = async (userId: string) => pushed.push(userId)
 
-    expect(await dispatchNotices(db, notifier, MONDAY_TEN)).toMatchObject({ failed: 1 })
+    expect(await dispatchNotices(db, notifier, MONDAY_TEN, { push })).toMatchObject({ failed: 1 })
     expect(calls).toHaveLength(0)
+    expect(pushed).toHaveLength(0)
+  })
+})
+
+describe('the notice as a notification', () => {
+  beforeEach(async () => {
+    await addPerson('ann')
+    await addPerson('bob')
+    await post('bob', 'ann', '2026-11-16')
+    await runRelease(db, MONDAY_TEN)
+  })
+
+  it('says what the email says and nothing more', () => {
+    expect(NOTICE_PUSH).toEqual({
+      title: 'Something arrived on your mantel',
+      body: 'Open your mantel to read it.',
+      url: '/mantel',
+    })
+  })
+
+  it('goes beside the email, once, counting the devices that took it', async () => {
+    const { calls, notifier } = recorder()
+    const pushed: string[] = []
+    const push = async (userId: string) => pushed.push(userId) && 2
+
+    const first = await dispatchNotices(db, notifier, MONDAY_TEN, { push })
+    const second = await dispatchNotices(db, notifier, utc('2026-11-16T16:15:00'), { push })
+
+    expect(first).toMatchObject({ sent: 1, pushed: 2 })
+    expect(second).toMatchObject({ sent: 0, pushed: 0 })
+    expect(calls).toHaveLength(1)
+    expect(pushed).toEqual(['ann'])
+  })
+
+  it('is not repeated when the email is tried again', async () => {
+    const down: NotifyResult = { ok: false, retry: true, reason: 'error' }
+    const { calls, notifier } = recorder([down, down])
+    const pushed: string[] = []
+    const push = async (userId: string) => pushed.push(userId)
+
+    await dispatchNotices(db, notifier, MONDAY_TEN, { push })
+    await dispatchNotices(db, notifier, MONDAY_TEN, { push })
+    await dispatchNotices(db, notifier, MONDAY_TEN, { push })
+
+    expect(calls).toHaveLength(3)
+    expect(pushed).toEqual(['ann'])
+    expect(await noticesOf('ann')).toMatchObject([{ state: 'sent', attempts: 3 }])
+  })
+
+  it('never costs the notice its email when it fails', async () => {
+    const { calls, notifier } = recorder()
+    const push = async () => {
+      throw new Error('push is down')
+    }
+
+    expect(await dispatchNotices(db, notifier, MONDAY_TEN, { push })).toMatchObject({
+      sent: 1,
+      pushed: 0,
+    })
+    expect(calls).toHaveLength(1)
+    expect(await db.select().from(opsEvents)).toHaveLength(0)
+  })
+
+  it('waits with the email while the channel is not configured', async () => {
+    const { notifier } = recorder()
+    const pushed: string[] = []
+    const push = async (userId: string) => pushed.push(userId)
+
+    await dispatchNotices(db, { ...notifier, ready: () => false }, MONDAY_TEN, { push })
+    expect(pushed).toHaveLength(0)
   })
 })
 

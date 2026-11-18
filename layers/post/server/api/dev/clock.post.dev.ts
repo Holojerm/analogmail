@@ -11,7 +11,7 @@ import { nextPickup } from '../../../shared/utils/postmark'
 import { nextRelease } from '../../../shared/utils/release'
 import { advanceTo, rescheduleAll } from '../../dev/advance'
 import { officeSnapshot } from '../../dev/office'
-import { currentNotifier } from '../../notify/current'
+import { currentNotifier, pushNotice } from '../../notify/current'
 import { dispatchNotices } from '../../notify/dispatch'
 import { postNow, setClockOffsetMs } from '../../utils/clock'
 import { releaseStateOf } from '../../utils/release-run'
@@ -51,6 +51,8 @@ export default defineEventHandler(async (event) => {
   await setClockOffsetMs(to.getTime() - Date.now())
   if (body.action === 'reset') await rescheduleAll(db, to)
   const notifier = await currentNotifier()
-  const report = await advanceTo(db, from, to, (at) => dispatchNotices(db, notifier, at))
+  const report = await advanceTo(db, from, to, (at) =>
+    dispatchNotices(db, notifier, at, { push: pushNotice }),
+  )
   return { report, office: await officeSnapshot(db) }
 })

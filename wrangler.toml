@@ -367,6 +367,11 @@ NUXT_PUBLIC_TURNSTILE_SITE_KEY = ""
 #   NUXT_OAUTH_GOOGLE_CLIENT_ID / _SECRET    Google sign-in
 #   NUXT_RESEND_API_KEY          transactional email; unset = emails no-op
 #   NUXT_RESEND_FROM             e.g. "Dear Mantel <hello@myapp.com>" (verified domain)
+#   NUXT_PWA_VAPID_PRIVATE_KEY   Web Push (layers/pwa). Set it with its public half,
+#   NUXT_PUBLIC_PWA_VAPID_PUBLIC_KEY   both or neither; unset = no push routes and
+#                                sendPush() does nothing. `bun layers/pwa/scripts/vapid-keys.ts`
+#                                makes the pair without printing the private key
+#                                (.claude/docs/pwa.md › Keys).
 #   NUXT_TURNSTILE_SECRET_KEY    bot check on the public forms; unset = skipped.
 #                                Pairs with NUXT_PUBLIC_TURNSTILE_SITE_KEY below —
 #                                set BOTH or neither. Site key alone renders a
