@@ -188,6 +188,7 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         v-if="mantel.kind === 'anniversary'"
         :mantel-id="mantel.id"
         :public-key="mantel.publicKey"
+        :wrapped-key="mantel.wrappedKey"
       />
 
       <section aria-labelledby="keepers-heading" class="flex flex-col gap-3">

@@ -166,13 +166,26 @@ test('a wedding guest writes from the card, with no account', async ({ browser, 
   await ann.getByRole('button', { name: 'Make the write link' }).click()
   const address = new URL((await ann.getByTestId('guest-link').innerText()).trim())
   expect(address.pathname).toMatch(/^\/w\/[A-Za-z0-9_-]{22}$/)
-  expect(address.hash).toMatch(/^#[A-Za-z0-9_-]{22}$/)
+  expect(address.hash).toMatch(/^#[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{22}$/)
+  // Every device that opens the mantel works out the same address.
+  await ann.reload({ waitUntil: 'networkidle' })
+  await expect(ann.getByTestId('guest-link')).toHaveText(address.href)
 
   // ── A guest, signed out, on their own phone ────────────────────────────────
   // Guests are limited per address per hour; a fresh one keeps reruns honest.
   const guest = await device(browser, baseURL!, `198.51.100.${1 + Math.floor(Math.random() * 250)}`)
   await open(guest, `${address.pathname}#not-the-printed-fingerprint`)
   await expect(guest.getByText('This link does not match its card')).toBeVisible()
+  await expect(guest.getByLabel('Your letter')).toHaveCount(0)
+
+  // The path and the right fingerprint, without the secret: told nothing.
+  const [fingerprint] = address.hash.slice(1).split('.')
+  const refused = guest.waitForResponse((response) =>
+    response.url().endsWith('/api/letters/guest/view'),
+  )
+  await open(guest, `${address.pathname}#${fingerprint}.${'A'.repeat(22)}`)
+  expect(await (await refused).json()).toEqual({ status: 'unknown' })
+  await expect(guest.getByText(/This link does not take letters/)).toBeVisible()
   await expect(guest.getByLabel('Your letter')).toHaveCount(0)
 
   await open(guest, `${address.pathname}${address.hash}`)

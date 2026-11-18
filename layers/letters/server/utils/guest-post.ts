@@ -26,7 +26,7 @@ export async function takeGuestLetter(
 
   const result = await postGuestLetter(
     db,
-    body.link,
+    { link: body.link, secret: body.secret },
     body,
     await postNow(),
     photo ? { store: photoStore, ...photo } : undefined,

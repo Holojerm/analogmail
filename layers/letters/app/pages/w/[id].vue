@@ -2,8 +2,14 @@
 // The page a wedding guest reaches from the card: write one letter to the
 // couple, with no account. The letter is encrypted here to the mantel's key.
 // That key is checked against the fingerprint in the link's fragment first,
-// which the browser never sent to us, so a key swapped on the way shows.
-import { packGuestPhotoLetter, type GuestLinkView } from '../../../shared/utils/guest'
+// which the browser never sent to us, so a key swapped on the way shows. The
+// fragment also carries the link's secret, sent with each request here: the
+// path without it opens nothing.
+import {
+  packGuestPhotoLetter,
+  parseGuestLinkFragment,
+  type GuestLinkView,
+} from '../../../shared/utils/guest'
 import {
   DEFAULT_STATIONERY,
   LETTER_BODY_MAX,
@@ -37,22 +43,29 @@ const photo = ref<HeldPhoto | null>(null)
 const sent = shallowRef<{ doc: LetterDoc; photo: ArrayBuffer | null } | null>(null)
 const sending = ref(false)
 const failure = ref<string | null>(null)
+// From the fragment, once it has been checked against the mantel's key.
+let secret = ''
 
 async function check() {
   try {
+    const printed = parseGuestLinkFragment(window.location.hash)
+    if (!printed) {
+      state.value = 'mismatch'
+      return
+    }
     const view = await $fetch<GuestLinkView>('/api/letters/guest/view', {
       method: 'POST',
-      body: { link },
+      body: { link, secret: printed.secret },
     })
     if (view.status !== 'open') {
       state.value = 'closed'
       return
     }
-    const printed = window.location.hash.slice(1)
-    if (!printed || printed !== (await keyFingerprintToken(view.publicKey))) {
+    if (printed.fingerprint !== (await keyFingerprintToken(view.publicKey))) {
       state.value = 'mismatch'
       return
     }
+    secret = printed.secret
     mantel.value = view
     state.value = 'open'
   } catch {
@@ -62,7 +75,7 @@ async function check() {
 
 // Someone who mistyped the part after the # can correct it in place.
 const recheck = () => {
-  if (state.value === 'mismatch') void check()
+  if (state.value === 'mismatch' || state.value === 'closed') void check()
 }
 onMounted(() => {
   window.addEventListener('hashchange', recheck)
@@ -100,6 +113,7 @@ async function send() {
     }
     const letter = {
       link,
+      secret,
       id,
       ciphertext: await encryptLetter(key, id, JSON.stringify(doc)),
       wrappedKey: await wrapContentKey(to.publicKey, key, { letterId: id, readerId: to.mantelId }),
@@ -169,7 +183,7 @@ useSeo({
       color="neutral"
       variant="subtle"
       icon="i-lucide-mail-x"
-      description="This link no longer takes letters. It may have closed, or been replaced."
+      description="This link does not take letters. It may have closed, or been replaced. If you typed the address, check all of it against the card, including the part after the # sign."
     />
 
     <UAlert
