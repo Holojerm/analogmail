@@ -170,8 +170,7 @@ useSeo({
       <div class="flex flex-col gap-4">
         <p>
           <span class="text-muted">Your city is </span>
-          <span class="text-highlighted">{{ profile.cityName }}, {{ profile.country }}</span
-          >.
+          <span class="text-highlighted">{{ profile.cityName }}, {{ profile.country }}</span>.
         </p>
         <UFormField
           label="Move to another city"

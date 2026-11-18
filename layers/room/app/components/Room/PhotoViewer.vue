@@ -55,9 +55,11 @@ async function run(action: 'save' | 'delete', request: () => Promise<unknown>) {
   }
 }
 
+// Explicit type arguments: inferring the route from a plain `string` makes
+// Nuxt 4.6's typed-route matcher recurse past TypeScript's depth limit.
 const save = () =>
   run('save', () =>
-    $fetch(address.value, {
+    $fetch<unknown, string>(address.value, {
       method: 'PATCH',
       body: {
         caption: caption.value.trim() || null,
@@ -65,7 +67,8 @@ const save = () =>
       },
     }),
   )
-const remove = () => run('delete', () => $fetch(address.value, { method: 'DELETE' }))
+const remove = () =>
+  run('delete', () => $fetch<unknown, string>(address.value, { method: 'DELETE' }))
 </script>
 
 <template>

@@ -108,8 +108,7 @@ useSeo({
       <PeopleNameForm :current="name" @saved="nameSaved" />
     </UCard>
     <p v-else class="text-sm text-muted">
-      You write as <span class="text-highlighted">{{ name }}</span
-      >.
+      You write as <span class="text-highlighted">{{ name }}</span>.
       <UButton variant="link" class="p-0" @click="editingName = true">Change</UButton>
     </p>
 

@@ -59,7 +59,9 @@ async function act(request: () => Promise<unknown>) {
   }
 }
 const say = (city: Pick<City, 'id'>) =>
-  act(() => $fetch(`${base}/checkins`, { method: 'POST', body: { cityId: city.id } }))
+  act(async () => {
+    await $fetch(`${base}/checkins`, { method: 'POST', body: { cityId: city.id } })
+  })
 
 // The city their post arrives in, offered as one press: most people are at
 // home, and typing the same city twice is a poor welcome. Nothing is said
@@ -71,7 +73,10 @@ onMounted(async () => {
   if (profile?.cityId) home.value = { id: profile.cityId, name: profile.cityName }
 })
 const offerHome = computed(() => home.value && mine.value?.city !== home.value.name)
-const forget = () => act(() => $fetch(`${base}/checkins/forget`, { method: 'POST' }))
+const forget = () =>
+  act(async () => {
+    await $fetch(`${base}/checkins/forget`, { method: 'POST' })
+  })
 
 const since = (at: string) =>
   new Date(at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
