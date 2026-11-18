@@ -54,14 +54,16 @@ const invite = () =>
     email.value = ''
   })
 const withdraw = (id: string) =>
-  act(() => $fetch('/api/letters/invites/withdraw', { method: 'POST', body: { id } }))
+  act(async () => {
+    await $fetch('/api/letters/invites/withdraw', { method: 'POST', body: { id } })
+  })
 const remove = (readerId: string) =>
-  act(() =>
-    $fetch('/api/letters/news/remove', {
+  act(async () => {
+    await $fetch('/api/letters/news/remove', {
       method: 'POST',
       body: { mantelId: props.mantelId, readerId },
-    }),
-  )
+    })
+  })
 </script>
 
 <template>

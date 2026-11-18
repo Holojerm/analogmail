@@ -4,7 +4,7 @@
 // left out: making a copy opens nothing.
 import { saveFile } from '#layers/post/app/utils/save-file'
 
-import { fileSafe, type KeptArchive } from '../../../shared/utils/archive'
+import { fileSafe, type ArchiveSealed, type KeptArchive } from '../../../shared/utils/archive'
 import { buildArchive } from '../../utils/archive-build'
 import { unwrapContentKey } from '../../utils/letter-crypto'
 
@@ -57,12 +57,12 @@ async function keep() {
       },
       {
         sealed: (letterId) =>
-          $fetch('/api/letters/kept/archive-letter', {
+          $fetch<ArchiveSealed>('/api/letters/kept/archive-letter', {
             method: 'POST',
             body: { ...body, letterId },
           }),
         photo: (letterId) =>
-          $fetch(`/api/letters/photo/${letterId}`, {
+          $fetch<ArrayBuffer>(`/api/letters/photo/${letterId}`, {
             responseType: 'arrayBuffer',
             query: { mantel: props.mantelId },
           }),
