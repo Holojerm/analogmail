@@ -172,6 +172,27 @@ or a `NODE_VERSION` build variable.
 
 Production is unaffected — there the store is D1 (`content.database`), not a file.
 
+## With no `node` on the PATH, `nuxt dev` silently runs under Bun — and SSR breaks
+
+The section above assumes the `nuxt` bin's node shebang finds Node. On a machine that has
+only Bun (the Mac mini was set up that way), `bun run dev:app` and the Playwright suites'
+web server run `nuxt dev` **on Bun itself**, with no warning. CI never does: the browser-suites
+workflow runs `actions/setup-node` from `.node-version`, and the runner image bakes in Node.
+
+Under Bun, every page that renders a component importing `zod` (the feedback widget is in the
+default layout, so that is nearly every page) returns 500:
+`undefined is not an object (evaluating '__vite_ssr_import_N__.z.object')`. Vite externalizes
+`zod`; Bun answers `true` to `'__esModule' in ns` for zod's ESM namespace and for its default
+export, so vite-node's `interopModule` swaps the module for its default export — the `z`
+namespace, which has every export except `z`. The error text is JavaScriptCore's, not V8's:
+that is the tell that Node is not what is running. Seen on Bun 1.4.0 and 1.4.4.
+
+The fix is the environment, not the app: install the Node that `.node-version` names
+(`mise use -g node@24`, or let your version manager read `.node-version`). `which node` should
+print a path before you trust a local browser run. `vite.ssr.noExternal: ['zod']` makes the
+pages render under Bun, but it is a local workaround for an environment CI does not have —
+do not commit it.
+
 ## The dev server caches its DB connection — external writes need a restart
 
 `bun seed` (and anything else writing to `.data/db/sqlite.db` with `bun:sqlite`) writes the file
@@ -278,7 +299,9 @@ move every time the branch did. `bun dev:app` bypasses the proxy entirely.
 
 ## Workers Builds: dashboard Worker name must match `wrangler.toml`
 
-CI/CD runs on Cloudflare Workers Builds (repo connected in the dashboard under Worker → Settings → Build). The Worker's name in the dashboard must exactly match `name` in the root `wrangler.toml`, or every build fails before it starts. When you fork and rename the project, reconnect the repo to a Worker with the new name. Build settings live in the dashboard, not in the repo, as two triggers. Production branch `main`: build `bun run typecheck && bun run build`, deploy `bun run deploy:ci` (migrates production D1, then deploys; needs D1 Edit on the build token, see above). Non-production branches (excluding `main` and `ops-journal`): build `bun run ci` (the PR gate), deploy a no-op `echo`, so branch builds upload nothing. `NUXT_SESSION_PASSWORD` must be set as a build variable there too — the old GitHub Actions secrets are gone.
+CI/CD runs on Cloudflare Workers Builds (repo connected in the dashboard under Worker → Settings → Build). The Worker's name in the dashboard must exactly match `name` in the root `wrangler.toml`, or every build fails before it starts. When you fork and rename the project, reconnect the repo to a Worker with the new name. Build settings live in the dashboard, not in the repo, as two triggers. Production branch `main`: build `bun run typecheck && bun run build`, deploy `bun run deploy:ci` (migrates production D1, then deploys; needs D1 Edit on the build token, see above). Non-production branches (excluding `main` and `ops-journal`): build `bun run ci` (the PR gate), deploy a no-op `echo`, so branch builds upload nothing. `NUXT_SESSION_PASSWORD` must be set as a build variable there too — the old GitHub Actions secrets are gone. `NUXT_APP_SECRET` is runtime-only: build and tests run without it, so it is a Worker secret, not a build variable.
+
+**nuxt-auth-utils says `NUXT_SESSION_PASSWORD` "is not used anymore". It is, by this app.** Since 0.6 the module seals sessions from Nuxt's `appSecret` (`NUXT_APP_SECRET`) and warns once per isolate while the old variable is set. The app still reads it as `sessionPassword`, the salt for unsubscribe links and IP and search hashes. Deleting it to quiet the warning changes all of those silently. Missing `NUXT_APP_SECRET` in production is loud instead: every session read 500s.
 
 ## The browser suites run in GitHub Actions, NOT in `bun run ci`
 
