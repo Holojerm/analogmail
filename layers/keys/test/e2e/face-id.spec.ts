@@ -54,6 +54,10 @@ test('Face ID sign-up: keys under the passkey, then a password offered once', as
   test.setTimeout(150_000)
   const email = uniqueEmail('face-id')
   await addVirtualAuthenticator(page)
+  // The city list is not a migration; the dev seed offers three cities. Without
+  // it, a fresh database has no Chicago until some other spec seeds one, and the
+  // city search below has already come back empty by then.
+  await page.request.post('/api/dev/seed')
 
   await open(page, '/auth/sign-up')
   await page.getByLabel('Email').fill(email)
