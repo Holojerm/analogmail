@@ -21,6 +21,7 @@ import {
   leaveNews,
   listNewsFor,
   listNewsReaders,
+  NEWS_READERS_MAX,
   openNews,
   removeNewsReader,
 } from '../server/utils/news'
@@ -265,6 +266,26 @@ describe('a child’s news', () => {
     expect((await listKeptMantel(db, 'bob', LEO, FRIDAY))?.map((row) => row.letterId)).toEqual([
       FIRST,
     ])
+  })
+
+  // D1 allows 100 bound values in a statement, and a reader's rows bind sixteen.
+  it('goes to as many readers as news can have, the child among them', async () => {
+    const many = Array.from({ length: NEWS_READERS_MAX }, (_, n) => `reader${n}`)
+    for (const id of many) {
+      await db.insert(users).values({ id, email: `${id}@example.com`, name: id })
+      await db.insert(userKeys).values({ userId: id, publicKey: `public-key-of-${id}` })
+      await db.insert(postalProfiles).values({ userId: id, ...CHICAGO })
+      await db.insert(people).values({ userId: id, displayName: `${id} Lee` })
+      expect((await join(id)).status).toBe('accepted')
+    }
+    // The news is full: one more invitation is accepted by nobody.
+    expect((await join('eve')).status).toBe('expired')
+
+    const everyone = ['bob', ...many, LEO]
+    expect((await write(FIRST, everyone, true)).status).toBe('sealed')
+    const copies = await db.select().from(deliveries)
+    expect(copies.map((copy) => copy.recipientId).toSorted()).toEqual(everyone.toSorted())
+    expect(await db.select().from(letterKeys)).toHaveLength(everyone.length + 1)
   })
 
   it('cannot be sealed until a day, and needs someone to go to', async () => {

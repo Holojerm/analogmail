@@ -211,6 +211,36 @@ describe('a letter to the family', () => {
     expect(new Set(copies.map((copy) => copy.promisedDate)).size).toBe(2)
   })
 
+  // D1 allows 100 bound values in a statement, and a reader's rows bind sixteen.
+  it('is sealed whole for a family as large as a family can be', async () => {
+    const more = Array.from({ length: FAMILY_MEMBERS_MAX - 3 }, (_, n) => `kin${n}`)
+    for (const id of more) {
+      await db.insert(users).values({ id, email: `${id}@example.com`, name: id })
+      await db.insert(userKeys).values({ userId: id, publicKey: `public-key-of-${id}` })
+      await db.insert(postalProfiles).values({ userId: id, ...CITY.tokyo })
+      await db.insert(people).values({ userId: id, displayName: `Kin ${id}` })
+      await join(id)
+    }
+    const everyone = ['bob', 'cal', ...more]
+
+    const plan = await planSeal(db, 'ann', toFamily, MONDAY)
+    if (typeof plan === 'string') throw new Error(plan)
+    expect(plan.recipients.map((reader) => reader.id).toSorted()).toEqual(everyone.toSorted())
+    expect(plan.recipients.find((reader) => reader.id === 'kin0')).toMatchObject({
+      name: 'Kin kin0',
+      publicKey: 'public-key-of-kin0',
+    })
+
+    const keys = Object.fromEntries(everyone.map((id) => [id, `k-${id}`]))
+    expect((await sealLetter(db, 'ann', LETTER, keys, MONDAY)).status).toBe('sealed')
+    expect(await readers()).toEqual(['ann', ...everyone].toSorted())
+    const copies = await db.select().from(deliveries)
+    expect(copies.map((copy) => copy.recipientId).toSorted()).toEqual(everyone.toSorted())
+
+    expect(await recallLetter(db, 'ann', LETTER, MONDAY)).toBe('recalled')
+    expect(await db.select().from(deliveries)).toEqual([])
+  })
+
   it('shows the writer one letter, in transit until the last copy is due', async () => {
     await sealLetter(db, 'ann', LETTER, { bob: 'k-bob', cal: 'k-cal' }, MONDAY)
     const copies = await db.select().from(deliveries)
