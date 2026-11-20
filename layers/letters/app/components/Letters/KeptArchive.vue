@@ -12,6 +12,7 @@ import { unwrapContentKey } from '../../utils/letter-crypto'
 const props = defineProps<{ mantelId: string; name: string }>()
 
 const mantelKeys = useMantelKeys()
+const site = useRuntimeConfig().public
 const working = ref(false)
 const progress = ref('')
 const outcome = ref<{ text: string; failed: boolean } | null>(null)
@@ -53,6 +54,7 @@ async function keep() {
       (wrapped, letterId) =>
         unwrapContentKey(privateKey, wrapped, { letterId, readerId: props.mantelId }),
       day,
+      site,
       (done, total) => {
         progress.value = `Opening letter ${Math.min(done + 1, total)} of ${total}…`
       },
@@ -73,7 +75,7 @@ async function keep() {
       outcome.value = { text: 'No letter here has been opened yet.', failed: true }
       return
     }
-    saveFile(built.blob, `Dear Mantel ${fileSafe(props.name)} ${day}.zip`)
+    saveFile(built.blob, `${fileSafe(site.appName)} ${fileSafe(props.name)} ${day}.zip`)
     const left = [
       archive.unopened ? `${count(archive.unopened)} not yet opened` : '',
       archive.sealed ? `${count(archive.sealed)} still sealed` : '',
@@ -100,8 +102,9 @@ async function keep() {
   <div class="flex flex-col gap-2">
     <h3 class="mt-4 text-lg text-highlighted">Keep a copy</h3>
     <p class="text-sm text-muted">
-      The letters that have been opened here, as files you can read without Dear Mantel. The copy is
-      made on this device. Letters nobody has opened yet, and letters still sealed, are left out.
+      The letters that have been opened here, as files you can read without {{ site.appName }}. The
+      copy is made on this device. Letters nobody has opened yet, and letters still sealed, are left
+      out.
     </p>
     <UButton
       class="self-start"

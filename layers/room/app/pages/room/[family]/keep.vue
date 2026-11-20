@@ -11,6 +11,7 @@ definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
 const familyId = String(route.params.family)
+const { appName } = useRuntimeConfig().public
 
 const { data: room, error } = await useFetch<RoomExport>(`/api/room/${familyId}/export`)
 const parts = computed(() => roomExportParts(room.value?.photos ?? []))
@@ -36,6 +37,7 @@ async function keep(index: number) {
       parts.value,
       index,
       new Date(),
+      appName,
       (done, of) => {
         progress.value = `Fetching photo ${Math.min(done + 1, of)} of ${of}…`
       },
@@ -89,7 +91,7 @@ useSeo({
       <p class="font-serif text-lg text-toned">
         Every photo in the room as it is stored, in folders by album, with a page that shows them
         beside their captions and a list of where everyone says they are. The copy is made on this
-        device and saved as a zip file. It is yours whatever happens to Dear Mantel.
+        device and saved as a zip file. It is yours whatever happens to {{ appName }}.
       </p>
 
       <p v-if="parts.length === 0" class="text-muted">There are no photos in this room yet.</p>
