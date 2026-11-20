@@ -6,6 +6,7 @@ import { and, desc, eq, gt, inArray, isNull, ne } from 'drizzle-orm'
 import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
+import { chunk, IN_LIST } from '#layers/post/server/utils/chunk'
 import { planPosting, senderView, type Posting } from '#layers/post/shared/utils/postmark'
 
 import type { DeskLetter, SentStatus } from '../../shared/utils/letter-doc'
@@ -18,7 +19,7 @@ import type { Openings } from '../../shared/utils/openings'
 import { newsMantelOf, seatKeepers } from './news'
 import { allowsOpening, choicesFor, mantelOpenings } from './openings'
 import type { LettersDb } from './people'
-import { recipientIdentity } from './recipients'
+import { recipientIdentities } from './recipients'
 
 export type PostingRefusal =
   | 'closed'
@@ -90,19 +91,21 @@ export async function planSeal(
   const others = news && withChild ? [...members, news.mantelId] : members
   if (others.length === 0) return news ? 'no-readers' : 'closed'
 
-  const profiles = await db
-    .select()
-    .from(postalProfiles)
-    .where(inArray(postalProfiles.userId, [authorId, ...others]))
-  const sender = profiles.find((profile) => profile.userId === authorId)
+  const profiles = new Map<string, typeof postalProfiles.$inferSelect>()
+  for (const group of chunk([authorId, ...others], IN_LIST)) {
+    const rows = await db.select().from(postalProfiles).where(inArray(postalProfiles.userId, group))
+    for (const row of rows) profiles.set(row.userId, row)
+  }
+  const sender = profiles.get(authorId)
   if (!sender) return 'sender-needs-city'
 
+  const identities = await recipientIdentities(db, others)
   const recipients: SealRecipient[] = []
   let toMantel = false
   let openings: Openings | null = null
   for (const id of others) {
-    const place = profiles.find((profile) => profile.userId === id)
-    const identity = await recipientIdentity(db, id)
+    const place = profiles.get(id)
+    const identity = identities.get(id)
     // Someone who has not finished setting up gets nothing yet; the rest do.
     if (!place || !identity) continue
     // News is never sealed until a day: its readers are people, reading now.
@@ -159,6 +162,13 @@ export type SealResult =
         | 'readers-changed'
         | PostingRefusal
     }
+
+/**
+ * Readers written by one insert. A delivery row binds ten values and D1
+ * allows 100 in a statement, so a letter to a family or a child's news is
+ * written a few readers at a time, still inside the one batch.
+ */
+const SEAL_ROWS = 8
 
 /**
  * Seals a draft: every reader gets their copy of the key and a delivery with
@@ -224,31 +234,33 @@ export async function sealLetter(
         updatedAt: now,
       })
       .where(and(eq(letters.id, letterId), isNull(letters.sealedAt))),
-    db
-      .insert(letterKeys)
-      .values(
-        recipients.map((reader) => ({
-          letterId,
-          userId: reader.id,
-          wrappedKey: keys[reader.id]!,
-          createdAt: now,
-        })),
-      )
-      .onConflictDoNothing(),
-    db
-      .insert(deliveries)
-      .values(
-        recipients.map((reader) => ({
-          letterId,
-          recipientId: reader.id,
-          kind: 'letter',
-          earliestDate: reader.posting.earliestDate,
-          promisedDate: reader.posting.promisedDate,
-          transitDays: reader.posting.transitDays,
-          createdAt: now,
-        })),
-      )
-      .onConflictDoNothing(),
+    ...chunk(recipients, SEAL_ROWS).flatMap((readers) => [
+      db
+        .insert(letterKeys)
+        .values(
+          readers.map((reader) => ({
+            letterId,
+            userId: reader.id,
+            wrappedKey: keys[reader.id]!,
+            createdAt: now,
+          })),
+        )
+        .onConflictDoNothing(),
+      db
+        .insert(deliveries)
+        .values(
+          readers.map((reader) => ({
+            letterId,
+            recipientId: reader.id,
+            kind: 'letter',
+            earliestDate: reader.posting.earliestDate,
+            promisedDate: reader.posting.promisedDate,
+            transitDays: reader.posting.transitDays,
+            createdAt: now,
+          })),
+        )
+        .onConflictDoNothing(),
+    ]),
   ]
   try {
     await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
