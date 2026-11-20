@@ -8,7 +8,7 @@ This repository was created from [nuxt-cf-template](https://github.com/Holojerm/
 
 ## Data
 
-The list of cities people choose from is from [GeoNames](https://www.geonames.org/) (the `cities15000` export), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It is not stored in this repository: `bun run cities:import` downloads it into the database.
+The list of cities people choose from is from [GeoNames](https://www.geonames.org/) (the `cities5000` export), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It is not stored in this repository: `bun run cities:import` downloads it into the database.
 
 ## Fonts
 
