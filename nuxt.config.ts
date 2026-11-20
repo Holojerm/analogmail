@@ -389,7 +389,9 @@ export default defineNuxtConfig({
         offlineTitle: 'The post is not getting through',
         offlineBody: 'Your mantel needs a connection. Check yours, then try again.',
       },
-      appName: 'My App',
+      // The product's own name, so dev and the browser suites (which never load
+      // [vars]) match production; another instance sets NUXT_PUBLIC_APP_NAME.
+      appName: 'Dear Mantel',
       // Stamped at build time; /api/status reports it so a dashboard can tell
       // which commit is live. Public because a sha is not a secret and a
       // footer may want to show it.

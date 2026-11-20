@@ -75,17 +75,33 @@ function textFile(heading: string, when: string | null, doc: LetterDoc, photoFil
   return `${lines.join('\n')}\n`
 }
 
-const README = (title: string, made: string) =>
+/** The app the copy came from, as configured: `public.appName` and `public.appUrl`. */
+export interface ArchiveSite {
+  appName: string
+  appUrl: string
+}
+
+function madeFrom({ appName, appUrl }: ArchiveSite): string {
+  let host = ''
+  try {
+    host = new URL(appUrl).host
+  } catch {
+    // No usable URL configured: name the app alone.
+  }
+  return host ? `${appName} (${host})` : appName
+}
+
+const README = (title: string, made: string, site: ArchiveSite) =>
   [
     title,
-    `Made on ${made} from Dear Mantel (dearmantel.com).`,
+    `Made on ${made} from ${madeFrom(site)}.`,
     '',
     'letters.html   every letter in order. Open it in any browser; print it to keep it on paper.',
     'letters/       each letter as a plain text file.',
     'photos/        the photos enclosed with them.',
     '',
     'These files are not encrypted. Anyone who has them can read them, so keep them where you',
-    'would keep the letters themselves. Nothing here needs Dear Mantel, or any program in',
+    `would keep the letters themselves. Nothing here needs ${site.appName}, or any program in`,
     'particular, to be read.',
     '',
   ].join('\n')
@@ -98,6 +114,7 @@ export async function buildArchive(
   shelf: ArchiveShelf,
   openKey: OpenKey,
   today: string,
+  site: ArchiveSite,
   onProgress: (done: number, total: number) => void,
   source: ArchiveSource = OWN_LETTERS,
 ): Promise<ArchiveResult> {
@@ -140,7 +157,7 @@ export async function buildArchive(
   const made = yearDay(today)
   const intro = `${page.length} ${page.length === 1 ? 'letter' : 'letters'}, as they stood on ${made}.`
   files.unshift(
-    { name: 'README.txt', data: encoder.encode(README(title, made)) },
+    { name: 'README.txt', data: encoder.encode(README(title, made, site)) },
     { name: 'letters.html', data: encoder.encode(archivePage(title, intro, page)) },
   )
   return { blob: zipBlob(files, new Date()), skipped, letters: page.length }

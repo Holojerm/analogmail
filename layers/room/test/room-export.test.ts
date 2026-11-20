@@ -120,7 +120,8 @@ describe('the files in a copy', () => {
     ).toBe(
       'Where everyone says they are\n\nAnn: Tokyo, JP, since 18 November 2026\nBob: has not said\n',
     )
-    const readme = roomExportReadme('The Lees', { number: 2, of: 3 }, '2026-11-16', 1)
+    const readme = roomExportReadme('The Lees', { number: 2, of: 3 }, '2026-11-16', 1, 'Our Place')
+    expect(readme).toContain('The room of The Lees, from Our Place.')
     expect(readme).toContain('This is part 2 of 3.')
     expect(readme).toContain('1 photo was deleted while this copy was being made')
     expect(readme).not.toContain('where-everyone-is.txt')

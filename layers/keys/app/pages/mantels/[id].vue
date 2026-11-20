@@ -45,6 +45,7 @@ interface Seat {
 }
 
 const route = useRoute()
+const { appName } = useRuntimeConfig().public
 const mantelKeys = useMantelKeys()
 const mantel = ref<MantelView | null>(null)
 const loading = ref(true)
@@ -323,7 +324,7 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
             <UFormField
               label="Their email"
               name="email"
-              help="The address they sign in to Dear Mantel with. They need an account first."
+              :help="`The address they sign in to ${appName} with. They need an account first.`"
             >
               <UInput v-model="email" type="email" size="lg" class="w-full" autocomplete="off" />
             </UFormField>
