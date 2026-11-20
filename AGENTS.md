@@ -115,7 +115,10 @@ wraps under secrets it never holds (the password's unlock key, each passkey's PR
 recovery code). Every unlock path is one function, `layers/keys/app/utils/key-unlock.ts`; change
 it there and in its test, not in the composable. A public key is never replaced. The device
 keeps the private key in IndexedDB until sign-out. Pages that open letters use
-`middleware: ['auth', 'keys']`.
+`middleware: ['auth', 'keys']`. Sign-up offers Face ID (a passkey with PRF) before a password:
+such an account's first wrap is the passkey's, it has no password until it sets one, and it
+cannot remove its last passkey. `SecondWayIn` on the mantel offers the other way in once per
+person per device: a password to a Face ID account, Face ID to a password account.
 
 Custodial mantels (`layers/keys`): a child's or anniversary mantel has its own key pair, made
 in a keeper's browser (`mantel-crypto.ts`). The server holds the public key and wrapped copies

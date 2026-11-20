@@ -58,7 +58,7 @@ describe('account keys', () => {
     const input = await newKeys('ann')
 
     expect(await getAccountKeys(db, 'ann')).toBeNull()
-    expect(await createAccountKeys(db, 'ann', input)).toBe(true)
+    expect(await createAccountKeys(db, 'ann', input)).toBe('created')
 
     expect(await getAccountKeys(db, 'ann')).toEqual({
       publicKey: input.publicKey,
@@ -74,7 +74,7 @@ describe('account keys', () => {
     const first = await newKeys('ann')
     await createAccountKeys(db, 'ann', first)
 
-    expect(await createAccountKeys(db, 'ann', await newKeys('ann'))).toBe(false)
+    expect(await createAccountKeys(db, 'ann', await newKeys('ann'))).toBe('exists')
 
     expect((await getAccountKeys(db, 'ann'))!.publicKey).toBe(first.publicKey)
     expect(await wrapsOf('ann')).toBe('password: recovery:')
@@ -94,6 +94,34 @@ describe('account keys', () => {
     expect(createKeysSchema.safeParse({ ...input, passwordWrap: 'my password' }).success).toBe(
       false,
     )
+    // One wrap besides the recovery code: never none, never both.
+    const passkeyWrap = { credentialId: 'pk-1', wrapped: input.passwordWrap }
+    const { passwordWrap: _password, ...noWrap } = input
+    expect(createKeysSchema.safeParse(noWrap).success).toBe(false)
+    expect(createKeysSchema.safeParse({ ...noWrap, passkeyWrap }).success).toBe(true)
+    expect(createKeysSchema.safeParse({ ...input, passkeyWrap }).success).toBe(false)
+  })
+
+  it('made with Face ID, are wrapped under that passkey, and only one of the account’s own', async () => {
+    const { passwordWrap: wrapped, ...input } = await newKeys('ann')
+    await addPasskey('bob', 'bobs-passkey')
+
+    expect(
+      await createAccountKeys(db, 'ann', {
+        ...input,
+        passkeyWrap: { credentialId: 'bobs-passkey', wrapped },
+      }),
+    ).toBe('unknown-passkey')
+    expect(await getAccountKeys(db, 'ann')).toBeNull()
+
+    await addPasskey('ann', 'iphone')
+    expect(
+      await createAccountKeys(db, 'ann', {
+        ...input,
+        passkeyWrap: { credentialId: 'iphone', wrapped },
+      }),
+    ).toBe('created')
+    expect(await wrapsOf('ann')).toBe('passkey:iphone recovery:')
   })
 })
 

@@ -45,6 +45,7 @@ useSeo({
     <h1 class="text-3xl text-highlighted">Your mantel</h1>
     <WelcomeNote />
     <PeopleInvitedBy />
+    <ClientOnly><SecondWayIn /></ClientOnly>
 
     <section aria-labelledby="shelf-heading" class="flex flex-col gap-4">
       <h2 id="shelf-heading" class="font-sans text-sm tracking-normal text-muted">
