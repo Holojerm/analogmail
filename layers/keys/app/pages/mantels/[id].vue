@@ -211,7 +211,7 @@ useSeo({ title: 'A mantel you keep', description: 'Who keeps this mantel.', noin
         :actions="[{ label: 'Cancel it', onClick: () => cancelRecovery(claim.id) }]"
       />
 
-      <LettersKeptMantel :mantel-id="mantel.id" :name="mantel.name" />
+      <LettersKeptMantel :mantel-id="mantel.id" :name="mantel.name" :kind="mantel.kind" />
       <LettersMantelNews
         v-if="mantel.kind === 'child'"
         :mantel-id="mantel.id"

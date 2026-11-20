@@ -10,6 +10,7 @@ import { getProfile } from '#layers/post/server/utils/profile'
 
 import { guestLinkFor } from '../../../utils/guest-letters'
 import { listKeptMantel, listWriters } from '../../../utils/kept-mantel'
+import { openingsView } from '../../../utils/openings'
 
 const bodySchema = z.object({ mantelId: z.string().uuid() })
 
@@ -36,6 +37,7 @@ export default defineEventHandler(async (event) => {
       : null,
     letters,
     ...writing,
+    openings: await openingsView(db, user.id, mantelId),
     guestLink: await guestLinkFor(db, user.id, mantelId),
   }
 })

@@ -14,11 +14,19 @@ import { correspondenceLabels, type CorrespondenceLabel } from './correspondence
 import { batchGuard, isGuardFailure, mantelKeyIs } from '#layers/keys/server/utils/batch-guard'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 
+import type { Openings } from '../../shared/utils/openings'
 import { newsMantelOf, seatKeepers } from './news'
+import { allowsOpening, choicesFor, mantelOpenings } from './openings'
 import type { LettersDb } from './people'
 import { recipientIdentity } from './recipients'
 
-export type PostingRefusal = 'closed' | 'sender-needs-city' | 'recipient-not-ready' | 'no-readers'
+export type PostingRefusal =
+  | 'closed'
+  | 'sender-needs-city'
+  | 'recipient-not-ready'
+  | 'no-readers'
+  /** Every opening day the keepers set has passed, and none opens on arrival. */
+  | 'no-opening'
 
 export interface SealRecipient {
   id: string
@@ -38,8 +46,10 @@ export interface SealPlan {
   recipientId: string
   recipientName: string
   recipientPublicKey: string
-  /** A kept mantel rather than a person: its letters may be sealed until a date. */
+  /** A kept mantel rather than a person: its keepers say how its letters may open. */
   toMantel: boolean
+  /** For a letter to a kept mantel: the ways it may open, as its keepers set them. */
+  openings: Openings | null
   /** The family's name when the letter goes to a family. */
   family: string | null
   /** The child's name when the letter is news of them. */
@@ -89,6 +99,7 @@ export async function planSeal(
 
   const recipients: SealRecipient[] = []
   let toMantel = false
+  let openings: Openings | null = null
   for (const id of others) {
     const place = profiles.find((profile) => profile.userId === id)
     const identity = await recipientIdentity(db, id)
@@ -96,6 +107,7 @@ export async function planSeal(
     if (!place || !identity) continue
     // News is never sealed until a day: its readers are people, reading now.
     toMantel ||= identity.mantel && !news
+    if (identity.mantel && !news) openings = await mantelOpenings(db, id)
     recipients.push({
       id,
       name: identity.name,
@@ -110,6 +122,8 @@ export async function planSeal(
   }
   const first = recipients[0]
   if (!first) return 'recipient-not-ready'
+  const choices = openings && choicesFor(openings, first.posting.postmark)
+  if (choices && !choices.onArrival && choices.days.length === 0) return 'no-opening'
 
   const [family] = await db
     .select({ name: families.name })
@@ -122,6 +136,7 @@ export async function planSeal(
     recipientName: first.name,
     recipientPublicKey: first.publicKey,
     toMantel,
+    openings: choices,
     family: family?.name ?? null,
     news: news?.name ?? null,
     withChild: Boolean(news) && withChild,
@@ -145,9 +160,6 @@ export type SealResult =
         | PostingRefusal
     }
 
-/** How far ahead a letter may be sealed. A child born today is not yet this old. */
-export const OPENS_ON_MAX_YEARS = 100
-
 /**
  * Seals a draft: every reader gets their copy of the key and a delivery with
  * its dates fixed. One transaction, and a second seal of the same letter
@@ -169,7 +181,7 @@ export async function sealLetter(
   letterId: string,
   wrappedKeys: string | Record<string, string>,
   now: Date,
-  /** 'YYYY-MM-DD'. Only a letter to a kept mantel can be sealed until a day. */
+  /** 'YYYY-MM-DD'. Only a letter to a kept mantel, and only a day its keepers set. */
   opensOn: string | null = null,
   /** News only: also send a copy to the child's mantel. */
   withChild = false,
@@ -194,11 +206,10 @@ export async function sealLetter(
   if (mantels.some((reader) => readerKeys[reader.id] !== reader.publicKey)) {
     return { status: 'readers-changed' }
   }
-  if (opensOn) {
-    const latest = `${Number(posting.postmark.slice(0, 4)) + OPENS_ON_MAX_YEARS}${posting.postmark.slice(4)}`
-    if (!plan.toMantel || opensOn <= posting.postmark || opensOn > latest) {
-      return { status: 'cannot-seal-until' }
-    }
+  // The keepers set how a letter to their mantel may open. Planned with this
+  // postmark, so a day passed since the browser looked is refused here.
+  if (plan.openings ? !allowsOpening(plan.openings, opensOn, posting.postmark) : opensOn) {
+    return { status: 'cannot-seal-until' }
   }
 
   const statements: BatchItem<'sqlite'>[] = [

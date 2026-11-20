@@ -8,8 +8,9 @@ import * as tables from '@nuxthub/db/schema'
 import type { MantelItem, OpenedLetter } from '../../shared/utils/mantel'
 import type { LettersDb } from './people'
 
+/** What each person, or each child's mantel that writes, is called. */
 export async function displayNames(db: LettersDb, ids: string[]): Promise<Map<string, string>> {
-  const { users, people } = tables
+  const { users, people, mantels } = tables
   const names = new Map<string, string>()
   for (const id of new Set(ids)) {
     const [row] = await db
@@ -18,7 +19,16 @@ export async function displayNames(db: LettersDb, ids: string[]): Promise<Map<st
       .leftJoin(people, eq(people.userId, users.id))
       .where(eq(users.id, id))
       .limit(1)
-    if (row) names.set(id, row.chosen ?? row.account)
+    if (row) {
+      names.set(id, row.chosen ?? row.account)
+      continue
+    }
+    const [mantel] = await db
+      .select({ name: mantels.name })
+      .from(mantels)
+      .where(eq(mantels.id, id))
+      .limit(1)
+    if (mantel) names.set(id, mantel.name)
   }
   return names
 }

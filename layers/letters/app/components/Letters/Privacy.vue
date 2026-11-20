@@ -88,14 +88,24 @@
       our database were ever copied.
     </p>
     <p>
+      <strong class="text-highlighted">Letters from a child's mantel.</strong> A keeper can write as
+      the child to someone who writes to the mantel. The letter is encrypted in that keeper's
+      browser like any other, and the writer's copy is locked to the mantel's key, so every keeper
+      can read it and we cannot. The person it goes to sees it as from the child, not from which
+      keeper wrote it. We can see that the mantel sealed a letter, to whom and when, as we can for
+      any letter.
+    </p>
+    <p>
       <strong class="text-highlighted">Sealed letters.</strong> A letter to a kept mantel can be
-      sealed until a day its writer picks. Until that day we do not hand its text, its photo or its
-      key to anyone, its keepers included; the writer keeps their own copy. This is a promise kept
-      by our servers together with a key we do not have. It is not a mathematical time lock: to read
-      one early, both we and a keeper would have to break the rules. We can see the day a letter is
-      sealed until. One exception to "its key": when a mantel's key is changed, the browser of the
-      keeper changing it is handed each letter's locked key, to lock it again to the new one. The
-      letter and its photo are still withheld.
+      sealed until a day its keepers chose, if they allow it; its writer picks among those days. We
+      store those days and the words the keepers gave them, which are not encrypted. Until a
+      letter's day we do not hand its text, its photo or its key to anyone, its keepers included;
+      the writer keeps their own copy. This is a promise kept by our servers together with a key we
+      do not have. It is not a mathematical time lock: to read one early, both we and a keeper would
+      have to break the rules. We can see the day a letter is sealed until. One exception to "its
+      key": when a mantel's key is changed, the browser of the keeper changing it is handed each
+      letter's locked key, to lock it again to the new one. The letter and its photo are still
+      withheld.
     </p>
     <p>
       <strong class="text-highlighted">Letters from guests.</strong> A couple can print a link that

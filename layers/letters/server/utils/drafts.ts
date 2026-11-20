@@ -2,10 +2,13 @@
 // author's wrapped copy of the letter's key, and can open neither.
 
 import { and, eq, isNull } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import * as tables from '@nuxthub/db/schema'
 
+import { batchGuard, isGuardFailure, mantelKeyIs } from '#layers/keys/server/utils/batch-guard'
 import { isKeeper } from '#layers/keys/server/utils/mantels'
 
+import { isSealedOn, mantelToday } from './kept-mantel'
 import { hasReceived } from './mantel'
 import { newsMantelOf } from './news'
 import type { LettersDb } from './people'
@@ -46,7 +49,14 @@ export async function correspondentOf(
   return (await otherMembers(db, correspondenceId, userId))?.[0] ?? null
 }
 
-export type SaveDraftResult = 'saved' | 'not-yours' | 'sealed' | 'closed' | 'not-received'
+export type SaveDraftResult =
+  | 'saved'
+  | 'not-yours'
+  | 'sealed'
+  | 'closed'
+  | 'not-received'
+  /** A child's mantel's key changed after the browser wrapped the author's copy to it. */
+  | 'key-changed'
 
 /**
  * Creates the draft on its first save and replaces its ciphertext after. The
@@ -62,6 +72,11 @@ export async function saveDraft(
     wrappedKey: string
     /** The letter this one answers. Set when the draft is first saved, never after. */
     inReplyTo?: string | null
+    /**
+     * When a child's mantel is the author: the mantel's public key the
+     * author's copy was wrapped to. It must still be the mantel's key.
+     */
+    authorKey?: string
   },
   now: Date,
 ): Promise<SaveDraftResult> {
@@ -93,12 +108,15 @@ export async function saveDraft(
       .limit(1)
     if (
       answered?.correspondenceId !== draft.correspondenceId ||
-      !(await hasReceived(db, authorId, draft.inReplyTo))
+      !(await hasReceived(db, authorId, draft.inReplyTo)) ||
+      (await sealedFor(db, authorId, draft.inReplyTo, now))
     ) {
       return 'not-received'
     }
   }
-  await db.batch([
+  const statements: BatchItem<'sqlite'>[] = [
+    // A re-key can land between the browser's wrap and this write.
+    ...(draft.authorKey ? [batchGuard(db, mantelKeyIs(authorId, draft.authorKey))] : []),
     db.insert(letters).values({
       id: draft.id,
       correspondenceId: draft.correspondenceId,
@@ -114,8 +132,25 @@ export async function saveDraft(
       wrappedKey: draft.wrappedKey,
       createdAt: now,
     }),
-  ])
+  ]
+  try {
+    await db.batch(statements as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  } catch (error) {
+    if (isGuardFailure(error)) return 'key-changed'
+    throw error
+  }
   return 'saved'
+}
+
+/** A letter sealed until a day that has not come for this reader: nobody answers it yet. */
+async function sealedFor(db: LettersDb, readerId: string, letterId: string, now: Date) {
+  const { letters } = tables
+  const [row] = await db
+    .select({ opensOn: letters.opensOn })
+    .from(letters)
+    .where(eq(letters.id, letterId))
+    .limit(1)
+  return Boolean(row?.opensOn) && isSealedOn(row!.opensOn, await mantelToday(db, readerId, now))
 }
 
 /** A letter as its author may read it back: the ciphertext and their own key. */
