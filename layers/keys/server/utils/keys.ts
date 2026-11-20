@@ -19,12 +19,23 @@ export type KeysDb = ReturnType<typeof drizzle<typeof tables>>
 
 const wrapped = z.string().regex(WRAPPED_KEY_PATTERN)
 
-/** A new account's keys: the public key with its password and recovery wraps. */
-export const createKeysSchema = z.object({
-  publicKey: z.string().regex(PUBLIC_KEY_PATTERN),
-  passwordWrap: wrapped,
-  recoveryWrap: wrapped,
-})
+/**
+ * A new account's keys: the public key, its recovery wrap, and one wrap under
+ * the secret the account was made with: a password, or a passkey's PRF output
+ * for an account made with Face ID and no password.
+ */
+export const createKeysSchema = z
+  .object({
+    publicKey: z.string().regex(PUBLIC_KEY_PATTERN),
+    passwordWrap: wrapped.optional(),
+    passkeyWrap: z.object({ credentialId: z.string().min(1).max(1024), wrapped }).optional(),
+    recoveryWrap: wrapped,
+  })
+  .refine((keys) => Boolean(keys.passwordWrap) !== Boolean(keys.passkeyWrap), {
+    message: 'A new account has one wrap besides the recovery code: password or passkey',
+  })
+
+export type CreateKeysResult = 'created' | 'exists' | 'unknown-passkey'
 
 export const putWrapSchema = z
   .object({
@@ -76,24 +87,39 @@ export async function getAccountKeys(db: KeysDb, userId: string): Promise<Accoun
   return { publicKey: key.publicKey, scheme: key.scheme, wraps: wraps as AccountKeyRecord['wraps'] }
 }
 
-/** False when the account already has keys: a public key is set once. */
+/** `exists` when the account already has keys: a public key is set once. */
 export async function createAccountKeys(
   db: KeysDb,
   userId: string,
   input: z.infer<typeof createKeysSchema>,
-): Promise<boolean> {
-  const { userKeys, keyWraps } = tables
+): Promise<CreateKeysResult> {
+  const { userKeys, keyWraps, credentialPasskeys } = tables
+  if (input.passkeyWrap) {
+    const [passkey] = await db
+      .select({ id: credentialPasskeys.id })
+      .from(credentialPasskeys)
+      .where(
+        and(
+          eq(credentialPasskeys.userId, userId),
+          eq(credentialPasskeys.id, input.passkeyWrap.credentialId),
+        ),
+      )
+    if (!passkey) return 'unknown-passkey'
+  }
   const [created] = await db
     .insert(userKeys)
     .values({ userId, publicKey: input.publicKey })
     .onConflictDoNothing()
     .returning({ userId: userKeys.userId })
-  if (!created) return false
+  if (!created) return 'exists'
+  const first = input.passkeyWrap
+    ? { kind: 'passkey' as const, ...input.passkeyWrap }
+    : { kind: 'password' as const, credentialId: '', wrapped: input.passwordWrap! }
   await db.insert(keyWraps).values([
-    { userId, kind: 'password', wrapped: input.passwordWrap },
+    { userId, ...first },
     { userId, kind: 'recovery', wrapped: input.recoveryWrap },
   ])
-  return true
+  return 'created'
 }
 
 export type PutWrapResult = 'saved' | 'no-keys' | 'unknown-passkey'

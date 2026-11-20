@@ -6,6 +6,11 @@ definePageMeta({ middleware: 'auth' })
 const route = useRoute()
 const keys = useKeys()
 const { unlock } = useCredentials()
+const passkeys = usePasskeys()
+
+// An account made with Face ID may have no password to type here.
+const { data: me } = await useFetch<{ hasPassword: boolean }>('/api/credentials/me')
+const hasPassword = computed(() => me.value?.hasPassword !== false)
 
 const target = computed(() => {
   const value = route.query.redirect
@@ -14,7 +19,7 @@ const target = computed(() => {
 
 const password = ref('')
 const code = ref('')
-const pending = ref<'password' | 'code' | null>(null)
+const pending = ref<'password' | 'passkey' | 'code' | null>(null)
 const failure = ref<string | null>(null)
 
 onMounted(async () => {
@@ -31,6 +36,21 @@ async function withPassword() {
     if (keys.status.value === 'ready') return await navigateTo(target.value)
     failure.value =
       'That is your password, but it cannot open your letters here. It was reset by email since they were last opened. Use your recovery code.'
+  } catch (error) {
+    failure.value = credentialsErrorMessage(error)
+  } finally {
+    pending.value = null
+  }
+}
+
+// The passkey's secret opens the key wherever that passkey has been used before.
+async function withPasskey() {
+  pending.value = 'passkey'
+  failure.value = null
+  try {
+    await passkeys.signIn()
+    if (keys.status.value === 'ready') return await navigateTo(target.value)
+    failure.value = `${passkeys.device.value.method} signed you in, but cannot open your letters here. Use your recovery code.`
   } catch (error) {
     failure.value = credentialsErrorMessage(error)
   } finally {
@@ -75,7 +95,19 @@ useSeo({
       :description="failure"
     />
 
-    <UCard>
+    <UCard v-if="!hasPassword && passkeys.isSupported.value">
+      <UButton
+        size="lg"
+        block
+        icon="i-lucide-fingerprint"
+        :loading="pending === 'passkey'"
+        @click="withPasskey"
+      >
+        Open with {{ passkeys.device.value.method }}
+      </UButton>
+    </UCard>
+
+    <UCard v-if="hasPassword">
       <form class="flex flex-col gap-4" @submit.prevent="withPassword">
         <UFormField label="Password" name="password">
           <UInput

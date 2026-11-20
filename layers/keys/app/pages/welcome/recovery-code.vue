@@ -16,7 +16,7 @@ onMounted(() => {
 
 useSeo({
   title: 'Your recovery code',
-  description: 'The code that opens your letters if you ever lose your password.',
+  description: 'The code that opens your letters if you ever lose your phone or your password.',
   noindex: true,
 })
 </script>
@@ -26,8 +26,9 @@ useSeo({
     <div>
       <h1 class="text-3xl text-highlighted">Your recovery code</h1>
       <p class="mt-2 font-serif text-lg text-toned">
-        Your letters are locked with a key only you hold. If you forget your password, we can let
-        you back into your account by email, but only this code can open your letters again.
+        Your letters are locked with a key only you hold. If you lose your phone or forget your
+        password, we can let you back into your account by email, but only this code can open your
+        letters again.
       </p>
     </div>
     <ClientOnly>
