@@ -143,9 +143,10 @@ export function roomExportReadme(
   part: { number: number; of: number },
   madeOn: string,
   missing: number,
+  appName: string,
 ): string {
   const lines = [
-    `The room of ${familyName}, from Dear Mantel.`,
+    `The room of ${familyName}, from ${appName}.`,
     `Made on ${madeOn}.`,
     part.of > 1 ? `This is part ${part.number} of ${part.of}. Each part stands on its own.` : '',
     '',

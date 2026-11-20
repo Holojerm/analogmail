@@ -10,6 +10,7 @@ definePageMeta({ middleware: ['auth', 'keys'] })
 const { data } = await useFetch<{ shelves: ArchiveShelf[] }>('/api/letters/archive')
 const shelves = computed(() => data.value?.shelves ?? [])
 const letterKeys = useLetterKeys()
+const site = useRuntimeConfig().public
 
 const working = ref<string | null>(null)
 const progress = ref('')
@@ -31,7 +32,7 @@ async function keep(shelf: ArchiveShelf) {
   progress.value = 'Opening your letters…'
   try {
     const day = today()
-    const built = await buildArchive(shelf, letterKeys.open, day, (done, total) => {
+    const built = await buildArchive(shelf, letterKeys.open, day, site, (done, total) => {
       progress.value = `Opening letter ${Math.min(done + 1, total)} of ${total}…`
     })
     if (built.letters === 0) {
@@ -42,7 +43,7 @@ async function keep(shelf: ArchiveShelf) {
       }
       return
     }
-    saveFile(built.blob, `Dear Mantel ${fileSafe(title(shelf))} ${day}.zip`)
+    saveFile(built.blob, `${fileSafe(site.appName)} ${fileSafe(title(shelf))} ${day}.zip`)
     outcome.value = {
       id: shelf.correspondenceId,
       text:
