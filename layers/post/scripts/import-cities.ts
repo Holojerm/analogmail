@@ -4,8 +4,9 @@
 //   bun run cities:import --remote   production D1, through wrangler
 //   bun run cities:import --remote --env preview
 //
-// Source: GeoNames cities15000 (every city over 15,000 people, about 33,000
-// rows), CC BY 4.0, credited in NOTICE.md. Safe to run again: rows are
+// Source: GeoNames cities5000 (every place over 5,000 people, about 68,000
+// rows), CC BY 4.0, credited in NOTICE.md. Not cities15000: that one misses
+// villages people live in, like Tuckahoe, NY. Safe to run again: rows are
 // replaced by GeoNames id, and nobody's profile points back at this table for
 // its coordinates (they are copied at sign-up).
 //
@@ -20,6 +21,7 @@ import { join, resolve } from 'node:path'
 import { searchKey } from '../shared/utils/search-key'
 
 const SOURCE = 'https://download.geonames.org/export/dump'
+const EXPORT = 'cities5000'
 const ROOT = resolve(import.meta.dir, '../../..')
 const remote = process.argv.includes('--remote')
 const envIndex = process.argv.indexOf('--env')
@@ -37,9 +39,9 @@ const download = async (name: string, to: string) => {
 
 const work = mkdtempSync(join(tmpdir(), 'cities-'))
 try {
-  await download('cities15000.zip', join(work, 'cities15000.zip'))
+  await download(`${EXPORT}.zip`, join(work, `${EXPORT}.zip`))
   await download('admin1CodesASCII.txt', join(work, 'admin1.txt'))
-  run(['unzip', '-q', '-o', 'cities15000.zip'], work)
+  run(['unzip', '-q', '-o', `${EXPORT}.zip`], work)
 
   // "US.IL<TAB>Illinois<TAB>…"
   const regions = new Map<string, string>()
@@ -50,7 +52,7 @@ try {
 
   // GeoNames columns: 0 id, 1 name, 2 ascii name, 4 lat, 5 lng, 8 country,
   // 10 admin1, 14 population, 17 time zone.
-  const rows = readFileSync(join(work, 'cities15000.txt'), 'utf8')
+  const rows = readFileSync(join(work, `${EXPORT}.txt`), 'utf8')
     .split('\n')
     .map((line) => line.split('\t'))
     .filter((cols) => cols.length >= 18 && cols[17])
