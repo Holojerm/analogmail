@@ -3,9 +3,9 @@
   "repo": "Holojerm/nuxt-cf-template",
   "layers": {
     "credentials": {
-      "ref": "main",
-      "sha": "98bcb65d4e9bf488917fe6278340583c37079585",
-      "hash": "29fc1dfa24959330b140c8e6f31bd00dd26ca72a1b1ae96b9bfb2fe273a87522"
+      "ref": "feat/passkey-sign-up",
+      "sha": "ef0e095c65a385dfb3d2a39aa0a04a419f90a858",
+      "hash": "0118bbf0babe65a7cae0ed7668fee13138808ff9386642db714466e061eeab48"
     },
     "feedback": {
       "ref": "main",

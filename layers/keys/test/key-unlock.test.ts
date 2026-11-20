@@ -26,12 +26,12 @@ function account() {
       held: () => kept,
       fetchKeys: async () => server.keys && structuredClone(server.keys),
       async createKeys(input) {
+        const first: StoredKeys['wraps'][number] = input.passkeyWrap
+          ? { kind: 'passkey', ...input.passkeyWrap }
+          : { kind: 'password', credentialId: '', wrapped: input.passwordWrap! }
         server.keys = {
           publicKey: input.publicKey,
-          wraps: [
-            { kind: 'password', credentialId: '', wrapped: input.passwordWrap },
-            { kind: 'recovery', credentialId: '', wrapped: input.recoveryWrap },
-          ],
+          wraps: [first, { kind: 'recovery', credentialId: '', wrapped: input.recoveryWrap }],
         }
       },
       async putWrap(wrap) {
@@ -93,11 +93,36 @@ describe('sign-up', () => {
     expect(first.held()!.userId).toBe('ann')
   })
 
-  it('cannot happen from a passkey alone', async () => {
+  it('with Face ID and no password, wraps the key under the passkey', async () => {
+    const { device, kinds } = account()
+    const first = device()
+
+    const outcome = await applyUnlock(withPasskey(PRF), first)
+    expect(outcome).toMatchObject({ status: 'ready', recoveryCode: expect.any(String) })
+    expect(kinds()).toBe('passkey recovery')
+
+    // The same passkey opens the key on another device; nothing else does.
+    expect(await applyUnlock(withPasskey(PRF), device())).toEqual({ status: 'ready' })
+    expect(await applyUnlock(withPasskey(secret(9)), device())).toEqual({ status: 'locked' })
+    expect(await applyUnlock(withPassword(PASSWORD), device())).toEqual({ status: 'locked' })
+  })
+
+  it('cannot happen from a passkey without its PRF secret', async () => {
     const { device, server } = account()
 
-    expect(await applyUnlock(withPasskey(PRF), device())).toEqual({ status: 'none' })
+    expect(await applyUnlock(withPasskey(null), device())).toEqual({ status: 'none' })
     expect(server.keys).toBeNull()
+  })
+
+  it('gives a password added later its own wrap, from the device that holds the key', async () => {
+    const { device, kinds } = account()
+    const first = device()
+    await applyUnlock(withPasskey(PRF), first)
+
+    // `password-set`: the first password, typed on a device that already opened the key.
+    expect(await applyUnlock(withPassword(PASSWORD), first)).toEqual({ status: 'ready' })
+    expect(kinds()).toBe('passkey password recovery')
+    expect(await applyUnlock(withPassword(PASSWORD), device())).toEqual({ status: 'ready' })
   })
 })
 

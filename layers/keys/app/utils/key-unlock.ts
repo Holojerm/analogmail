@@ -6,7 +6,8 @@
 // From that, in order:
 //
 //   1. No keys on the server yet: this is sign-up. Make the key pair, wrap it
-//      under the password and a new recovery code.
+//      under the password (or, for an account made with Face ID, the passkey's
+//      PRF output) and a new recovery code.
 //   2. Get the private key: this device's copy, else a wrap the secret opens.
 //   3. With the private key in hand, make sure the secret just used has a
 //      wrap, so it opens the key on the next device too.
@@ -53,9 +54,11 @@ export interface UnlockSecrets {
 /** Everything the function touches outside itself. */
 export interface KeyBackend {
   fetchKeys(): Promise<StoredKeys | null>
+  /** Exactly one of `passwordWrap` and `passkeyWrap`, as the server requires. */
   createKeys(input: {
     publicKey: string
-    passwordWrap: string
+    passwordWrap?: string
+    passkeyWrap?: { credentialId: string; wrapped: string }
     recoveryWrap: string
   }): Promise<void>
   putWrap(wrap: StoredWrap): Promise<void>
@@ -67,7 +70,7 @@ export type UnlockOutcome =
   | { status: 'ready'; recoveryCode?: string }
   /** The account has keys, and nothing offered here opens them. */
   | { status: 'locked' }
-  /** No keys yet and no password to make them with. */
+  /** No keys yet, and no password or passkey secret to make them with. */
   | { status: 'none' }
 
 const bytes = (value: Uint8Array) => new Uint8Array(value) as Bytes
@@ -86,12 +89,32 @@ export async function applyUnlock(
   const unlockKey = secrets.unlockKey && bytes(secrets.unlockKey)
 
   if (!stored) {
-    if (!unlockKey) return { status: 'none' }
+    // An account made with Face ID has no password: its first wrap is the passkey's.
+    const prf = secrets.passkey?.prf ? bytes(secrets.passkey.prf) : null
+    if (!unlockKey && !prf) return { status: 'none' }
     const keys = await generateAccountKeys()
     const recovery = newRecoveryCode()
+    const credentialId = secrets.passkey?.credentialId ?? ''
     await backend.createKeys({
       publicKey: keys.publicKey,
-      passwordWrap: await wrapPrivateKey(unlockKey, { userId, kind: 'password' }, keys.privateKey),
+      ...(unlockKey
+        ? {
+            passwordWrap: await wrapPrivateKey(
+              unlockKey,
+              { userId, kind: 'password' },
+              keys.privateKey,
+            ),
+          }
+        : {
+            passkeyWrap: {
+              credentialId,
+              wrapped: await wrapPrivateKey(
+                prf!,
+                { userId, kind: 'passkey', credentialId },
+                keys.privateKey,
+              ),
+            },
+          }),
       recoveryWrap: await wrapPrivateKey(
         recovery.secret,
         { userId, kind: 'recovery' },

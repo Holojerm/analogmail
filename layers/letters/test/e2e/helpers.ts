@@ -23,6 +23,8 @@ export async function finishSignUp(page: Page, email: string, name: string): Pro
   await page.getByLabel('Email').fill(email)
   await page.getByRole('button', { name: 'Email me a link' }).click()
   await open(page, await mailedLink(page, 'Open the confirmation link'))
+  // A browser that can make a passkey is offered Face ID first.
+  await page.getByRole('button', { name: 'Use a password instead' }).click()
   await page.getByLabel('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Create account' }).click()
   await page.waitForURL('**/welcome/recovery-code', { timeout: 30_000 })

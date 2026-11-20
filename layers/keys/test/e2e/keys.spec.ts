@@ -58,6 +58,7 @@ test('keys: sign-up, a second device, and recovery after a reset by email', asyn
   await page.getByLabel('Email').fill(email)
   await page.getByRole('button', { name: 'Email me a link' }).click()
   await open(page, await mailedLink(page, 'Open the confirmation link'))
+  await page.getByRole('button', { name: 'Use a password instead' }).click()
   await page.getByLabel('Password').fill(FIRST)
   await page.getByRole('button', { name: 'Create account' }).click()
   await page.waitForURL('**/welcome/recovery-code', { timeout: 30_000 })

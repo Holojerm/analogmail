@@ -20,7 +20,7 @@ function save() {
     '',
     props.code,
     '',
-    'With this code you can open your letters again if you forget your password.',
+    'With this code you can open your letters again if you lose your phone or forget your password.',
     'Keep it somewhere safe, away from the device you sign in on. We do not keep a copy.',
     '',
   ].join('\n')
