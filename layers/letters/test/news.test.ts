@@ -286,7 +286,9 @@ describe('a child’s news', () => {
     const copies = await db.select().from(deliveries)
     expect(copies.map((copy) => copy.recipientId).toSorted()).toEqual(everyone.toSorted())
     expect(await db.select().from(letterKeys)).toHaveLength(everyone.length + 1)
-  })
+    // A full news is hundreds of sequential writes: about a second here, over five in the
+    // Workers Builds gate, where the tests run one file at a time beside the build.
+  }, 30_000)
 
   it('cannot be sealed until a day, and needs someone to go to', async () => {
     await db
