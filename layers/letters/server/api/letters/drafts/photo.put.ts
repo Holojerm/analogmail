@@ -1,5 +1,5 @@
-// PUT /api/letters/drafts/photo?id=<letter>&photo=<photo> — store a draft's
-// photo. The body is the sealed file, which the server cannot open.
+// PUT /api/letters/drafts/photo?id=<letter>&photo=<photo>[&mantel=<id>] — store
+// a draft's photo. The body is the sealed file, which the server cannot open.
 
 import { db } from '@nuxthub/db'
 import { z } from 'zod'
@@ -12,10 +12,15 @@ import {
   PHOTO_BYTES_MIN,
   photoIdSchema,
 } from '../../../../shared/utils/letter-photo'
+import { requireAuthor } from '../../../utils/mantel-author'
 import { photoStore } from '../../../utils/photo-store'
 import { attachPhoto } from '../../../utils/photos'
 
-const querySchema = z.object({ id: letterIdSchema, photo: photoIdSchema })
+const querySchema = z.object({
+  id: letterIdSchema,
+  photo: photoIdSchema,
+  mantel: z.string().uuid().optional(),
+})
 
 export default defineEventHandler(async (event) => {
   const { user } = await requireUserSession(event)
@@ -26,6 +31,7 @@ export default defineEventHandler(async (event) => {
     identifier: user.id,
   })
   const query = await getValidatedQuery(event, querySchema.parse)
+  const author = await requireAuthor(db, user.id, query.mantel)
   if (Number(getHeader(event, 'content-length') ?? 0) > PHOTO_BYTES_MAX) {
     throw createError({ statusCode: 413, message: 'That photo is too large.' })
   }
@@ -40,7 +46,7 @@ export default defineEventHandler(async (event) => {
   const result = await attachPhoto(
     db,
     photoStore,
-    user.id,
+    author,
     { letterId: query.id, photoId: query.photo, bytes: new Uint8Array(raw) },
     await postNow(),
   )

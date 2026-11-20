@@ -101,6 +101,7 @@ const planned = async () =>
 
 beforeEach(async () => {
   for (const table of [
+    schema.mantelOpenings,
     deliveries,
     letterKeys,
     letters,
@@ -139,6 +140,9 @@ beforeEach(async () => {
     { mantelId: PIP, kind: 'recovery', wrapped: 'old-recovery' },
   ])
   await db.insert(postalProfiles).values({ userId: PIP, ...CHICAGO })
+  await db
+    .insert(schema.mantelOpenings)
+    .values({ mantelId: PIP, onArrival: true, days: [{ on: '2044-06-14', label: '' }] })
   toPip = (await openMantelCorrespondence(db, 'ann', PIP, MONDAY))!
   // The couple's write link, with one guest letter through it.
   const guests = crypto.randomUUID()

@@ -104,6 +104,18 @@ export const mantelNews = sqliteTable('mantel_news', {
   ...timestamps,
 })
 
+// How letters to a kept mantel may open, set by any of its keepers: on
+// arrival, sealed until one of `days`, or a writer's choice of the two. No row
+// means on arrival only. A change applies to letters sealed after it.
+export const mantelOpenings = sqliteTable('mantel_openings', {
+  mantelId: text('mantel_id').primaryKey(),
+  onArrival: integer('on_arrival', { mode: 'boolean' }).notNull().default(true),
+  // [{ on: 'YYYY-MM-DD', label }], on the mantel's calendar, earliest first.
+  days: text('days', { mode: 'json' }).$type<{ on: string; label: string }[]>().notNull(),
+  changedBy: text('changed_by'),
+  ...timestamps,
+})
+
 // A draft until sealed. Everything a reader would recognise as the letter
 // (text, stationery, signature, the photo's id and description) is inside
 // `ciphertext`.

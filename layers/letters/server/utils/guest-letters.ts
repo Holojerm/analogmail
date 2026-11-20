@@ -27,7 +27,7 @@ import { photoStorageKey } from '../../shared/utils/letter-photo'
 import { isSealedOn, mantelToday } from './kept-mantel'
 import type { LettersDb } from './people'
 import type { PhotoStore } from './photos'
-import { OPENS_ON_MAX_YEARS } from './posting'
+import { OPENS_ON_MAX_YEARS } from './openings'
 
 async function activeLink(db: LettersDb, mantelId: string) {
   const { guestLinks } = tables

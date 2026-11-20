@@ -29,6 +29,7 @@ import {
   withdrawWriterInvite,
 } from '../server/utils/kept-mantel'
 import { openLetter, listMantel } from '../server/utils/mantel'
+import { mantelOpenings, setMantelOpenings } from '../server/utils/openings'
 import { attachPhoto, type PhotoStore } from '../server/utils/photos'
 import { listDesk, planSeal, recallLetter, sealLetter } from '../server/utils/posting'
 
@@ -100,6 +101,7 @@ beforeEach(async () => {
   clearExtensionsForTest()
   clearNoticeAudienceForTest()
   for (const table of [
+    schema.mantelOpenings,
     notices,
     deliveries,
     letterKeys,
@@ -132,6 +134,14 @@ beforeEach(async () => {
   ])
   // The mantel's own post, under its own id.
   await db.insert(postalProfiles).values({ userId: LEO, ...CHICAGO })
+  // Its keepers let letters open on arrival or on the 18th birthday.
+  await setMantelOpenings(
+    db,
+    'ann',
+    LEO,
+    { onArrival: true, days: [{ on: BIRTHDAY, label: '18th birthday' }] },
+    MONDAY,
+  )
   toLeo = (await openMantelCorrespondence(db, 'ann', LEO, MONDAY))!
 })
 
@@ -155,9 +165,11 @@ describe('writing to a kept mantel', () => {
     expect((await listDesk(db, 'ann', MONDAY)).letters).toMatchObject([{ to: 'Leo' }])
   })
 
-  it('can be sealed until a later day, within a lifetime', async () => {
-    expect((await write(SEALED, '2026-11-16')).status).toBe('cannot-seal-until')
-    expect((await write(SEALED, '2200-01-01')).status).toBe('cannot-seal-until')
+  it('can be sealed only until a day its keepers set', async () => {
+    expect((await planSeal(db, 'ann', toLeo, MONDAY)) as object).toMatchObject({
+      openings: { onArrival: true, days: [{ on: BIRTHDAY, label: '18th birthday' }] },
+    })
+    expect((await write(SEALED, '2030-01-01')).status).toBe('cannot-seal-until')
     expect((await write(SEALED, BIRTHDAY)).status).toBe('sealed')
     expect((await listDesk(db, 'ann', MONDAY)).letters[0]).toMatchObject({ opensOn: BIRTHDAY })
   })

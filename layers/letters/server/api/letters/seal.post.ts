@@ -8,6 +8,7 @@ import { PUBLIC_KEY_PATTERN } from '#layers/keys/shared/utils/key-format'
 import { postNow } from '#layers/post/server/utils/clock'
 
 import { letterIdSchema, letterKeySchema } from '../../../shared/utils/letter-doc'
+import { requireAuthor } from '../../utils/mantel-author'
 import { sealLetter } from '../../utils/posting'
 
 const bodySchema = z.object({
@@ -16,13 +17,15 @@ const bodySchema = z.object({
   wrappedKeys: z.record(z.string().min(1).max(64), letterKeySchema),
   /** The public key each copy was wrapped to, by reader id. */
   readerKeys: z.record(z.string().min(1).max(64), z.string().regex(PUBLIC_KEY_PATTERN)),
-  /** Only for a letter to a kept mantel: the day it is sealed until. */
+  /** Only for a letter to a kept mantel: one of the days its keepers set. */
   opensOn: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullish(),
   /** News of a child only: also send a copy to the child's mantel. */
   withChild: z.boolean().optional(),
+  /** Writing as a child's mantel the caller keeps. */
+  mantelId: z.string().uuid().optional(),
 })
 
 const REFUSALS = {
@@ -32,7 +35,14 @@ const REFUSALS = {
   'sender-needs-city': [409, 'Choose your city first.'],
   'recipient-not-ready': [409, 'They have not finished setting up yet.'],
   'no-readers': [409, 'Nobody gets this news yet. Invite someone, or keep a copy for the child.'],
-  'cannot-seal-until': [400, 'That is not a day this letter can be sealed until.'],
+  'no-opening': [
+    409,
+    'There is no day this letter can open yet. Ask the mantel’s keepers to set one.',
+  ],
+  'cannot-seal-until': [
+    409,
+    'The keepers have changed how letters to this mantel open. Choose again.',
+  ],
   'readers-changed': [409, 'Who reads this letter has changed. Look again, then seal it.'],
 } as const
 
@@ -47,7 +57,7 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, bodySchema.parse)
   const result = await sealLetter(
     db,
-    user.id,
+    await requireAuthor(db, user.id, body.mantelId),
     body.id,
     body.wrappedKeys,
     await postNow(),

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-// The letters side of a mantel someone keeps: where its post arrives, writing
-// to it, and what has arrived. A letter sealed until a day shows that day and
-// nothing else.
+// The letters side of a mantel someone keeps: where its post arrives, how
+// letters to it open, writing to it and, for a child's mantel, from it, and
+// what has arrived. A letter sealed until a day shows that day and nothing else.
 import { ALL_MAIL_DAYS } from '#layers/post/shared/utils/mail-days'
 
 import type { KeptItem, KeptPost } from '../../../shared/utils/kept'
+import type { OpeningsView } from '../../../shared/utils/openings'
 
-const props = defineProps<{ mantelId: string; name: string }>()
+const props = defineProps<{ mantelId: string; name: string; kind: 'child' | 'anniversary' }>()
 
 interface City {
   id: number
@@ -17,6 +18,7 @@ interface City {
 
 const post = ref<KeptPost | null>(null)
 const letters = ref<KeptItem[]>([])
+const openings = ref<OpeningsView | null>(null)
 const writers = ref<{ userId: string; name: string; keeper: boolean }[]>([])
 const invited = ref<{ id: string; email: string }[]>([])
 const writerEmail = ref('')
@@ -37,7 +39,9 @@ async function load() {
       letters: KeptItem[]
       writers: typeof writers.value
       invited: typeof invited.value
+      openings: OpeningsView
     }>('/api/letters/kept/list', { method: 'POST', body: { mantelId: props.mantelId } })
+    openings.value = view.openings
     post.value = view.post
     letters.value = view.letters
     writers.value = view.writers
@@ -178,6 +182,13 @@ function describe(letter: KeptItem): string {
 
     <template v-else-if="post">
       <LettersKeptPost :mantel-id="mantelId" :post="post" @changed="load" />
+      <LettersMantelOpenings
+        v-if="openings"
+        :mantel-id="mantelId"
+        :name="name"
+        :openings="openings"
+        @changed="load"
+      />
       <UButton class="self-start" :loading="busy" @click="write">Write to {{ name }}</UButton>
 
       <p v-if="letters.length === 0" class="text-muted">Nothing has arrived yet.</p>
@@ -214,6 +225,8 @@ function describe(letter: KeptItem): string {
         :mantel-id="mantelId"
         :name="name"
       />
+
+      <LettersMantelWrites v-if="kind === 'child'" :mantel-id="mantelId" :name="name" />
 
       <h3 class="mt-4 text-lg text-highlighted">Who writes to {{ name }}</h3>
       <p class="text-sm text-muted">

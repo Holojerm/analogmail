@@ -102,6 +102,22 @@ export async function readPhoto(
   return store.get(letter.photoKey)
 }
 
+/** The sealed file of a letter, for its author only: a child's mantel reading back its own. */
+export async function ownPhoto(
+  db: LettersDb,
+  store: PhotoStore,
+  authorId: string,
+  letterId: string,
+): Promise<ArrayBuffer | null> {
+  const { letters } = tables
+  const [letter] = await db
+    .select({ photoKey: letters.photoKey })
+    .from(letters)
+    .where(and(eq(letters.id, letterId), eq(letters.authorId, authorId)))
+    .limit(1)
+  return letter?.photoKey ? store.get(letter.photoKey) : null
+}
+
 /** Deletes the photo files of every draft a person has, before the drafts go. */
 export async function removeDraftPhotos(
   db: LettersDb,
