@@ -33,6 +33,7 @@ export async function buildRoomExportPart(
   parts: RoomExportPhoto[][],
   index: number,
   today: Date,
+  appName: string,
   onProgress: (done: number, of: number) => void,
 ): Promise<BuiltRoomExport> {
   const photos = parts[index] ?? []
@@ -64,7 +65,7 @@ export async function buildRoomExportPart(
   files.unshift(
     {
       name: `${folder}/README.txt`,
-      data: text(roomExportReadme(room.family.name, part, day, missing)),
+      data: text(roomExportReadme(room.family.name, part, day, missing, appName)),
     },
     {
       name: `${folder}/photos.html`,
@@ -77,7 +78,7 @@ export async function buildRoomExportPart(
   const suffix = parts.length > 1 ? ` part ${part.number} of ${part.of}` : ''
   return {
     blob: zipBlob(files, today),
-    name: `Dear Mantel room ${folder}${suffix} ${day}.zip`,
+    name: `${roomExportFolder(appName)} room ${folder}${suffix} ${day}.zip`,
     missing,
   }
 }
