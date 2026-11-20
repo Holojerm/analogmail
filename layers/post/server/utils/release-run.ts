@@ -29,6 +29,7 @@ import {
   type ReleaseState,
 } from '../../shared/utils/release'
 import type { PostalProfile } from '../db/schema'
+import { chunk, IN_LIST } from './chunk'
 import { noticeAudience } from './notice-audience'
 
 export type PostDb = ReturnType<typeof drizzle<typeof tables>>
@@ -36,8 +37,6 @@ type Statement = BatchItem<'sqlite'>
 
 /** People handled per run. The rest are still due at the next one. */
 export const RELEASE_RUN_LIMIT = 200
-// D1 allows 100 bound parameters in a statement.
-const IN_LIST = 80
 const BATCH_STATEMENTS = 60
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -74,14 +73,6 @@ function settingsColumns(state: ReleaseState) {
     pendingDeliveryHour: state.pending?.hour ?? null,
     pendingFrom: state.pending?.from ?? null,
   }
-}
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = []
-  for (let start = 0; start < items.length; start += size) {
-    chunks.push(items.slice(start, start + size))
-  }
-  return chunks
 }
 
 interface Turn {
