@@ -40,6 +40,8 @@ export async function arrivedOnMantel(db: LettersDb, mantelId: string, letterId?
     .select({
       deliveryId: deliveries.id,
       letterId: letters.id,
+      correspondenceId: letters.correspondenceId,
+      authorId: letters.authorId,
       postmark: letters.postmarkDate,
       arrivedOn: deliveries.mailDate,
       openedAt: deliveries.openedAt,
@@ -117,6 +119,7 @@ export async function openKeptLetter(
       .where(and(eq(deliveries.id, row.deliveryId), isNull(deliveries.openedAt)))
   }
   return {
+    answerIn: await answerableFrom(db, mantelId, row),
     sealed: false,
     letterId,
     name: row.chosen ?? row.account ?? null,
@@ -126,6 +129,35 @@ export async function openKeptLetter(
     hasPhoto: Boolean(row.photoKey),
     guest: row.origin === 'guest',
   }
+}
+
+/**
+ * Where a child's mantel can write back to a letter that arrived on it: the
+ * writer's correspondence, while it is open. A guest letter has no one to
+ * answer, and only a child's mantel writes.
+ */
+async function answerableFrom(
+  db: LettersDb,
+  mantelId: string,
+  row: { correspondenceId: string; authorId: string | null; origin: string },
+): Promise<string | null> {
+  const { correspondences, mantels } = tables
+  if (row.origin !== 'member' || !row.authorId) return null
+  const [open] = await db
+    .select({ id: correspondences.id })
+    .from(correspondences)
+    .innerJoin(mantels, eq(mantels.id, correspondences.mantelId))
+    .where(
+      and(
+        eq(correspondences.id, row.correspondenceId),
+        eq(correspondences.mantelId, mantelId),
+        eq(mantels.kind, 'child'),
+        isNull(correspondences.closedAt),
+        isNull(mantels.closedAt),
+      ),
+    )
+    .limit(1)
+  return open?.id ?? null
 }
 
 /** The sealed photo file of a letter on a kept mantel, under the same two gates. */
@@ -222,7 +254,8 @@ export async function stopWriter(
     .where(and(eq(correspondences.id, row.id), isNull(correspondences.closedAt)))
     .returning({ id: correspondences.id })
   if (closed.length === 0) return 'not-a-writer'
-  // Everything in this correspondence still on its way was written by them.
+  // What they wrote that is still on its way goes back. What a child's mantel
+  // wrote to them still arrives, as any posted letter does.
   await returnInTransitTo(db, mantelId, now, row.id)
   return 'stopped'
 }

@@ -18,7 +18,7 @@ notices and print:
 | --- | --- | --- |
 | Pair | Letters between two friends. The free tier | Built |
 | Family mantel | Letters to a whole family, plus an optional family room (photos, check-ins, map, e-ink screen) that is **not** encrypted | Planned |
-| Child's mantel | Letters to someone who cannot read yet, sealed until a date or until handover; two guardians hold the key | Planned |
+| Child's mantel | Letters to someone who cannot read yet, sealed until a date or until handover, and letters back that a guardian writes as the child; two guardians hold the key | Planned |
 | Anniversary letters | Wedding guests write to a couple from a QR card; the letters open on the first anniversary | Planned |
 
 A fork of `Holojerm/nuxt-cf-template`. Licence is FSL-1.1-MIT (see `NOTICE.md`); do not accept
@@ -181,8 +181,23 @@ mantel id). Keepers read through `kept-mantel.ts` only, which holds both gates: 
 delivery, and for a letter with `opensOn` nothing (text, photo, key) before that day on the
 mantel's calendar, to keepers too. The one other reader of a mantel's `letter_keys` is a
 re-key's plan (`kept-rekey.ts`), which hands over wrapped keys and nothing else. Opening is not post: no release, no notice, any weekday. Any
-new way to read a mantel's letters (export, print) must go through the same gate. Keepers
-write from the mantel's page. Anyone else writes after a keeper invites them: the same
+new way to read a mantel's letters (export, print) must go through the same gate. How a letter
+to a kept mantel may open is its keepers' choice (`layers/letters/server/utils/openings.ts`): on
+arrival, sealed until one of the days they list, or both, and `sealLetter` refuses anything
+else; writers never pick a day of their own. Any one keeper changes it, with no vote, because it
+applies only to letters sealed afterwards. Keepers write from the mantel's page.
+
+A child's mantel writes back (`layers/letters/server/utils/mantel-author.ts`): a keeper writes
+as the mantel, so the letter's `authorId` is the mantel's id and the post treats it as any
+letter, collected on the mantel's calendar and carried from its city. Every route that acts on
+an author's letter takes an optional `mantelId` and resolves the author with `requireAuthor`;
+nothing else may write as a mantel. The author's copy of the key is wrapped in the keeper's
+browser to the mantel's key (`useLetterAuthor`, which works the public key out of the opened
+private key and refuses a server key that is not its pair), and `saveDraft` guards that key
+like any wrap to a mantel. The mantel writes only in correspondences it is already a member of,
+never in its news, and only a child's mantel writes. Never call `readPhoto` as the mantel,
+which would serve what it received past the seal: `ownPhoto` and `ownLetter` are author-only.
+A reply from the mantel may answer only a letter whose day has come (`saveDraft`). Anyone else writes after a keeper invites them: the same
 invitation as between two people, with `invites.mantelId` set, its own email
 (`mantel-invite`), and acceptance making a correspondence with the mantel rather than with
 the keeper. A writer who is not a keeper reads nothing on the mantel, and no writer sees

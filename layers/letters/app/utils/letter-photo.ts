@@ -62,6 +62,8 @@ export async function uploadLetterPhoto(
   contentKey: Bytes,
   letterId: string,
   file: Blob,
+  /** Set when the letter is written as a child's mantel. */
+  mantelId?: string,
 ): Promise<PhotoUpload> {
   const prepared = await preparePhoto(file)
   if (!prepared) return { ok: false, reason: 'unreadable' }
@@ -73,7 +75,7 @@ export async function uploadLetterPhoto(
   try {
     await $fetch('/api/letters/drafts/photo', {
       method: 'PUT',
-      query: { id: letterId, photo: id },
+      query: { id: letterId, photo: id, ...(mantelId ? { mantel: mantelId } : {}) },
       headers: { 'content-type': 'application/octet-stream' },
       body: sealed,
     })
@@ -87,11 +89,11 @@ export async function uploadLetterPhoto(
   }
 }
 
-export async function removeLetterPhoto(letterId: string): Promise<boolean> {
+export async function removeLetterPhoto(letterId: string, mantelId?: string): Promise<boolean> {
   try {
     await $fetch('/api/letters/drafts/photo-remove', {
       method: 'POST',
-      body: { id: letterId },
+      body: { id: letterId, mantelId },
     })
     return true
   } catch {
@@ -104,7 +106,7 @@ export async function loadLetterPhoto(
   contentKey: Bytes,
   letterId: string,
   photo: LetterPhoto,
-  /** Set when the letter is on a mantel the reader keeps, not their own. */
+  /** Set when the letter is on a mantel the reader keeps, or written as it. */
   mantelId?: string,
 ): Promise<string | null> {
   try {

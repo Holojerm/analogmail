@@ -29,6 +29,8 @@ export type KeptLetter =
       hasPhoto: boolean
       /** Written from a write link. A keeper may take such a letter off the mantel. */
       guest: boolean
+      /** The correspondence a child's mantel can write back in, or null. */
+      answerIn: string | null
     }
 
 /** Where and when a kept mantel's post arrives, as its keepers see it. */

@@ -159,11 +159,13 @@ test('a letter: written, sealed, recalled, delivered, read and answered', async 
   await close()
 })
 
-// Letters to a kept mantel: it gets its own post, a keeper writes to it, one
-// letter is sealed until a far-off day, and after delivery the server gives
-// up the open letter and nothing of the sealed one.
+// Letters to a kept mantel: it gets its own post, its keepers set the day a
+// letter may be sealed until, a keeper writes to it, one letter is sealed
+// until that day, and after delivery the server gives up the open letter and
+// nothing of the sealed one. Then the mantel writes back, as Leo.
 const NOW_LETTER = 'Dear Leo, you laughed for the first time today.'
 const LATER_LETTER = 'Dear Leo, read this when you are eighteen.'
+const REPLY = 'Dear Mum, I drew you a dog.'
 
 test('a kept mantel takes letters, and a sealed one stays sealed', async ({ browser, baseURL }) => {
   test.setTimeout(180_000)
@@ -184,6 +186,13 @@ test('a kept mantel takes letters, and a sealed one stays sealed', async ({ brow
     .click()
   await expect(ann.getByText(/Its post arrives in Chicago/)).toBeVisible()
 
+  // ── The keepers let letters open on arrival or on his 18th birthday ───────
+  await ann.getByLabel('A day to seal letters until').fill('2044-06-14')
+  await ann.getByLabel('What the day is (optional)').fill('18th birthday')
+  await ann.getByRole('button', { name: 'Add the day' }).click()
+  await ann.getByRole('button', { name: 'Save how letters open' }).click()
+  await expect(ann.getByText(/Last changed by Ann Tester/)).toBeVisible()
+
   // ── She writes one letter to be read now, and one sealed until 2044 ────────
   async function write(text: string, sealUntil?: string) {
     await open(ann, `/mantels/${mantelId}`)
@@ -193,12 +202,12 @@ test('a kept mantel takes letters, and a sealed one stays sealed', async ({ brow
     await ann.getByLabel('Your letter').fill(text)
     await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
     await ann.getByRole('button', { name: 'Seal the letter' }).click()
-    if (sealUntil) await ann.getByLabel('Keep it sealed until (optional)').fill(sealUntil)
+    if (sealUntil) await ann.getByLabel(new RegExp(`^${sealUntil}`)).check()
     await ann.getByRole('button', { name: 'Seal and post' }).click()
     await ann.waitForURL('**/desk')
   }
   await write(NOW_LETTER)
-  await write(LATER_LETTER, '2044-06-14')
+  await write(LATER_LETTER, '18th birthday')
   await expect(ann.getByText(/Sealed until .*2044\.$/)).toBeVisible()
 
   try {
@@ -245,6 +254,34 @@ test('a kept mantel takes letters, and a sealed one stays sealed', async ({ brow
     await open(ann, `/kept/${mantelId}/${sealed.letterId}`)
     await expect(ann.getByText(/Sealed until .*2044/)).toBeVisible()
     await expect(ann.getByText(LATER_LETTER)).toHaveCount(0)
+    await expect(ann.getByRole('link', { name: 'Write back as Leo' })).toHaveCount(0)
+
+    // ── Leo writes back, with Ann holding the pen ─────────────────────────────
+    const opened = listed.letters.find((letter) => !letter.sealed)!
+    await open(ann, `/kept/${mantelId}/${opened.letterId}`)
+    await ann.getByRole('link', { name: 'Write back as Leo' }).click()
+    await expect(
+      ann.getByRole('heading', { name: 'A letter from Leo to Ann Tester' }),
+    ).toBeVisible()
+    await expect(ann.getByText(NOW_LETTER)).toBeVisible()
+    await ann.getByLabel('Your letter').fill(REPLY)
+    await expect(ann.getByText('Saved, encrypted on this device.')).toBeVisible()
+    await ann.getByRole('button', { name: 'Seal the letter' }).click()
+    await ann.getByRole('button', { name: 'Seal and post' }).click()
+    await ann.waitForURL(`**/mantels/${mantelId}`)
+    await expect(ann.getByText('To Ann Tester', { exact: true })).toBeVisible()
+
+    // ── It arrives on Ann's own mantel, from Leo ─────────────────────────────
+    const me = (await (await ann.request.get('/api/_auth/session')).json()) as {
+      user: { id: string }
+    }
+    for (let day = 0; day < 6; day += 1) {
+      await ann.request.post('/api/dev/clock', { data: { action: 'mail-day', userId: me.user.id } })
+      await open(ann, '/mantel')
+      if (await ann.getByText('From Leo').count()) break
+    }
+    await ann.getByRole('link', { name: /From Leo/ }).click()
+    await expect(ann.getByText(REPLY)).toBeVisible()
   } finally {
     await ann.request.post('/api/dev/clock', { data: { action: 'reset' } })
   }

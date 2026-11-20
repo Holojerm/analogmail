@@ -1,6 +1,8 @@
 <script setup lang="ts">
 // The writing desk. A letter is encrypted in this browser before every save;
-// the server stores ciphertext. Sealing hands it to the post.
+// the server stores ciphertext. Sealing hands it to the post. With `?as=<id>`
+// a keeper writes as a child's mantel, to someone who writes to it.
+import type { Openings } from '../../shared/utils/openings'
 import {
   DEFAULT_STATIONERY,
   FONTS,
@@ -20,7 +22,7 @@ import {
 } from '../../shared/utils/rich-text'
 import { decryptLetter, encryptLetter, newContentKey, wrapContentKey } from '../utils/letter-crypto'
 
-import type { ReadLetter } from '../composables/useOpenLetter'
+import type { LetterAuthor } from '../composables/useLetterAuthor'
 
 definePageMeta({ middleware: ['auth', 'keys'] })
 
@@ -30,8 +32,10 @@ interface SealPlan {
   /** Everyone who will read it: one, or each other member of a family. */
   readers: { id: string; name: string; publicKey: string; arrives: string }[]
   toFamily: boolean
-  /** A kept mantel: the letter may be sealed until a day. */
+  /** A kept mantel: its keepers say how the letter may open. */
   toMantel: boolean
+  /** For a kept mantel: on arrival, the days its keepers set, or both. */
+  openings: Openings | null
   /** The child's name when this is news of them. */
   news: string | null
   zone: string
@@ -41,8 +45,10 @@ interface SealPlan {
 
 const route = useRoute()
 const router = useRouter()
-const letterKeys = useLetterKeys()
-const openLetter = useOpenLetter()
+const authorFor = useLetterAuthor()
+// A child's mantel this keeper writes as, or null for their own letter.
+const asMantel = typeof route.query.as === 'string' ? route.query.as : null
+const mantelName = ref<string | null>(null)
 
 const loading = ref(true)
 const failure = ref<string | null>(null)
@@ -60,11 +66,12 @@ const opensOn = ref('')
 // News of a child: whether the child's own mantel gets a copy of this letter.
 const withChild = ref(true)
 const inReplyTo = ref<string | null>(null)
-const answered = ref<ReadLetter | null>(null)
+const answered = ref<{ doc: LetterDoc; photoUrl: string | null } | null>(null)
 const photo = ref<LetterPhoto | undefined>()
 const photoUrl = ref<string | null>(null)
 
 let contentKey: Uint8Array<ArrayBuffer> | null = null
+let author: LetterAuthor | null = null
 let wrappedForMe = ''
 let created = false
 let timer: ReturnType<typeof setTimeout> | undefined
@@ -85,8 +92,16 @@ async function loadPlan() {
   try {
     plan.value = await $fetch<SealPlan>('/api/letters/seal-plan', {
       method: 'POST',
-      body: { correspondenceId: correspondenceId.value, withChild: withChild.value },
+      body: {
+        correspondenceId: correspondenceId.value,
+        withChild: withChild.value,
+        mantelId: asMantel ?? undefined,
+      },
     })
+    // Keep the writer's choice if the keepers still allow it, else the first that is.
+    if (plan.value.openings && !choices.value.some((choice) => choice.value === opensOn.value)) {
+      opensOn.value = choices.value[0]?.value ?? ''
+    }
   } catch (error) {
     plan.value = null
     failure.value = message(error, 'This letter cannot be sent right now.')
@@ -95,6 +110,8 @@ async function loadPlan() {
 
 onMounted(async () => {
   try {
+    author = await authorFor(asMantel)
+    mantelName.value = author.mantelName
     const existing = typeof route.query.letter === 'string' ? route.query.letter : null
     if (existing) {
       const opened = await $fetch<{
@@ -106,9 +123,9 @@ onMounted(async () => {
         inReplyTo: string | null
       }>('/api/letters/drafts/open', {
         method: 'POST',
-        body: { id: existing },
+        body: { id: existing, mantelId: asMantel ?? undefined },
       })
-      const key = await letterKeys.open(opened.wrappedKey, opened.id)
+      const key = await author.open(opened.wrappedKey, opened.id)
       const text = key ? await decryptLetter(key, opened.id, opened.ciphertext) : null
       const parsed = text ? parseLetterDoc(text) : null
       if (!key || !parsed) throw new Error('unreadable')
@@ -123,7 +140,9 @@ onMounted(async () => {
       from.value = parsed.from
       Object.assign(stationery, parsed.stationery)
       photo.value = parsed.photo
-      if (photo.value) photoUrl.value = await loadLetterPhoto(key, opened.id, photo.value)
+      if (photo.value) {
+        photoUrl.value = await loadLetterPhoto(key, opened.id, photo.value, asMantel ?? undefined)
+      }
     } else {
       const to = typeof route.query.to === 'string' ? route.query.to : null
       if (!to) return await navigateTo('/people')
@@ -131,12 +150,15 @@ onMounted(async () => {
       inReplyTo.value = typeof route.query.reply === 'string' ? route.query.reply : null
       letterId.value = crypto.randomUUID()
       contentKey = newContentKey()
-      wrappedForMe = await letterKeys.wrapForMe(contentKey, letterId.value)
-      from.value = (await $fetch<{ name: string | null }>('/api/letters/name')).name ?? ''
+      wrappedForMe = await author.wrap(contentKey, letterId.value)
+      from.value =
+        author.mantelName ?? (await $fetch<{ name: string | null }>('/api/letters/name')).name ?? ''
     }
     // The letter being answered lies above the sheet. It may no longer be
     // readable here; the reply does not depend on it.
-    if (inReplyTo.value) answered.value = await openLetter(inReplyTo.value).catch(() => null)
+    if (inReplyTo.value) {
+      answered.value = await author.readReceived(inReplyTo.value).catch(() => null)
+    }
     await loadPlan()
   } catch {
     failure.value = 'This letter could not be opened on this device.'
@@ -160,6 +182,8 @@ async function save(): Promise<boolean> {
         ciphertext: await encryptLetter(contentKey, letterId.value, JSON.stringify(doc())),
         wrappedKey: wrappedForMe,
         inReplyTo: inReplyTo.value,
+        mantelId: asMantel ?? undefined,
+        authorKey: author?.authorKey,
       },
     })
     if (!created) {
@@ -228,10 +252,11 @@ async function seal() {
         ),
         opensOn: plan.value.toMantel && opensOn.value ? opensOn.value : null,
         withChild: withChild.value,
+        mantelId: asMantel ?? undefined,
       },
     })
     await sendOff.play()
-    await navigateTo('/desk')
+    await navigateTo(asMantel ? `/mantels/${asMantel}` : '/desk')
   } catch (error) {
     failure.value = message(error, 'Could not seal the letter. Try again.')
     confirming.value = false
@@ -243,6 +268,27 @@ async function seal() {
 const options = <T extends string>(values: readonly T[], labels: Record<T, string>) =>
   values.map((value) => ({ value, label: labels[value] }))
 
+// How a letter to a kept mantel may open, as its keepers allow. '' is on arrival.
+const choices = computed(() => {
+  const openings = plan.value?.openings
+  if (!openings) return []
+  return [
+    ...(openings.onArrival ? [{ value: '', label: 'When it arrives' }] : []),
+    ...openings.days.map((day) => ({
+      value: day.on,
+      label: day.label ? `${day.label}, ${yearDay(day.on)}` : yearDay(day.on),
+    })),
+  ]
+})
+
+const heading = computed(() => {
+  if (plan.value?.news) return `News of ${plan.value.news}`
+  if (!plan.value) return 'A letter'
+  return mantelName.value
+    ? `A letter from ${mantelName.value} to ${plan.value.recipientName}`
+    : `A letter to ${plan.value.recipientName}`
+})
+
 useSeo({
   title: 'Write a letter',
   description: 'Write and seal a letter.',
@@ -253,15 +299,11 @@ useSeo({
 <template>
   <div class="mx-auto flex max-w-2xl flex-col gap-6 py-8 sm:py-12">
     <LetterSendOff v-if="sendOff.playing.value" />
-    <h1 class="text-3xl text-highlighted">
-      {{
-        plan?.news
-          ? `News of ${plan.news}`
-          : plan
-            ? `A letter to ${plan.recipientName}`
-            : 'A letter'
-      }}
-    </h1>
+    <h1 class="text-3xl text-highlighted">{{ heading }}</h1>
+    <p v-if="mantelName" class="text-sm text-muted">
+      You are writing as {{ mantelName }}. It comes from {{ mantelName }}'s mantel, and every keeper
+      of it can read it and change it until it is collected.
+    </p>
 
     <p v-if="loading" class="text-muted" role="status">Opening…</p>
     <template v-else>
@@ -276,7 +318,7 @@ useSeo({
       <template v-if="sealed">
         <p class="font-serif text-lg text-toned">
           This letter is sealed. It can be read here but not changed. Until it is collected you can
-          recall it from your desk.
+          recall it from {{ mantelName ? `${mantelName}'s mantel` : 'your desk' }}.
         </p>
         <LetterPaper :doc="doc()" :photo-url="photoUrl" />
       </template>
@@ -334,6 +376,7 @@ useSeo({
           :letter-id="letterId"
           :content-key="currentKey"
           :ensure-draft="ensureDraft"
+          :mantel-id="asMantel ?? undefined"
         />
 
         <div class="flex flex-wrap items-center justify-between gap-4">
@@ -379,14 +422,20 @@ useSeo({
               It will be collected
               {{ pickupTime(plan.pickupAt, plan.zone) }} and arrives {{ longDay(plan.arrives) }}.
             </p>
+            <!-- The keepers decide how letters to their mantel open; the
+                 writer chooses only among what they allow. -->
             <UFormField
-              v-if="plan.toMantel"
-              label="Keep it sealed until (optional)"
+              v-if="choices.length > 1"
+              label="When can it be opened?"
               name="opens-on"
-              help="A birthday, say. It still arrives as usual, but nobody can open it before that day, its keepers included. You keep your own copy."
+              help="Its keepers chose these. A sealed letter still arrives as usual, but nobody can open it before its day, its keepers included. You keep your own copy."
             >
-              <UInput v-model="opensOn" type="date" :min="plan.arrives" class="w-full" />
+              <URadioGroup v-model="opensOn" :items="choices" />
             </UFormField>
+            <p v-else-if="choices[0]?.value" class="text-sm text-toned">
+              Its keepers chose that letters to it stay sealed until {{ choices[0].label }}. It
+              still arrives as usual, but nobody can open it before then, its keepers included.
+            </p>
             <p class="text-sm text-muted">
               Until it is collected you can recall it and change it. After that it is on its way and
               cannot be changed. You will not be told when it is delivered or read.

@@ -9,6 +9,8 @@ const props = defineProps<{
   contentKey: () => Uint8Array<ArrayBuffer> | null
   /** Makes sure the draft exists on the server, since a photo belongs to one. */
   ensureDraft: () => Promise<boolean>
+  /** Set when the letter is written as a child's mantel. */
+  mantelId?: string
 }>()
 const photo = defineModel<LetterPhoto | undefined>('photo')
 const url = defineModel<string | null>('url', { default: null })
@@ -34,7 +36,7 @@ async function choose(event: Event) {
       failure.value = REASONS.failed
       return
     }
-    const result = await uploadLetterPhoto(key, props.letterId, file)
+    const result = await uploadLetterPhoto(key, props.letterId, file, props.mantelId)
     if (!result.ok) {
       failure.value = REASONS[result.reason]
       return
@@ -51,7 +53,7 @@ async function remove() {
   busy.value = true
   failure.value = null
   try {
-    if (!(await removeLetterPhoto(props.letterId))) {
+    if (!(await removeLetterPhoto(props.letterId, props.mantelId))) {
       failure.value = 'The photo was not removed. Try again.'
       return
     }

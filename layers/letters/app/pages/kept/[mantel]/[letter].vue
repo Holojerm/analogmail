@@ -60,6 +60,10 @@ onMounted(async () => {
 const canRemove = computed(() =>
   Boolean(opened.value && !opened.value.sealed && opened.value.guest),
 )
+// A child's mantel writes back in the writer's own correspondence with it.
+const answerIn = computed(() =>
+  opened.value && !opened.value.sealed && doc.value ? opened.value.answerIn : null,
+)
 const confirming = ref(false)
 const removing = ref(false)
 
@@ -115,6 +119,12 @@ useSeo({ title: 'A letter', description: 'A letter on a mantel you keep.', noind
       <div class="flex flex-wrap items-center justify-between gap-4">
         <UButton variant="ghost" color="neutral" :to="`/mantels/${mantelId}`">
           Back to the mantel
+        </UButton>
+        <UButton
+          v-if="answerIn"
+          :to="{ path: '/write', query: { as: mantelId, to: answerIn, reply: letterId } }"
+        >
+          Write back as {{ mantelName }}
         </UButton>
         <UButton v-if="canRemove" variant="ghost" color="error" @click="confirming = true">
           Remove this letter
